@@ -138,7 +138,16 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`VPN Toggle UI is running on http://localhost:${PORT}`);
   console.log(`Using Main API at: ${MAIN_API_URL}`);
 });
+
+// Graceful shutdown
+function shutdown() {
+  console.log('Shutting down...');
+  server.close(() => process.exit(0));
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
