@@ -1,10 +1,11 @@
-import type { CalendarConfig } from './types.ts';
+import type { CalendarConfig, SubCalendarConfig } from './types.ts';
 
 export interface AppConfig {
   port: number;
   cacheTtlMinutes: number;
   timezone: string; // e.g., "+03:00"
   calendars: CalendarConfig[];
+  subCalendars: SubCalendarConfig[];
 }
 
 const DEFAULT_COLORS = [
@@ -63,11 +64,57 @@ function parseCalendarConfigs(): CalendarConfig[] {
   return calendars;
 }
 
+const SUBCALENDAR_PREFIX = 'SUBCALENDAR_';
+
+/**
+ * Parse sub-calendars based on title prefix.
+ *
+ * Use SUBCALENDAR_IDS to list sub-calendars:
+ *   SUBCALENDAR_IDS=VASYA,PETYA
+ *   SUBCALENDAR_VASYA_NAME=Вася       (name is also used as prefix to match)
+ *   SUBCALENDAR_VASYA_COLOR=#FF69B4
+ */
+function parseSubCalendarConfigs(): SubCalendarConfig[] {
+  const subCalendars: SubCalendarConfig[] = [];
+
+  const ids = process.env.SUBCALENDAR_IDS
+    ?.split(',')
+    .map((id) => id.trim().toUpperCase())
+    .filter(Boolean) || [];
+
+  let colorIndex = 0;
+  for (const id of ids) {
+    const name = process.env[`${SUBCALENDAR_PREFIX}${id}_NAME`];
+    if (!name) {
+      console.warn(`Warning: SUBCALENDAR_${id}_NAME not set, skipping`);
+      continue;
+    }
+
+    const color = process.env[`${SUBCALENDAR_PREFIX}${id}_COLOR`] || DEFAULT_COLORS[colorIndex % DEFAULT_COLORS.length];
+
+    subCalendars.push({
+      id: id.toLowerCase(),
+      prefix: name, // Name is used as prefix
+      name,
+      color,
+    });
+
+    colorIndex++;
+  }
+
+  return subCalendars;
+}
+
 export function loadConfig(): AppConfig {
   const calendars = parseCalendarConfigs();
+  const subCalendars = parseSubCalendarConfigs();
 
   if (calendars.length === 0) {
     console.warn('Warning: No calendars configured. Set CALENDAR_CONFIG_<ID>_URL environment variables.');
+  }
+
+  if (subCalendars.length > 0) {
+    console.log(`Configured sub-calendars: ${subCalendars.map((s) => s.name).join(', ')}`);
   }
 
   return {
@@ -75,5 +122,6 @@ export function loadConfig(): AppConfig {
     cacheTtlMinutes: parseInt(process.env.CACHE_TTL_MINUTES || '5', 10),
     timezone: process.env.TIMEZONE || '+03:00',
     calendars,
+    subCalendars,
   };
 }

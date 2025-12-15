@@ -5,6 +5,13 @@ export interface CalendarConfig {
   color: string;
 }
 
+export interface SubCalendarConfig {
+  id: string;
+  prefix: string;
+  name: string;
+  color: string;
+}
+
 export interface CalendarEvent {
   id: string;
   calendarId: string;

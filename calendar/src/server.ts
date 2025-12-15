@@ -28,6 +28,29 @@ const config = loadConfig();
 const fetcher = new ICSFetcher(config.calendars, config.cacheTtlMinutes);
 const ssrCache = new Cache<SSRWeekData>(config.cacheTtlMinutes);
 
+// Helper to apply sub-calendar prefix matching
+// Matches prefix with variations: "Вася: ", "Вася:", "Вася " for prefix "Вася"
+function applySubCalendar(title: string, defaultColor: string): { title: string; color: string; calendarId: string } {
+  for (const sub of config.subCalendars) {
+    // Try variations: "prefix: ", "prefix:", "prefix "
+    const variations = [
+      sub.prefix + ': ',
+      sub.prefix + ':',
+      sub.prefix + ' ',
+    ];
+    for (const variant of variations) {
+      if (title.startsWith(variant)) {
+        return {
+          title: title.slice(variant.length).trim(),
+          color: sub.color,
+          calendarId: sub.id,
+        };
+      }
+    }
+  }
+  return { title, color: defaultColor, calendarId: '' };
+}
+
 const app = express();
 
 // Configure Pug as the view engine
@@ -103,15 +126,19 @@ app.get('/', async (req: Request, res: Response) => {
 
         const allDayEvents = dayEvents
           .filter((e) => e.allDay)
-          .map((e) => ({
-            id: e.id,
-            title: e.title,
-            color: e.color,
-          }));
+          .map((e) => {
+            const sub = applySubCalendar(e.title, e.color);
+            return {
+              id: e.id,
+              title: sub.title,
+              color: sub.color,
+            };
+          });
 
         const timedEvents = dayEvents
           .filter((e) => !e.allDay)
           .map((e) => {
+            const sub = applySubCalendar(e.title, e.color);
             const start = new Date(e.start);
             const end = new Date(e.end);
 
@@ -128,16 +155,17 @@ app.get('/', async (req: Request, res: Response) => {
 
             return {
               id: e.id,
-              title: e.title,
-              color: e.color,
+              title: sub.title,
+              color: sub.color,
               topPx,
               heightPx,
               timeStr: `${startTime} - ${endTime}`,
             };
           });
 
-        // Store event data for modal
+        // Store event data for modal (keep original title)
         for (const e of dayEvents) {
+          const sub = applySubCalendar(e.title, e.color);
           const start = new Date(e.start);
           const end = new Date(e.end);
 
@@ -152,11 +180,11 @@ app.get('/', async (req: Request, res: Response) => {
           }
 
           eventsData[e.id] = {
-            title: e.title,
+            title: e.title, // Original title with prefix
             timeDisplay,
             location: e.extendedProps.location,
             description: e.extendedProps.description,
-            calendarId: e.extendedProps.calendarId,
+            calendarId: sub.calendarId || e.extendedProps.calendarId,
           };
         }
 
@@ -195,9 +223,15 @@ app.get('/', async (req: Request, res: Response) => {
       };
     });
 
+    // Combine calendars and sub-calendars for legend
+    const allCalendars = [
+      ...config.calendars.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      ...config.subCalendars.map((s) => ({ id: s.id, name: s.name, color: s.color })),
+    ];
+
     res.render('calendar-ssr', {
       title: 'Календарь',
-      calendars: config.calendars.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      calendars: allCalendars,
       refreshInterval: config.cacheTtlMinutes * 60, // seconds for meta refresh
       weekTitle: weekData.weekTitle,
       prevWeek: weekData.prevWeek,
