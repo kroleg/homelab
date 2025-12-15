@@ -161,6 +161,30 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  calendar:
+    container_name: calendar
+    build:
+      context: ./calendar
+      dockerfile: Dockerfile
+    env_file:
+      - ./calendar/.env
+    environment:
+      - PORT=3003
+      - CACHE_TTL_MINUTES=5
+      - CALENDAR_IDS=FAMILY
+      - CALENDAR_CONFIG_FAMILY_NAME=Семья
+      - CALENDAR_CONFIG_FAMILY_COLOR=#FF383C
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.calendar.rule=Host(`calendar.internal`)"
+      - "traefik.http.routers.calendar.entrypoints=web"
+      - "traefik.http.services.calendar.loadbalancer.server.port=3003"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
   prometheus:
     container_name: prometheus
     image: prom/prometheus:v2.54.0

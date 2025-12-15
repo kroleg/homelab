@@ -1,0 +1,168 @@
+extends layout
+
+block content
+  .container
+    header
+      h1= title
+      .calendar-legend
+        each cal in calendars
+          .legend-item
+            .legend-dot(style=`background-color: ${cal.color}`)
+            span= cal.name
+
+    #calendar-wrapper(style="position: relative; flex: 1;")
+      #calendar
+      .loading-overlay#loading
+        .spinner
+
+  //- Event detail modal
+  .modal-overlay#eventModal
+    .modal-content
+      .modal-header
+        h2.modal-title#modalTitle Событие
+        button.modal-close(type="button" onclick="closeModal()") &times;
+      .modal-body
+        p
+          span.label Время:
+          |
+          span#modalTime
+        p#modalLocationRow(style="display: none")
+          span.label Место:
+          |
+          span#modalLocation
+        p#modalDescRow(style="display: none")
+          span.label Описание:
+          |
+          span#modalDescription
+        p
+          span.label Календарь:
+          |
+          span#modalCalendar
+
+  script(src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js" integrity="sha384-5JIwZN3kuxX2zKsavvNmbZ3zhZZMUtu/eQiK3BbXukpSXp0Cd2ZP4OAYKx7mrPgI" crossorigin="anonymous")
+  script(src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales/ru.global.min.js" integrity="sha384-bh7+uA5uoCMsNedLoT8MbQxPgM6ajBUTpspo19I+brMuR2fVImpZ6QxitCG3H0x9" crossorigin="anonymous")
+  script.
+    const refreshInterval = !{refreshInterval};
+    const calendars = !{JSON.stringify(calendars)};
+
+    // Initialize FullCalendar
+    const calendarEl = document.getElementById('calendar');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'timeGridWeek',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'timeGridWeek,timeGridDay'
+      },
+      locale: 'ru',
+      nowIndicator: true,
+      slotMinTime: '06:00:00',
+      slotMaxTime: '23:00:00',
+      slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+      eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+      expandRows: true,
+      stickyHeaderDates: true,
+      dayMaxEvents: true,
+      eventDisplay: 'block',
+
+      // Touch-friendly settings
+      longPressDelay: 100,
+      selectLongPressDelay: 100,
+
+      // Loading indicator
+      loading: function(isLoading) {
+        document.getElementById('loading').classList.toggle('active', isLoading);
+      },
+
+      // Event source - fetches from API
+      events: function(info, successCallback, failureCallback) {
+        // Send dates only (YYYY-MM-DD), backend applies timezone
+        const start = info.start.toISOString().split('T')[0];
+        const end = info.end.toISOString().split('T')[0];
+        fetch(`/api/events?start=${start}&end=${end}`)
+          .then(response => response.json())
+          .then(events => successCallback(events))
+          .catch(err => {
+            console.error('Failed to fetch events:', err);
+            failureCallback(err);
+          });
+      },
+
+      // Event click handler
+      eventClick: function(info) {
+        showEventModal(info.event);
+      },
+
+      // Refresh events periodically
+      refetchResourcesOnNavigate: true
+    });
+
+    calendar.render();
+
+    // Auto-refresh events
+    setInterval(() => {
+      calendar.refetchEvents();
+    }, refreshInterval);
+
+    // Refresh on visibility change (when iPad wakes up)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        calendar.refetchEvents();
+      }
+    });
+
+    // Modal functions
+    function showEventModal(event) {
+      document.getElementById('modalTitle').textContent = event.title;
+
+      // Format time (24h format, Russian locale)
+      const dateOpts = { weekday: 'short', month: 'short', day: 'numeric' };
+      const timeOpts = { hour: '2-digit', minute: '2-digit', hour12: false };
+      const dateStr = event.start.toLocaleDateString('ru-RU', dateOpts);
+      const startTime = event.start.toLocaleTimeString('ru-RU', timeOpts);
+      let timeStr = `${dateStr} ${startTime}`;
+      if (event.end && !event.allDay) {
+        const endTime = event.end.toLocaleTimeString('ru-RU', timeOpts);
+        timeStr = `${dateStr} ${startTime} - ${endTime}`;
+      }
+      if (event.allDay) {
+        timeStr = dateStr + ' (Весь день)';
+      }
+      document.getElementById('modalTime').textContent = timeStr;
+
+      // Location
+      const locationRow = document.getElementById('modalLocationRow');
+      if (event.extendedProps.location) {
+        document.getElementById('modalLocation').textContent = event.extendedProps.location;
+        locationRow.style.display = 'block';
+      } else {
+        locationRow.style.display = 'none';
+      }
+
+      // Description
+      const descRow = document.getElementById('modalDescRow');
+      if (event.extendedProps.description) {
+        document.getElementById('modalDescription').textContent = event.extendedProps.description;
+        descRow.style.display = 'block';
+      } else {
+        descRow.style.display = 'none';
+      }
+
+      // Calendar name
+      const calId = event.extendedProps.calendarId;
+      const cal = calendars.find(c => c.id === calId);
+      document.getElementById('modalCalendar').textContent = cal ? cal.name : calId;
+
+      document.getElementById('eventModal').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('eventModal').classList.remove('show');
+    }
+
+    // Close modal on overlay click
+    document.getElementById('eventModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModal();
+      }
+    });
