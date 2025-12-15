@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM node:22 AS builder
+FROM node:24 AS builder
 
 WORKDIR /usr/app
 
@@ -21,7 +21,7 @@ RUN pnpm run build
 RUN pnpm install --prod
 
 # Stage 2: Production image
-FROM node:22-slim
+FROM node:24-slim
 
 WORKDIR /usr/app
 

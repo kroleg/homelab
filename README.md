@@ -41,6 +41,24 @@ cp .env.example .env
 docker compose up -d
 ```
 
+## Development
+
+### Node.js
+
+Node.js is installed manually at `~/opt/node-current` (symlink to versioned directory).
+
+To upgrade Node.js:
+
+```bash
+cd ~/opt
+curl -O https://nodejs.org/dist/latest-v24.x/node-v24.x.x-linux-x64.tar.xz
+tar -xf node-v24.x.x-linux-x64.tar.xz
+rm node-current
+ln -s node-v24.x.x-linux-x64 node-current
+```
+
+Replace `v24.x.x` with the actual version number.
+
 ## Internal Domains
 
 - `admin.internal` - Admin dashboard

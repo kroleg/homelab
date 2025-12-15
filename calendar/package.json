@@ -5,8 +5,8 @@
   "type": "module",
   "main": "./src/server.ts",
   "scripts": {
-    "start": "node --experimental-strip-types --env-file-if-exists=.env --watch src/server.ts",
-    "start:prod": "node --experimental-strip-types src/server.ts",
+    "start": "node --env-file-if-exists=.env --watch src/server.ts",
+    "start:prod": "node src/server.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
