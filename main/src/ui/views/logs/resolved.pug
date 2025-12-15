@@ -2,13 +2,13 @@ extends ../layout
 
 block content
   .d-flex.justify-content-between.align-items-center.mb-4
-    h2 Failed DNS Requests
+    h2 Resolved DNS Requests
     div
       a.btn.btn-outline-primary.me-2(href='http://grafana.internal/d/dns-proxy-metrics' target='_blank') Grafana
       a.btn.btn-secondary(href='/logs') Back to Logs
 
-  if failedRequests.length === 0
-    p.text-muted No failed requests found.
+  if requests.length === 0
+    p.text-muted No resolved requests found.
   else
     .table-responsive
       table.table.table-striped.table-hover
@@ -17,16 +17,16 @@ block content
             th Timestamp
             th Client IP
             th Hostname
-            th Error Message
+            th Resolved IPs
             th Response Time
         tbody
-          each request in failedRequests
+          each request in requests
             tr
               td= new Date(request.created_at).toLocaleString()
               td
                 a(href=`/logs/${request.client_ip}`)= request.client_ip
               td= request.hostname
-              td.text-danger= request.error_message
+              td.text-success= request.resolved_ips ? request.resolved_ips.join(', ') : '-'
               td= request.response_time_ms ? request.response_time_ms + 'ms' : '-'
 
     if pagination && pagination.totalPages > 1
@@ -43,6 +43,6 @@ block content
             a.page-link(href=`?page=${pagination.page + 1}`) Next
 
   p.text-muted.mt-4
-    | Showing #{failedRequests.length} of #{pagination.total} failed requests from last 7 days
+    | Showing #{requests.length} of #{pagination.total} resolved requests (last 1000 in memory)
     if pagination.totalPages > 1
       |  (Page #{pagination.page} of #{pagination.totalPages})

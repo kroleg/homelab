@@ -72,6 +72,54 @@ export function createLogsRouter({ api }: { api: KeeneticApi }): express.Router 
     }
   });
 
+  router.get('/resolved', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = 50;
+
+      const response = await fetch(`${DNS_API_URL}/dns-requests?status=resolved&page=${page}&limit=${limit}`);
+
+      if (!response.ok) {
+        throw new Error(`DNS API returned ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      res.render('logs/resolved', {
+        requests: result.data,
+        pagination: result.pagination,
+        title: 'Resolved DNS Requests',
+        currentPath: req.path
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/blocked', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = 50;
+
+      const response = await fetch(`${DNS_API_URL}/dns-requests?status=blocked&page=${page}&limit=${limit}`);
+
+      if (!response.ok) {
+        throw new Error(`DNS API returned ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      res.render('logs/blocked', {
+        requests: result.data,
+        pagination: result.pagination,
+        title: 'Blocked DNS Requests',
+        currentPath: req.path
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.get('/:ip', async (req: Request, res: Response, next: NextFunction) => {
     const clientIp = req.params.ip !== 'my' ? req.params.ip : req.ip?.replace('::ffff:', '')
     if (!clientIp) {

@@ -6,7 +6,7 @@ import { defaultConfig } from './config.js';
 import type { UpstreamServer } from './config.js';
 import fs from 'node:fs/promises';
 import type { Logger } from 'winston';
-import { DnsRequestLogger } from './db.js';
+import { recordRequest } from './metrics.js';
 import { DnsOverTlsClient } from './dns-over-tls.js';
 
 export class DnsProxy {
@@ -15,13 +15,11 @@ export class DnsProxy {
   private logResolvedToFile: string;
   private hostToIpMap: Map<string, string[]> = new Map();
   private blockedDomains: Set<string> = new Set();
-  private dbLogger: DnsRequestLogger;
   private dotClient: DnsOverTlsClient;
 
   constructor(private config: typeof defaultConfig) {
     this.logger = createLogger(config.logLevel);
     this.server = dgram.createSocket('udp4');
-    this.dbLogger = new DnsRequestLogger(this.logger);
     this.dotClient = new DnsOverTlsClient(this.logger);
     this.setupServer();
     this.logResolvedToFile = config.logResolvedToFile;
@@ -142,9 +140,6 @@ export class DnsProxy {
       class: question.class
     });
 
-    // Log pending request to database
-    const requestId = await this.dbLogger.logPendingRequest(clientIp, question.name, question.type);
-
     // Check host-to-IP map first
     const mappedIps = this.hostToIpMap.get(question.name);
     if (question.type === 'A' && mappedIps) {
@@ -165,7 +160,7 @@ export class DnsProxy {
       const responseTime = Date.now() - startTime;
       this.logger.info(`client: ${clientIp} query: ${question.name} response (local): ${mappedIps}`);
       await this.logResolvedHost({ clientIp, hostname: question.name, ips: mappedIps });
-      await this.dbLogger.updateResolved(requestId, mappedIps, responseTime);
+      recordRequest({ clientIp, hostname: question.name, queryType: question.type, status: 'resolved', resolvedIps: mappedIps, responseTimeMs: responseTime });
       return response;
     }
 
@@ -173,7 +168,7 @@ export class DnsProxy {
     if ((question.type === 'A' || question.type === 'AAAA') && this.isBlocked(question.name)) {
       const responseTime = Date.now() - startTime;
       this.logger.info(`client: ${clientIp} query: ${question.name} BLOCKED`);
-      await this.dbLogger.updateResolved(requestId, ['0.0.0.0'], responseTime);
+      recordRequest({ clientIp, hostname: question.name, queryType: question.type, status: 'blocked', resolvedIps: ['0.0.0.0'], responseTimeMs: responseTime });
       return dnsPacket.encode({
         id: query.id,
         type: 'response',
@@ -222,7 +217,7 @@ export class DnsProxy {
       }
 
       const responseTime = Date.now() - startTime;
-      await this.dbLogger.updateResolved(requestId, resolvedIps, responseTime);
+      recordRequest({ clientIp, hostname: question.name, queryType: question.type, status: 'resolved', resolvedIps, responseTimeMs: responseTime });
       this.logIfSlow(startTime, this.config.slowDnsThresholdMs, `SLOW RESP: ${ question.name }`)
       return response;
 
@@ -238,7 +233,7 @@ export class DnsProxy {
         this.logger.error(`DNS request error for ${question.name}:`, error);
       }
 
-      await this.dbLogger.updateFailed(requestId, errorMessage, responseTime);
+      recordRequest({ clientIp, hostname: question.name, queryType: question.type, status: 'failed', errorMessage, responseTimeMs: responseTime });
 
       // Return DNS SERVFAIL response
       const servfailResponse = dnsPacket.encode({
@@ -299,8 +294,6 @@ export class DnsProxy {
   }
 
   public async start(): Promise<void> {
-    if (this.dbLogger) await this.dbLogger.initialize();
-
     return new Promise((resolve) => {
       this.server.bind(this.config.listenPort, () => {
         this.logger.info(`DNS server listening on port ${this.config.listenPort}`);
@@ -311,9 +304,8 @@ export class DnsProxy {
 
   public async stop(): Promise<void> {
     return new Promise((resolve) => {
-      this.server.close(async () => {
+      this.server.close(() => {
         this.logger.info('DNS server stopped');
-        if (this.dbLogger) await this.dbLogger.close();
         resolve();
       });
     });
