@@ -1,33 +1,13 @@
-# Stage 1: Build the application
-FROM node:24 AS builder
-
-WORKDIR /usr/app
-
-
-# Install pnpm
-RUN npm install -g pnpm@10
-
-# Install dependencies
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install
-
-# Copy source code and tsconfig
-COPY tsconfig.json ./
-COPY src ./src
-
-RUN pnpm run build
-
-# Remove dev dependencies
-RUN pnpm install --prod
-
-# Stage 2: Production image
 FROM node:24-slim
 
 WORKDIR /usr/app
 
-COPY --from=builder /usr/app/node_modules ./node_modules
-COPY --from=builder /usr/app/dist ./dist
+RUN npm install -g pnpm@10
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile --prod
+
+COPY src ./src
 COPY migrations ./migrations
 
-# Command to run the application
-CMD ["node", "dist/main.js"]
+CMD ["node", "src/main.ts"]
