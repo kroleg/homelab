@@ -28,6 +28,26 @@ const config = loadConfig();
 const fetcher = new ICSFetcher(config.calendars, config.cacheTtlMinutes);
 const ssrCache = new Cache<SSRWeekData>(config.cacheTtlMinutes);
 
+// Parse timezone offset from config (e.g., "+03:00" -> 180 minutes)
+function parseTimezoneOffset(tz: string): number {
+  const match = tz.match(/^([+-])(\d{2}):(\d{2})$/);
+  if (!match) return 0;
+  const sign = match[1] === '+' ? 1 : -1;
+  const hours = parseInt(match[2], 10);
+  const minutes = parseInt(match[3], 10);
+  return sign * (hours * 60 + minutes);
+}
+
+const tzOffsetMinutes = parseTimezoneOffset(config.timezone);
+
+// Convert a Date to the configured timezone for display
+function toTz(date: Date): Date {
+  // getTimezoneOffset returns the difference in minutes from UTC (negative for +TZ)
+  // We want to shift the date to display as if it were in the target timezone
+  const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+  return new Date(utc + tzOffsetMinutes * 60000);
+}
+
 // Helper to apply sub-calendar prefix matching
 // Matches prefix with variations: "Вася: ", "Вася:", "Вася " for prefix "Вася"
 function applySubCalendar(title: string, defaultColor: string): { title: string; color: string; calendarId: string } {
@@ -65,7 +85,7 @@ app.get('/', async (req: Request, res: Response) => {
   try {
     // Parse week parameter or use current week
     const weekParam = req.query.week as string | undefined;
-    const today = new Date();
+    const today = toTz(new Date());
 
     let weekStart: Date;
     if (weekParam) {
@@ -120,7 +140,7 @@ app.get('/', async (req: Request, res: Response) => {
 
         // Filter events for this day
         const dayEvents = events.filter((event) => {
-          const eventStart = new Date(event.start);
+          const eventStart = toTz(new Date(event.start));
           return eventStart.toDateString() === date.toDateString();
         });
 
@@ -139,8 +159,8 @@ app.get('/', async (req: Request, res: Response) => {
           .filter((e) => !e.allDay)
           .map((e) => {
             const sub = applySubCalendar(e.title, e.color);
-            const start = new Date(e.start);
-            const end = new Date(e.end);
+            const start = toTz(new Date(e.start));
+            const end = toTz(new Date(e.end));
 
             // Calculate position (top) based on start time
             // 6:00 is row 1, each hour is 40px
@@ -166,8 +186,8 @@ app.get('/', async (req: Request, res: Response) => {
         // Store event data for modal (keep original title)
         for (const e of dayEvents) {
           const sub = applySubCalendar(e.title, e.color);
-          const start = new Date(e.start);
-          const end = new Date(e.end);
+          const start = toTz(new Date(e.start));
+          const end = toTz(new Date(e.end));
 
           let timeDisplay: string;
           if (e.allDay) {
