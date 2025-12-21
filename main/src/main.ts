@@ -1,11 +1,11 @@
-import { startFileWatcher } from "./file-watcher.js";
-import { KeeneticApi } from './keenetic-api.js';
-import { createLogger } from './logger.js';
-import { getAllServices, getServiceByName, type Service } from "./storage/service.repository.js";
-import { runMigrations } from "./storage/db.js";
-import { startUI } from "./ui/server.js";
-import { matchWithoutStars, wildcardDomainMatch } from "./matcher.js";
-import { optimizeRoutes, calculateOptimizationStats, filterIpsCoveredByOptimizedRoutes } from "./utils/route-optimizer.js";
+import { startFileWatcher } from "./file-watcher.ts";
+import { KeeneticApi } from './keenetic-api.ts';
+import { createLogger } from './logger.ts';
+import { getAllServices, getServiceByName, type Service } from "./storage/service.repository.ts";
+import { runMigrations } from "./storage/db.ts";
+import { startUI } from "./ui/server.ts";
+import { matchWithoutStars, wildcardDomainMatch } from "./matcher.ts";
+import { optimizeRoutes, calculateOptimizationStats, filterIpsCoveredByOptimizedRoutes } from "./utils/route-optimizer.ts";
 
 const logger = createLogger(process.env.LOG_LEVEL || 'info');
 

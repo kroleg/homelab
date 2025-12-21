@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import dns from 'dns/promises';
-import type { KeeneticApi } from '../keenetic-api.js';
+import type { KeeneticApi } from '../keenetic-api.ts';
 
 interface RouteMatch {
   ip: string;

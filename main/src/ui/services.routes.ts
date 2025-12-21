@@ -1,8 +1,8 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
-import * as serviceRepository from '../storage/service.repository.js';
-import type { KeeneticApi } from '../keenetic-api.js';
-import { matchDomainsAgainstPatterns } from '../utils/dns-log-processor.js';
-import { filterIpsCoveredByOptimizedRoutes } from '../utils/route-optimizer.js';
+import * as serviceRepository from '../storage/service.repository.ts';
+import type { KeeneticApi } from '../keenetic-api.ts';
+import { matchDomainsAgainstPatterns } from '../utils/dns-log-processor.ts';
+import { filterIpsCoveredByOptimizedRoutes } from '../utils/route-optimizer.ts';
 
 const DNS_API_URL = process.env.DNS_API_URL || 'http://dns-proxy:3001';
 

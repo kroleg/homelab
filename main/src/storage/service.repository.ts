@@ -1,5 +1,5 @@
-import { db } from './db.js';
-import { servicesTable } from './db-schema.js';
+import { db } from './db.ts';
+import { servicesTable } from './db-schema.ts';
 import { eq, asc, type InferSelectModel, type InferInsertModel } from 'drizzle-orm';
 
 // Type for a selected service (matches the database record)

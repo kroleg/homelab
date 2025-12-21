@@ -1,5 +1,5 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
-import type { KeeneticApi } from '../keenetic-api.js';
+import type { KeeneticApi } from '../keenetic-api.ts';
 
 export function createDevicesRouter(api: KeeneticApi): express.Router {
   const router = express.Router();

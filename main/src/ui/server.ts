@@ -1,13 +1,13 @@
 import express, { type Request, type Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createServicesRouter } from './services.routes.js';
-import { createLogsRouter } from './logs.routes.js';
-import { createDevicesRouter } from './devices.routes.js';
-import { createCheckRouter } from './check.routes.js';
-import { createApiRouter } from './api.routes.js';
+import { createServicesRouter } from './services.routes.ts';
+import { createLogsRouter } from './logs.routes.ts';
+import { createDevicesRouter } from './devices.routes.ts';
+import { createCheckRouter } from './check.routes.ts';
+import { createApiRouter } from './api.routes.ts';
 import type { Logger } from 'winston';
-import type { KeeneticApi } from '../keenetic-api.js';
+import type { KeeneticApi } from '../keenetic-api.ts';
 
 export function startUI(logger: Logger, api: KeeneticApi) {
 
