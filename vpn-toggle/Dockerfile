@@ -4,10 +4,16 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile --prod
+COPY package.json pnpm-lock.yaml* tsconfig.json ./
+RUN pnpm install --frozen-lockfile
 
 COPY src ./src
+
+# Fail build if TypeScript has errors
+RUN pnpm run typecheck
+
+# Remove dev deps for smaller image
+RUN pnpm prune --prod
 
 EXPOSE 3002
 
