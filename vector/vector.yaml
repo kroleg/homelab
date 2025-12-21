@@ -1,0 +1,35 @@
+sources:
+  docker_logs:
+    type: docker_logs
+    exclude_containers:
+      - vector
+      - seq
+
+transforms:
+  parse_logs:
+    type: remap
+    inputs:
+      - docker_logs
+    source: |
+      .@t = .timestamp
+      .@m = replace!(.message, r'\x1b\[[0-9;]*m', "")
+      .Container = .container_name
+      del(.source_type)
+      del(.timestamp)
+      del(.message)
+      del(.container_name)
+      del(.container_id)
+      del(.container_created_at)
+
+sinks:
+  seq:
+    type: http
+    inputs:
+      - parse_logs
+    uri: http://seq:5341/api/events/raw?clef
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    healthcheck:
+      enabled: false

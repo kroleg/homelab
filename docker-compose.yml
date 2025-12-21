@@ -232,6 +232,24 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  loki:
+    container_name: loki
+    image: grafana/loki:3.3.2
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+    restart: unless-stopped
+
+  promtail:
+    container_name: promtail
+    image: grafana/promtail:3.3.2
+    volumes:
+      - ./promtail/promtail.yaml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+
 networks:
   shared:
     name: shared
@@ -240,3 +258,4 @@ volumes:
   postgres_main_data:
   prometheus_data:
   grafana_data:
+  loki_data:
