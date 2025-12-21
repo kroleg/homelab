@@ -1,7 +1,7 @@
-import { DnsProxy } from './dns-proxy.js';
-import { DnsLogsApi } from './api.js';
-import { defaultConfig } from './config.js';
-import { createLogger } from './logger.js';
+import { DnsProxy } from './dns-proxy.ts';
+import { DnsLogsApi } from './api.ts';
+import { defaultConfig } from './config.ts';
+import { createLogger } from './logger.ts';
 
 async function main() {
   const logger = createLogger(defaultConfig.logLevel);

@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import type { Logger } from 'winston';
-import { register, getRecentRequests, getStats, getUniqueHostnames, getUniqueClients, type DnsRequest } from './metrics.js';
+import { register, getRecentRequests, getStats, getUniqueHostnames, getUniqueClients, type DnsRequest } from './metrics.ts';
 
 // Parse time delta strings like "7d", "1w", "24h", "30m"
 function parseDelta(delta: string): Date | null {

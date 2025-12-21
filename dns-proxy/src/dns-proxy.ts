@@ -1,13 +1,13 @@
 import dgram from 'node:dgram';
 import type { RemoteInfo } from 'node:dgram';
 import dnsPacket, { type DnsAnswer } from 'dns-packet';
-import { createLogger } from './logger.js';
-import { defaultConfig } from './config.js';
-import type { UpstreamServer } from './config.js';
+import { createLogger } from './logger.ts';
+import { defaultConfig } from './config.ts';
+import type { UpstreamServer } from './config.ts';
 import fs from 'node:fs/promises';
 import type { Logger } from 'winston';
-import { recordRequest } from './metrics.js';
-import { DnsOverTlsClient } from './dns-over-tls.js';
+import { recordRequest } from './metrics.ts';
+import { DnsOverTlsClient } from './dns-over-tls.ts';
 
 export class DnsProxy {
   private server: dgram.Socket;
@@ -17,8 +17,10 @@ export class DnsProxy {
   private wildcardHostToIpMap: Map<string, string[]> = new Map(); // suffix -> IPs (e.g., ".internal" -> ["192.168.1.100"])
   private blockedDomains: Set<string> = new Set();
   private dotClient: DnsOverTlsClient;
+  private config: typeof defaultConfig;
 
-  constructor(private config: typeof defaultConfig) {
+  constructor(config: typeof defaultConfig) {
+    this.config = config;
     this.logger = createLogger(config.logLevel);
     this.server = dgram.createSocket('udp4');
     this.dotClient = new DnsOverTlsClient(this.logger);

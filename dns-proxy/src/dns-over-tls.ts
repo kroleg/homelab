@@ -1,9 +1,13 @@
 import tls from 'node:tls';
-import type { UpstreamServer } from './config.js';
+import type { UpstreamServer } from './config.ts';
 import type { Logger } from 'winston';
 
 export class DnsOverTlsClient {
-  constructor(private logger: Logger) {}
+  private logger: Logger;
+
+  constructor(logger: Logger) {
+    this.logger = logger;
+  }
 
   /**
    * Send a DNS query over TLS to an upstream server

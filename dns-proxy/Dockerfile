@@ -1,31 +1,18 @@
-# Stage 1: Build the application
-FROM node:24-alpine AS builder
-
-WORKDIR /usr/app
-
-# Install dependencies
-COPY package.json package-lock.json ./
-RUN npm ci
-
-# Copy source code and tsconfig
-COPY tsconfig.json ./
-COPY src ./src
-
-# Build the TypeScript project
-RUN npm run build
-
-# Stage 2: Production image
 FROM node:24-alpine
 
-WORKDIR /usr/app
+WORKDIR /app
 
-# Copy only necessary production artifacts
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts # Install prod dependencies again, skip scripts
+COPY package.json package-lock.json tsconfig.json ./
+RUN npm ci
 
-COPY --from=builder /usr/app/dist ./dist
+COPY src ./src
+
+# Fail build if TypeScript has errors
+RUN npm run typecheck
+
+# Remove dev deps for smaller image
+RUN npm prune --omit=dev
 
 EXPOSE 53
 
-# Command to run the application
-CMD ["node", "dist/server.js"]
+CMD ["node", "src/server.ts"]
