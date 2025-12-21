@@ -11,6 +11,7 @@ interface SSRWeekData {
   weekTitle: string;
   prevWeek: string;
   nextWeek: string;
+  startHour: number;
   days: Array<{
     dayName: string;
     dayNum: number;
@@ -85,38 +86,45 @@ app.get('/', async (req: Request, res: Response) => {
   try {
     // Parse week parameter or use current week
     const weekParam = req.query.week as string | undefined;
+    // Parse days parameter (3 or 7, default 7)
+    const daysParam = parseInt(req.query.days as string, 10);
+    const numDays = daysParam === 3 ? 3 : 7;
     const today = toTz(new Date());
 
     let weekStart: Date;
     if (weekParam) {
       weekStart = new Date(weekParam);
-      // Adjust to Monday if needed
-      const dayOfWeek = weekStart.getDay();
-      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      weekStart.setDate(weekStart.getDate() + diff);
+      if (numDays === 7) {
+        // Adjust to Monday if needed
+        const dayOfWeek = weekStart.getDay();
+        const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        weekStart.setDate(weekStart.getDate() + diff);
+      }
     } else {
-      // Get current week's Monday
       weekStart = new Date(today);
-      const dayOfWeek = weekStart.getDay();
-      const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      weekStart.setDate(weekStart.getDate() + diff);
+      if (numDays === 7) {
+        // Get current week's Monday
+        const dayOfWeek = weekStart.getDay();
+        const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        weekStart.setDate(weekStart.getDate() + diff);
+      }
     }
     weekStart.setHours(0, 0, 0, 0);
 
-    const weekKey = weekStart.toISOString().split('T')[0];
+    const weekKey = `${weekStart.toISOString().split('T')[0]}-${numDays}`;
 
     // Check cache first
     let weekData = ssrCache.get(weekKey);
 
     if (!weekData) {
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
+      weekEnd.setDate(weekEnd.getDate() + numDays);
 
-      // Calculate prev/next week dates
+      // Calculate prev/next period dates
       const prevWeekDate = new Date(weekStart);
-      prevWeekDate.setDate(prevWeekDate.getDate() - 7);
+      prevWeekDate.setDate(prevWeekDate.getDate() - numDays);
       const nextWeekDate = new Date(weekStart);
-      nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+      nextWeekDate.setDate(nextWeekDate.getDate() + numDays);
 
       // Fetch events
       const events = await fetcher.fetchEvents(weekStart, weekEnd);
@@ -132,7 +140,20 @@ app.get('/', async (req: Request, res: Response) => {
       const days: SSRWeekData['days'] = [];
       const eventsData: SSRWeekData['eventsData'] = {};
 
-      for (let i = 0; i < 7; i++) {
+      // Find earliest event start hour (default to 9)
+      let earliestHour = 9;
+      for (const event of events) {
+        if (!event.allDay) {
+          const eventStart = toTz(new Date(event.start));
+          const hour = eventStart.getHours();
+          if (hour < earliestHour) {
+            earliestHour = hour;
+          }
+        }
+      }
+      const startHour = earliestHour;
+
+      for (let i = 0; i < numDays; i++) {
         const date = new Date(weekStart);
         date.setDate(date.getDate() + i);
 
@@ -163,11 +184,10 @@ app.get('/', async (req: Request, res: Response) => {
             const end = toTz(new Date(e.end));
 
             // Calculate position (top) based on start time
-            // 6:00 is row 1, each hour is 40px
-            const startHour = start.getHours() + start.getMinutes() / 60;
-            const endHour = end.getHours() + end.getMinutes() / 60;
-            const topPx = (startHour - 6) * 40;
-            const heightPx = Math.max((endHour - startHour) * 40, 20);
+            const eventStartHour = start.getHours() + start.getMinutes() / 60;
+            const eventEndHour = end.getHours() + end.getMinutes() / 60;
+            const topPx = (eventStartHour - startHour) * 40;
+            const heightPx = Math.max((eventEndHour - eventStartHour) * 40, 20);
 
             // Format time string
             const startTime = start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -226,6 +246,7 @@ app.get('/', async (req: Request, res: Response) => {
         weekTitle,
         prevWeek: prevWeekDate.toISOString().split('T')[0],
         nextWeek: nextWeekDate.toISOString().split('T')[0],
+        startHour,
         days,
         eventsData,
       };
@@ -249,6 +270,9 @@ app.get('/', async (req: Request, res: Response) => {
       ...config.subCalendars.map((s) => ({ id: s.id, name: s.name, color: s.color })),
     ];
 
+    // Check if any day has all-day events
+    const hasAllDayEvents = daysWithToday.some((day) => day.allDayEvents.length > 0);
+
     res.render('calendar-ssr', {
       title: 'Календарь',
       calendars: allCalendars,
@@ -256,8 +280,11 @@ app.get('/', async (req: Request, res: Response) => {
       weekTitle: weekData.weekTitle,
       prevWeek: weekData.prevWeek,
       nextWeek: weekData.nextWeek,
+      startHour: weekData.startHour,
       days: daysWithToday,
       eventsData: weekData.eventsData,
+      numDays,
+      hasAllDayEvents,
     });
   } catch (error) {
     console.error('SSR calendar error:', error);

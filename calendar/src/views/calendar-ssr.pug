@@ -38,11 +38,6 @@ html(lang="ru")
         font-size: 1.5rem;
         font-weight: 600;
       }
-      .header-right {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
       .calendar-legend {
         display: flex;
         gap: 12px;
@@ -58,29 +53,58 @@ html(lang="ru")
         height: 10px;
         border-radius: 50%;
       }
-      .nav-controls {
+      .nav-combined {
         display: flex;
-        gap: 8px;
         align-items: center;
+        gap: 8px;
       }
-      .nav-btn {
-        padding: 8px 16px;
+      .nav-combined .nav-arrow {
+        padding: 8px 12px;
         background: #fff;
         border: 1px solid #ddd;
         border-radius: 4px;
         text-decoration: none;
         color: #333;
         font-size: 0.9rem;
-        cursor: pointer;
       }
-      .nav-btn:hover {
+      .nav-combined .nav-arrow:hover {
         background: #f0f0f0;
       }
-      .week-title {
-        font-size: 1rem;
-        font-weight: 500;
-        min-width: 200px;
-        text-align: center;
+      .days-toggle {
+        display: flex;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .days-toggle a {
+        padding: 8px 12px;
+        background: #fff;
+        text-decoration: none;
+        color: #333;
+        font-size: 0.9rem;
+        border-right: 1px solid #ddd;
+      }
+      .days-toggle a:last-child {
+        border-right: none;
+      }
+      .days-toggle a:hover {
+        background: #f0f0f0;
+      }
+      .days-toggle a.active {
+        background: #1976d2;
+        color: white;
+      }
+      .nav-combined .nav-today {
+        padding: 8px 12px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #333;
+        font-size: 0.9rem;
+      }
+      .nav-combined .nav-today:hover {
+        background: #f0f0f0;
       }
       .calendar-wrapper {
         flex: 1;
@@ -93,7 +117,7 @@ html(lang="ru")
       }
       .day-headers {
         display: grid;
-        grid-template-columns: 60px repeat(7, 1fr);
+        grid-template-columns: 60px repeat(var(--num-days, 7), 1fr);
         border-bottom: 1px solid #e0e0e0;
         position: sticky;
         top: 0;
@@ -138,7 +162,7 @@ html(lang="ru")
         border-bottom: 2px solid #e0e0e0;
         min-height: 30px;
         display: grid;
-        grid-template-columns: 60px repeat(7, 1fr);
+        grid-template-columns: 60px repeat(var(--num-days, 7), 1fr);
       }
       .all-day-label {
         padding: 4px 8px;
@@ -172,7 +196,7 @@ html(lang="ru")
       .time-grid-wrapper {
         flex: 1;
         display: grid;
-        grid-template-columns: 60px repeat(7, 1fr);
+        grid-template-columns: 60px repeat(var(--num-days, 7), 1fr);
         min-height: 680px;
       }
       .time-labels {
@@ -286,23 +310,100 @@ html(lang="ru")
         font-weight: 500;
         color: #666;
       }
+      /* Mobile responsive styles */
+      @media (max-width: 768px) {
+        .container {
+          padding: 5px;
+        }
+        header {
+          flex-direction: column;
+          align-items: center;
+        }
+        header h1 {
+          text-align: center;
+          font-size: 1.25rem;
+        }
+        .nav-combined {
+          order: 0;
+        }
+        .nav-combined .nav-arrow,
+        .nav-combined .nav-today,
+        .days-toggle a {
+          padding: 6px 10px;
+          font-size: 0.8rem;
+        }
+        .calendar-legend {
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+        .calendar-wrapper {
+          border-radius: 4px;
+        }
+        .time-header {
+          width: 40px;
+          padding: 4px;
+        }
+        .time-labels {
+          min-width: 40px;
+        }
+        .time-label {
+          padding: 0 4px;
+          font-size: 0.65rem;
+        }
+        .day-headers {
+          grid-template-columns: 40px repeat(var(--num-days, 7), 1fr);
+        }
+        .all-day-section {
+          grid-template-columns: 40px repeat(var(--num-days, 7), 1fr);
+        }
+        .time-grid-wrapper {
+          grid-template-columns: 40px repeat(var(--num-days, 7), 1fr);
+        }
+        .all-day-label {
+          font-size: 0.65rem;
+          padding: 2px 4px;
+        }
+        .day-header {
+          padding: 4px;
+        }
+        .day-header .day-name {
+          font-size: 0.75rem;
+        }
+        .day-header .day-num {
+          font-size: 1rem;
+        }
+        .day-header.today .day-num {
+          width: 26px;
+          height: 26px;
+        }
+        .event {
+          font-size: 0.65rem;
+        }
+        .event-time {
+          font-size: 0.6rem;
+        }
+        .all-day-event {
+          font-size: 0.65rem;
+        }
+      }
   body
     .container
       header
         h1= title
-        .header-right
-          .calendar-legend
-            each cal in calendars
-              .legend-item
-                .legend-dot(style=`background-color: ${cal.color}`)
-                span= cal.name
-          .nav-controls
-            a.nav-btn(href=`/?week=${prevWeek}`) &larr;
-            span.week-title= weekTitle
-            a.nav-btn(href=`/?week=${nextWeek}`) &rarr;
-            a.nav-btn(href="/") Сегодня
+        .nav-combined
+          .days-toggle
+            a(href=`/?days=3` class=numDays === 3 ? 'active' : '') 3 дня
+            a(href=`/?days=7` class=numDays === 7 ? 'active' : '') Неделя
+          a.nav-arrow(href=`/?week=${prevWeek}&days=${numDays}`) &larr;
+          a.nav-today(href=`/?days=${numDays}`) Сегодня
+          a.nav-arrow(href=`/?week=${nextWeek}&days=${numDays}`) &rarr;
+        .calendar-legend
+          each cal in calendars
+            .legend-item
+              .legend-dot(style=`background-color: ${cal.color}`)
+              span= cal.name
 
-      .calendar-wrapper
+      .calendar-wrapper(style=`--num-days: ${numDays}`)
         .day-headers
           .time-header
           each day in days
@@ -310,20 +411,21 @@ html(lang="ru")
               .day-name= day.dayName
               .day-num= day.dayNum
 
-        .all-day-section
-          .all-day-label Весь день
-          each day in days
-            .all-day-cell
-              each event in day.allDayEvents
-                .all-day-event(
-                  style=`background-color: ${event.color}`
-                  data-event-id=event.id
-                  onclick=`showModal('${event.id}')`
-                )= event.title
+        if hasAllDayEvents
+          .all-day-section
+            .all-day-label Весь день
+            each day in days
+              .all-day-cell
+                each event in day.allDayEvents
+                  .all-day-event(
+                    style=`background-color: ${event.color}`
+                    data-event-id=event.id
+                    onclick=`showModal('${event.id}')`
+                  )= event.title
 
         .time-grid-wrapper
           .time-labels
-            - const hours = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
+            - const hours = Array.from({length: 23 - startHour}, (_, i) => startHour + i)
             each hour in hours
               .time-label= hour.toString().padStart(2, '0') + ':00'
 
@@ -331,7 +433,7 @@ html(lang="ru")
             .day-column
               //- Hour lines for visual grid
               each hour in hours
-                .hour-line(style=`top: ${(hour - 6) * 40}px`)
+                .hour-line(style=`top: ${(hour - startHour) * 40}px`)
               //- Events
               each event in day.timedEvents
                 .event(
