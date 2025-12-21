@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "Keenetic VPN API wrapper",
   "type": "module",
-  "main": "./src/main.ts",
+  "main": "./dist/index.js",
   "scripts": {
-    "start": "node --env-file=.env --watch src/main.ts",
+    "build": "tsc && cp -r src/ui/views dist/ui/views",
+    "start": "tsx --env-file=.env --watch src/main.ts",
     "test": "vitest",
     "test:watch": "vitest watch",
     "typecheck": "tsc --noEmit"
@@ -23,6 +24,8 @@
     "express": "^5.1.0",
     "pg": "^8.16.3",
     "pug": "^3.0.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
     "winston": "^3.17.0"
   },
   "devDependencies": {
@@ -30,7 +33,6 @@
     "@types/node": "^22.15.17",
     "@types/pg": "^8.15.6",
     "drizzle-kit": "^0.31.1",
-    "typescript": "^5.8.3",
     "vitest": "^3.1.3"
   }
 }
