@@ -14,6 +14,7 @@ export class DnsProxy {
   private logger: Logger;
   private logResolvedToFile: string;
   private hostToIpMap: Map<string, string[]> = new Map();
+  private wildcardHostToIpMap: Map<string, string[]> = new Map(); // suffix -> IPs (e.g., ".internal" -> ["192.168.1.100"])
   private blockedDomains: Set<string> = new Set();
   private dotClient: DnsOverTlsClient;
 
@@ -33,18 +34,41 @@ export class DnsProxy {
     try {
       const file = await fs.readFile(this.config.hostToIpFile, 'utf-8');
       this.hostToIpMap.clear();
+      this.wildcardHostToIpMap.clear();
       for (const line of file.split('\n')) {
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith('#')) continue;
-        const [host, ...ips] = trimmed.split(/\s+/);
-        if (host && ips.length > 0) {
-          this.hostToIpMap.set(host, ips);
+        const [ip, ...hosts] = trimmed.split(/\s+/);
+        if (ip && hosts.length > 0) {
+          for (const host of hosts) {
+            if (host.startsWith('.')) {
+              // Wildcard pattern: .internal matches any subdomain
+              this.wildcardHostToIpMap.set(host, [ip]);
+            } else {
+              this.hostToIpMap.set(host, [ip]);
+            }
+          }
         }
       }
-      this.logger.info(`Loaded host-to-IP map from ${this.config.hostToIpFile}`);
+      this.logger.info(`Loaded host-to-IP map from ${this.config.hostToIpFile} (${this.hostToIpMap.size} exact, ${this.wildcardHostToIpMap.size} wildcard)`);
     } catch (err) {
       this.logger.warn(`Could not load host-to-IP map: ${err}`);
     }
+  }
+
+  private resolveFromHostMap(hostname: string): string[] | undefined {
+    // Check exact match first
+    const exactMatch = this.hostToIpMap.get(hostname);
+    if (exactMatch) return exactMatch;
+
+    // Check wildcard patterns
+    for (const [suffix, ips] of this.wildcardHostToIpMap) {
+      if (hostname.endsWith(suffix)) {
+        return ips;
+      }
+    }
+
+    return undefined;
   }
 
   private async loadBlocklist() {
@@ -140,8 +164,8 @@ export class DnsProxy {
       class: question.class
     });
 
-    // Check host-to-IP map first
-    const mappedIps = this.hostToIpMap.get(question.name);
+    // Check host-to-IP map first (exact match, then wildcards)
+    const mappedIps = this.resolveFromHostMap(question.name);
     if (question.type === 'A' && mappedIps) {
       // Build DNS response
       const response = dnsPacket.encode({
