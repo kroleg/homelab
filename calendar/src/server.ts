@@ -81,6 +81,10 @@ app.set('view engine', 'pug');
 // Parse JSON bodies
 app.use(express.json());
 
+app.get('/health', (req, res) => {
+  res.send({ status: 'ok' })
+})
+
 // Main calendar page (server-side rendered)
 app.get('/', async (req: Request, res: Response) => {
   try {
