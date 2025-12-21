@@ -17,7 +17,7 @@ interface SSRWeekData {
     dayNum: number;
     isToday: boolean;
     allDayEvents: Array<{ id: string; title: string; color: string }>;
-    timedEvents: Array<{ id: string; title: string; color: string; topPx: number; heightPx: number; timeStr: string }>;
+    timedEvents: Array<{ id: string; title: string; color: string; topPx: number; heightPx: number; timeStr: string; leftPercent: number; widthPercent: number }>;
   }>;
   eventsData: Record<string, { title: string; timeDisplay: string; location?: string; description?: string; calendarId: string }>;
 }
@@ -47,6 +47,64 @@ function toTz(date: Date): Date {
   // We want to shift the date to display as if it were in the target timezone
   const utc = date.getTime() + date.getTimezoneOffset() * 60000;
   return new Date(utc + tzOffsetMinutes * 60000);
+}
+
+// Calculate column positions for overlapping events
+function calculateEventColumns<T extends { startHour: number; endHour: number }>(
+  events: T[]
+): Array<T & { column: number; totalColumns: number }> {
+  if (events.length === 0) return [];
+
+  // Sort by start time, then by end time (longer events first)
+  const sorted = [...events].sort((a, b) => {
+    if (a.startHour !== b.startHour) return a.startHour - b.startHour;
+    return b.endHour - a.endHour; // Longer events first when same start
+  });
+
+  const result: Array<T & { column: number; totalColumns: number }> = [];
+  const columns: Array<{ endHour: number; events: number[] }> = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    const event = sorted[i];
+
+    // Find a column where this event fits (no overlap)
+    let columnIndex = -1;
+    for (let c = 0; c < columns.length; c++) {
+      if (columns[c].endHour <= event.startHour) {
+        columnIndex = c;
+        break;
+      }
+    }
+
+    if (columnIndex === -1) {
+      // Need a new column
+      columnIndex = columns.length;
+      columns.push({ endHour: event.endHour, events: [i] });
+    } else {
+      columns[columnIndex].endHour = event.endHour;
+      columns[columnIndex].events.push(i);
+    }
+
+    result.push({ ...event, column: columnIndex, totalColumns: 0 });
+  }
+
+  // Calculate max columns for overlapping groups
+  for (let i = 0; i < result.length; i++) {
+    const event = result[i];
+    // Find all events that overlap with this one
+    let maxCol = event.column;
+    for (let j = 0; j < result.length; j++) {
+      if (i === j) continue;
+      const other = result[j];
+      // Check if they overlap in time
+      if (event.startHour < other.endHour && event.endHour > other.startHour) {
+        maxCol = Math.max(maxCol, other.column);
+      }
+    }
+    result[i].totalColumns = maxCol + 1;
+  }
+
+  return result;
 }
 
 // Helper to apply sub-calendar prefix matching
@@ -180,20 +238,19 @@ app.get('/', async (req: Request, res: Response) => {
             };
           });
 
-        const timedEvents = dayEvents
+        // First pass: calculate basic event data with hours
+        const timedEventsRaw = dayEvents
           .filter((e) => !e.allDay)
           .map((e) => {
             const sub = applySubCalendar(e.title, e.color);
             const start = toTz(new Date(e.start));
             const end = toTz(new Date(e.end));
 
-            // Calculate position (top) based on start time
-            const eventStartHour = start.getHours() + start.getMinutes() / 60;
-            const eventEndHour = end.getHours() + end.getMinutes() / 60;
-            const topPx = (eventStartHour - startHour) * 40;
-            const heightPx = Math.max((eventEndHour - eventStartHour) * 40, 20);
+            const startHourDecimal = start.getHours() + start.getMinutes() / 60;
+            const endHourDecimal = end.getHours() + end.getMinutes() / 60;
+            const topPx = (startHourDecimal - startHour) * 40;
+            const heightPx = Math.max((endHourDecimal - startHourDecimal) * 40, 20);
 
-            // Format time string
             const startTime = start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
             const endTime = end.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
 
@@ -204,8 +261,24 @@ app.get('/', async (req: Request, res: Response) => {
               topPx,
               heightPx,
               timeStr: `${startTime} - ${endTime}`,
+              startHour: startHourDecimal,
+              endHour: endHourDecimal,
             };
           });
+
+        // Second pass: calculate columns for overlapping events
+        const timedEventsWithColumns = calculateEventColumns(timedEventsRaw);
+
+        const timedEvents = timedEventsWithColumns.map((e) => ({
+          id: e.id,
+          title: e.title,
+          color: e.color,
+          topPx: e.topPx,
+          heightPx: e.heightPx,
+          timeStr: e.timeStr,
+          leftPercent: (e.column / e.totalColumns) * 100,
+          widthPercent: (1 / e.totalColumns) * 100,
+        }));
 
         // Store event data for modal (keep original title)
         for (const e of dayEvents) {

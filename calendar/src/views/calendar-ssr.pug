@@ -231,8 +231,6 @@ html(lang="ru")
       }
       .event {
         position: absolute;
-        left: 2px;
-        right: 2px;
         padding: 2px 4px;
         border-radius: 4px;
         font-size: 0.75rem;
@@ -241,6 +239,7 @@ html(lang="ru")
         color: white;
         text-shadow: 0 1px 1px rgba(0,0,0,0.2);
         z-index: 1;
+        box-sizing: border-box;
       }
       .event:hover {
         z-index: 2;
@@ -437,7 +436,7 @@ html(lang="ru")
               //- Events
               each event in day.timedEvents
                 .event(
-                  style=`background-color: ${event.color}; top: ${event.topPx}px; height: ${event.heightPx}px`
+                  style=`background-color: ${event.color}; top: ${event.topPx}px; height: ${event.heightPx}px; left: ${event.leftPercent}%; width: ${event.widthPercent}%`
                   data-event-id=event.id
                   onclick=`showModal('${event.id}')`
                 )
