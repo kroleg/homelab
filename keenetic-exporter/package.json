@@ -1,0 +1,21 @@
+{
+  "name": "keenetic-exporter",
+  "version": "1.0.0",
+  "description": "Prometheus exporter for Keenetic router metrics",
+  "main": "./src/server.ts",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "prom-client": "^15.1.0",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.5",
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}

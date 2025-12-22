@@ -137,6 +137,20 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  keenetic-exporter:
+    container_name: keenetic-exporter
+    build:
+      context: ./keenetic-exporter
+    environment:
+      - KEENETIC_HOST=${KEENETIC_HOST}
+      - KEENETIC_LOGIN=${KEENETIC_LOGIN}
+      - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
+      - PORT=9101
+      - MONITORED_INTERFACES=ISP,Wireguard0
+      - SCRAPE_INTERVAL_MS=10000
+      - LOG_LEVEL=info
+    restart: unless-stopped
+
   calendar:
     container_name: calendar
     build:
