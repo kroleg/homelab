@@ -146,7 +146,7 @@ services:
       - KEENETIC_LOGIN=${KEENETIC_LOGIN}
       - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
       - PORT=9101
-      - MONITORED_INTERFACES=ISP,Wireguard0
+      - MONITORED_INTERFACES=ISP,Wireguard0,Wireguard1,Wireguard2,Wireguard3
       - SCRAPE_INTERVAL_MS=10000
       - LOG_LEVEL=info
     restart: unless-stopped

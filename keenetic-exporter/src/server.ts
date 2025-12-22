@@ -61,7 +61,7 @@ async function collectMetrics(): Promise<void> {
     // Collect interface stats
     const interfaceStats = await keeneticApi.getInterfaceStats(config.monitoredInterfaces);
     for (const stat of interfaceStats) {
-      const labels = { interface: stat.name };
+      const labels = { interface: stat.displayName };
       interfaceRxBytesGauge.set(labels, Number(stat.rxbytes) || 0);
       interfaceTxBytesGauge.set(labels, Number(stat.txbytes) || 0);
       interfaceRxSpeedGauge.set(labels, Number(stat.rxspeed) || 0);
@@ -70,7 +70,7 @@ async function collectMetrics(): Promise<void> {
       interfaceTxErrorsGauge.set(labels, Number(stat.txerrors) || 0);
       interfaceRxPacketsGauge.set(labels, Number(stat.rxpackets) || 0);
       interfaceTxPacketsGauge.set(labels, Number(stat.txpackets) || 0);
-      logger.debug(`Interface ${stat.name}: RX ${stat.rxspeed} bps, TX ${stat.txspeed} bps`);
+      logger.debug(`Interface ${stat.displayName} (${stat.name}): RX ${stat.rxspeed} bps, TX ${stat.txspeed} bps`);
     }
 
     if (interfaceStats.length === 0 && config.monitoredInterfaces.length > 0) {

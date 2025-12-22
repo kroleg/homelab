@@ -15,6 +15,7 @@ export interface SystemInfo {
 
 export interface InterfaceStat {
   name: string;
+  displayName: string;
   rxbytes: number;
   txbytes: number;
   rxspeed: number;
@@ -23,6 +24,12 @@ export interface InterfaceStat {
   txerrors: number;
   rxpackets: number;
   txpackets: number;
+}
+
+export interface InterfaceInfo {
+  id: string;
+  name: string;
+  type: string;
 }
 
 export class KeeneticApi {
@@ -62,9 +69,34 @@ export class KeeneticApi {
     }
   }
 
+  async getInterfaces(): Promise<InterfaceInfo[]> {
+    await this.ensureAuthenticated();
+    try {
+      const response = await this.getRequest('/rci/show/interface');
+      if (response.status === 200 && response.data) {
+        const data = response.data as Record<string, { id?: string; type?: string; description?: string }>;
+        return Object.values(data)
+          .filter((iface) => iface.type === 'Wireguard' || iface.id === 'ISP')
+          .map((iface) => ({
+            id: iface.id || '',
+            name: iface.description || iface.id || '',
+            type: iface.type || '',
+          }));
+      }
+      return [];
+    } catch (error) {
+      this.logger.error('Error fetching interfaces:', error);
+      return [];
+    }
+  }
+
   async getInterfaceStats(interfaceNames: string[]): Promise<InterfaceStat[]> {
     await this.ensureAuthenticated();
     try {
+      // Get interface info for display names
+      const interfaces = await this.getInterfaces();
+      const nameMap = new Map(interfaces.map(i => [i.id, i.name]));
+
       const payload = {
         show: {
           interface: {
@@ -82,17 +114,21 @@ export class KeeneticApi {
 
         // Handle both array and object responses
         if (Array.isArray(statData)) {
-          return statData.map((stat, index) => ({
-            name: (stat as Record<string, unknown>).name as string || interfaceNames[index] || 'unknown',
-            rxbytes: (stat as Record<string, unknown>).rxbytes as number || 0,
-            txbytes: (stat as Record<string, unknown>).txbytes as number || 0,
-            rxspeed: (stat as Record<string, unknown>).rxspeed as number || 0,
-            txspeed: (stat as Record<string, unknown>).txspeed as number || 0,
-            rxerrors: (stat as Record<string, unknown>).rxerrors as number || 0,
-            txerrors: (stat as Record<string, unknown>).txerrors as number || 0,
-            rxpackets: (stat as Record<string, unknown>).rxpackets as number || 0,
-            txpackets: (stat as Record<string, unknown>).txpackets as number || 0,
-          }));
+          return statData.map((stat, index) => {
+            const id = (stat as Record<string, unknown>).name as string || interfaceNames[index] || 'unknown';
+            return {
+              name: id,
+              displayName: nameMap.get(id) || id,
+              rxbytes: (stat as Record<string, unknown>).rxbytes as number || 0,
+              txbytes: (stat as Record<string, unknown>).txbytes as number || 0,
+              rxspeed: (stat as Record<string, unknown>).rxspeed as number || 0,
+              txspeed: (stat as Record<string, unknown>).txspeed as number || 0,
+              rxerrors: (stat as Record<string, unknown>).rxerrors as number || 0,
+              txerrors: (stat as Record<string, unknown>).txerrors as number || 0,
+              rxpackets: (stat as Record<string, unknown>).rxpackets as number || 0,
+              txpackets: (stat as Record<string, unknown>).txpackets as number || 0,
+            };
+          });
         } else if (statData && typeof statData === 'object') {
           // Single interface or keyed by interface name
           const stats: InterfaceStat[] = [];
@@ -101,6 +137,7 @@ export class KeeneticApi {
               const stat = value as Record<string, unknown>;
               stats.push({
                 name: key,
+                displayName: nameMap.get(key) || key,
                 rxbytes: stat.rxbytes as number || 0,
                 txbytes: stat.txbytes as number || 0,
                 rxspeed: stat.rxspeed as number || 0,
