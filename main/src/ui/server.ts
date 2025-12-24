@@ -9,7 +9,7 @@ import { createApiRouter } from './api.routes.ts';
 import type { Logger } from 'winston';
 import type { KeeneticApi } from '../keenetic-api.ts';
 
-export function startUI(logger: Logger, api: KeeneticApi) {
+export function startUI(logger: Logger, api: KeeneticApi, onServiceChange?: () => void) {
 
   // Get __dirname in ES module scope
   const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +23,7 @@ export function startUI(logger: Logger, api: KeeneticApi) {
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'pug');
 
-  app.use('/services', createServicesRouter(api));
+  app.use('/services', createServicesRouter(api, onServiceChange));
   app.use('/logs', createLogsRouter({ api }));
   app.use('/devices', createDevicesRouter(api));
   app.use('/check', createCheckRouter(api));

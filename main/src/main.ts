@@ -194,7 +194,7 @@ await startFileWatcher({
   logger,
 });
 
-const { gracefulShutdown: gracefulShutdownUI } = startUI(logger, api);
+const { gracefulShutdown: gracefulShutdownUI } = startUI(logger, api, fetchMatchers);
 function gracefulShutdown () {
   clearInterval(refetchMatchersInterval)
   clearInterval(routeOptimizationInterval)

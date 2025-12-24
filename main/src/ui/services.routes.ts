@@ -95,7 +95,7 @@ type ServiceWithRoutes = serviceRepository.Service & {
   }[];
 };
 
-export function createServicesRouter(api: KeeneticApi): express.Router {
+export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => void): express.Router {
   const servicesRouter = express.Router();
 
   // Middleware to parse URL-encoded data (for form submissions)
@@ -179,6 +179,7 @@ export function createServicesRouter(api: KeeneticApi): express.Router {
         optimizeRoutes: optimizeRoutes === 'on' || optimizeRoutes === 'true',
       };
       const newService = await serviceRepository.createService(newServiceData);
+      onServiceChange?.();
 
       // Process last 100 DNS requests and add matching domains to VPN routing
       if (newServiceData.matchingDomains.length > 0) {
@@ -313,6 +314,7 @@ export function createServicesRouter(api: KeeneticApi): express.Router {
         optimizeRoutes: optimizeRoutes === 'on' || optimizeRoutes === 'true',
       };
       const updatedService = await serviceRepository.updateService(id, updateData);
+      onServiceChange?.();
       if (!updatedService) {
         const availableInterfaces = await api.getInterfaces();
         res.status(404).render('services/update', {
@@ -353,6 +355,7 @@ export function createServicesRouter(api: KeeneticApi): express.Router {
         return;
       }
       await serviceRepository.deleteService(id);
+      onServiceChange?.();
       res.redirect('/services');
     } catch (error) {
       next(error);
@@ -399,6 +402,7 @@ export function createServicesRouter(api: KeeneticApi): express.Router {
       // Toggle the enabled status
       const newEnabledStatus = !service.enabled;
       await serviceRepository.updateService(id, { enabled: newEnabledStatus });
+      onServiceChange?.();
 
       // If disabling, remove all routes for this service
       if (!newEnabledStatus) {
