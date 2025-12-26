@@ -1,5 +1,9 @@
 # Calendar
 
+## Git
+
+No AI mention in commits.
+
 ## Docker
 
 Docker compose is in the parent directory. To restart the container:
