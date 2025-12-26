@@ -84,6 +84,32 @@ export class ICSFetcher {
           (calEvent as CalendarEvent & { rrule?: string }).rrule = rruleProp.toString();
         }
 
+        // Store EXDATE (excluded dates) for recurring events
+        const exdates = vevent.getAllProperties('exdate');
+        if (exdates.length > 0) {
+          const excludedDates: string[] = [];
+          for (const exdate of exdates) {
+            const values = exdate.getValues();
+            for (const val of values) {
+              if (val && typeof val.toJSDate === 'function') {
+                excludedDates.push(val.toJSDate().toISOString());
+              }
+            }
+          }
+          if (excludedDates.length > 0) {
+            (calEvent as CalendarEvent & { exdates?: string[] }).exdates = excludedDates;
+          }
+        }
+
+        // Store RECURRENCE-ID for exception events (modified instances)
+        const recurrenceIdProp = vevent.getFirstProperty('recurrence-id');
+        if (recurrenceIdProp) {
+          const recurrenceIdVal = recurrenceIdProp.getFirstValue() as { toJSDate?: () => Date } | null;
+          if (recurrenceIdVal && typeof recurrenceIdVal.toJSDate === 'function') {
+            (calEvent as CalendarEvent & { recurrenceId?: string }).recurrenceId = recurrenceIdVal.toJSDate().toISOString();
+          }
+        }
+
         events.push(calEvent);
       }
     } catch (error) {
@@ -101,15 +127,61 @@ export class ICSFetcher {
   ): FullCalendarEvent[] {
     const result: FullCalendarEvent[] = [];
 
+    // Build a map of exception events (modified instances) by their base UID
+    // Key: base event UID, Value: Set of recurrence dates that have been modified
+    const exceptionDates = new Map<string, Set<string>>();
     for (const event of events) {
-      const eventWithRrule = event as CalendarEvent & { rrule?: string };
+      const eventWithRecurrenceId = event as CalendarEvent & { recurrenceId?: string };
+      if (eventWithRecurrenceId.recurrenceId) {
+        const baseUid = event.id;
+        if (!exceptionDates.has(baseUid)) {
+          exceptionDates.set(baseUid, new Set());
+        }
+        // Normalize the date to start of day for comparison
+        const recDate = new Date(eventWithRecurrenceId.recurrenceId);
+        exceptionDates.get(baseUid)!.add(this.normalizeDate(recDate));
+      }
+    }
+
+    for (const event of events) {
+      const eventWithRrule = event as CalendarEvent & { rrule?: string; exdates?: string[]; recurrenceId?: string };
+
+      // Skip events with recurrenceId - they will be added separately as single events
+      if (eventWithRrule.recurrenceId) {
+        // This is a modified instance - add it as a regular event if in range
+        const eventStart = new Date(event.start);
+        const eventEnd = new Date(event.end);
+        if (eventEnd >= startDate && eventStart <= endDate) {
+          result.push(this.toFullCalendarEvent(event, color));
+        }
+        continue;
+      }
 
       if (eventWithRrule.rrule) {
-        // Expand recurring events
+        // Get excluded dates (EXDATE + dates with RECURRENCE-ID exceptions)
+        const excludedDatesSet = new Set<string>();
+
+        // Add EXDATE dates
+        if (eventWithRrule.exdates) {
+          for (const exdate of eventWithRrule.exdates) {
+            excludedDatesSet.add(this.normalizeDate(new Date(exdate)));
+          }
+        }
+
+        // Add dates that have exception events
+        const eventExceptions = exceptionDates.get(event.id);
+        if (eventExceptions) {
+          for (const excDate of eventExceptions) {
+            excludedDatesSet.add(excDate);
+          }
+        }
+
+        // Expand recurring events with exclusions
         const expanded = this.expandRecurringEvent(
           eventWithRrule as CalendarEvent & { rrule: string },
           startDate,
-          endDate
+          endDate,
+          excludedDatesSet
         );
         result.push(...expanded);
       } else {
@@ -126,10 +198,16 @@ export class ICSFetcher {
     return result;
   }
 
+  private normalizeDate(date: Date): string {
+    // Normalize to YYYY-MM-DD for date comparison
+    return date.toISOString().split('T')[0];
+  }
+
   private expandRecurringEvent(
     event: CalendarEvent & { rrule: string },
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    excludedDates: Set<string> = new Set()
   ): FullCalendarEvent[] {
     const results: FullCalendarEvent[] = [];
 
@@ -142,6 +220,12 @@ export class ICSFetcher {
       const occurrences = rule.between(startDate, endDate, true);
 
       for (const occurrence of occurrences) {
+        // Skip excluded dates (EXDATE or modified by RECURRENCE-ID)
+        const normalizedDate = this.normalizeDate(occurrence);
+        if (excludedDates.has(normalizedDate)) {
+          continue;
+        }
+
         const occurrenceEnd = new Date(occurrence.getTime() + duration);
 
         results.push({
