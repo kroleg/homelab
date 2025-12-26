@@ -194,4 +194,14 @@ export class ICSFetcher {
   getCalendars(): CalendarConfig[] {
     return this.calendars;
   }
+
+  isCached(): boolean {
+    return this.calendars.every(cal => this.cache.has(cal.id));
+  }
+
+  startBackgroundFetch(startDate: Date, endDate: Date): void {
+    this.fetchEvents(startDate, endDate).catch(err =>
+      console.error('Background fetch failed:', err)
+    );
+  }
 }

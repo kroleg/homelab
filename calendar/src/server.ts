@@ -182,6 +182,12 @@ app.get('/', async (req: Request, res: Response) => {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + numDays);
 
+      // Check if ICS data is cached, if not show loading page
+      if (!fetcher.isCached()) {
+        fetcher.startBackgroundFetch(weekStart, weekEnd);
+        return res.render('loading');
+      }
+
       // Calculate prev/next period dates
       const prevWeekDate = new Date(weekStart);
       prevWeekDate.setDate(prevWeekDate.getDate() - numDays);

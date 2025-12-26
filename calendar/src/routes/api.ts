@@ -64,5 +64,10 @@ export function createApiRoutes(fetcher: ICSFetcher, timezone: string): Router {
     });
   });
 
+  // Cache status check for loading page polling
+  router.get('/cache-status', (_req: Request, res: Response) => {
+    res.json({ ready: fetcher.isCached() });
+  });
+
   return router;
 }
