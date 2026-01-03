@@ -5,6 +5,7 @@ import { matchDomainsAgainstPatterns } from '../utils/dns-log-processor.ts';
 import { filterIpsCoveredByOptimizedRoutes } from '../utils/route-optimizer.ts';
 
 const DNS_API_URL = process.env.DNS_API_URL || 'http://dns-proxy:3001';
+const DEFAULT_VPN_INTERFACE = process.env.DEFAULT_VPN_INTERFACE;
 
 interface DnsLogEntry {
   id: number;
@@ -112,7 +113,7 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
       interfaces: service.interfaces.map(ifaceIdOrName => interfaces.find(i => i.name === ifaceIdOrName || i.id === ifaceIdOrName)?.name || ifaceIdOrName),
     }));
 
-    res.render('services/list', { services: servicesWithInterfaceNames, interfaces, notConnectedInterfaces, title: 'Services', currentPath: req.path });
+    res.render('services/list', { services: servicesWithInterfaceNames, interfaces, notConnectedInterfaces, title: 'Services', currentPath: req.path, defaultVpnInterface: DEFAULT_VPN_INTERFACE });
   });
 
   // Route to display form for creating a new service
@@ -138,7 +139,7 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
       service.matchingDomains = [domain];
     }
 
-    res.render('services/create', { title: 'Create New Service', service, error: null, currentPath: req.path, interfaces, invalidInterface: null });
+    res.render('services/create', { title: 'Create New Service', service, error: null, currentPath: req.path, interfaces, invalidInterface: null, defaultVpnInterface: DEFAULT_VPN_INTERFACE });
   });
 
   servicesRouter.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
@@ -250,7 +251,8 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
           error: 'Service name already exists. Please choose a different name.',
           currentPath: '/services/create',
           interfaces: availableInterfaces,
-          invalidInterface: null
+          invalidInterface: null,
+          defaultVpnInterface: DEFAULT_VPN_INTERFACE
         });
       } else {
         next(error);
@@ -278,7 +280,8 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
       const currentInterface = service.interfaces && service.interfaces.length > 0 ? service.interfaces[0] : null;
 
       if (currentInterface) {
-        const isValid = interfaces.some(iface => iface.name === currentInterface || iface.id === currentInterface);
+        // "default" is a valid special option, otherwise check against available interfaces
+        const isValid = currentInterface === 'default' || interfaces.some(iface => iface.name === currentInterface || iface.id === currentInterface);
         if (!isValid) {
           invalidInterface = currentInterface;
           // Pre-select first available interface
@@ -291,7 +294,7 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
         service.interfaces = [interfaces[0].name];
       }
 
-      res.render('services/update', { title: 'Update Service', service, error: null, currentPath: req.path, interfaces, invalidInterface });
+      res.render('services/update', { title: 'Update Service', service, error: null, currentPath: req.path, interfaces, invalidInterface, defaultVpnInterface: DEFAULT_VPN_INTERFACE });
     } catch (error) {
       next(error);
     }
@@ -340,7 +343,8 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
           error: 'Service not found or failed to update.',
           currentPath: `/services/update/${id}`,
           interfaces: availableInterfaces,
-          invalidInterface: null
+          invalidInterface: null,
+          defaultVpnInterface: DEFAULT_VPN_INTERFACE
         });
         return;
       }
@@ -355,7 +359,8 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
           error: 'Service name already exists. Please choose a different name.',
           currentPath: `/services/update/${id}`,
           interfaces: availableInterfaces,
-          invalidInterface: null
+          invalidInterface: null,
+          defaultVpnInterface: DEFAULT_VPN_INTERFACE
         });
       } else {
         next(error);

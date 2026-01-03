@@ -8,8 +8,14 @@ if error
 .mb-3
   label.form-label(for='interfaces') Interface
   select#interfaces.form-select(name='interfaces' required)
+    - const isDefaultSelected = service.interfaces && service.interfaces.includes('default')
+    option(value='default' selected=isDefaultSelected)
+      if defaultVpnInterface
+        = `default (${defaultVpnInterface})`
+      else
+        = 'default (not configured)'
     each iface in interfaces
-      - const isSelected = service.interfaces && service.interfaces.length > 0 ? (service.interfaces.includes(iface.name) || service.interfaces.includes(iface.id)) : false
+      - const isSelected = !isDefaultSelected && service.interfaces && service.interfaces.length > 0 ? (service.interfaces.includes(iface.name) || service.interfaces.includes(iface.id)) : false
       option(value=iface.name selected=isSelected)
         if !iface.connected
           = `⚠️ ${iface.name} (NOT CONNECTED)`

@@ -79,6 +79,7 @@ services:
       - KEENETIC_LOGIN=${KEENETIC_LOGIN}
       - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
       - DNS_API_URL=http://dns-proxy:3001
+      - DEFAULT_VPN_INTERFACE=lithuania
     networks:
       - default
       - shared

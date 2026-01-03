@@ -310,10 +310,22 @@ export class KeeneticApi {
   /**
    * Resolves interface names to IDs. If the input is already an ID (e.g., "Wireguard0"),
    * returns it as-is. If it's a name (e.g., "netherlands"), looks it up and returns the ID.
+   * Special value "default" resolves to DEFAULT_VPN_INTERFACE env var.
    * @param interfaceNameOrId - Interface name or ID
    * @returns Interface ID
    */
   async resolveInterfaceId(interfaceNameOrId: string): Promise<string> {
+    // Handle "default" special value
+    if (interfaceNameOrId === 'default') {
+      const defaultInterface = process.env.DEFAULT_VPN_INTERFACE;
+      if (!defaultInterface) {
+        this.logger.warn('DEFAULT_VPN_INTERFACE not set, falling back to Wireguard0');
+        return 'Wireguard0';
+      }
+      // Recursively resolve in case the default is also a name
+      return this.resolveInterfaceId(defaultInterface);
+    }
+
     // Check if it looks like an ID (e.g., "Wireguard0", "Wireguard1", etc.)
     const idPattern = /^[A-Za-z]+\d+$/;
     if (idPattern.test(interfaceNameOrId)) {
