@@ -307,9 +307,26 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
         return;
       }
 
+      // Get existing service to check if interface changed
+      const existingService = await serviceRepository.getServiceById(id);
+      if (!existingService) {
+        res.status(404).send('Service not found');
+        return;
+      }
+
+      const newInterfaces = interfaces ? [interfaces] : [];
+      const oldInterface = existingService.interfaces[0];
+      const newInterface = newInterfaces[0];
+
+      // If interface changed, remove all existing routes
+      if (oldInterface !== newInterface) {
+        console.log(`Interface changed for service "${existingService.name}" from "${oldInterface}" to "${newInterface}", removing all routes`);
+        await api.removeRoutesByCommentPrefix('dns-auto:' + existingService.name);
+      }
+
       const updateData: serviceRepository.UpdateService = {
         name,
-        interfaces: interfaces ? [interfaces] : [],
+        interfaces: newInterfaces,
         matchingDomains: stringToArray(matchingDomains),
         optimizeRoutes: optimizeRoutes === 'on' || optimizeRoutes === 'true',
       };
