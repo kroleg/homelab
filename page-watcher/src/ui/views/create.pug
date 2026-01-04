@@ -1,0 +1,31 @@
+extends layout
+
+block content
+  h1 New Watcher
+
+  .nav
+    a(href="/") ← Back to list
+
+  if error
+    .error= error
+
+  .card
+    form(action="/create", method="POST")
+      .form-group
+        label(for="url") Page URL
+        input#url(type="url", name="url", placeholder="https://example.com/page", required, value=url || '')
+
+      .form-group
+        label(for="searchText") Text to watch for
+        input#searchText(type="text", name="searchText", placeholder="Available now", required, value=searchText || '')
+
+      .form-group
+        label(for="intervalMinutes") Check interval
+        select#intervalMinutes(name="intervalMinutes")
+          option(value="60", selected=(intervalMinutes == 60)) Every hour
+          option(value="360", selected=(intervalMinutes == 360)) Every 6 hours
+          option(value="720", selected=(intervalMinutes == 720)) Every 12 hours
+          option(value="1440", selected=(intervalMinutes == 1440 || !intervalMinutes)) Daily
+          option(value="10080", selected=(intervalMinutes == 10080)) Weekly
+
+      button.btn.btn-primary(type="submit") Create Watcher

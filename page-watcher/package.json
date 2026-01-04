@@ -1,0 +1,29 @@
+{
+  "name": "page-watcher",
+  "version": "1.0.0",
+  "description": "Web page text watcher with notifications",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env --watch src/index.ts",
+    "start:prod": "node src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "drizzle-orm": "^0.43.1",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "pug": "^3.0.3",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.17",
+    "@types/pg": "^8.15.6",
+    "drizzle-kit": "^0.31.1",
+    "typescript": "^5.8.3"
+  }
+}

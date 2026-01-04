@@ -255,6 +255,50 @@ services:
       - loki_data:/loki
     restart: unless-stopped
 
+  postgres-pagewatcher:
+    container_name: postgres-pagewatcher
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=pagewatcher
+      - POSTGRES_USER=pagewatcher
+      - POSTGRES_PASSWORD=${PAGEWATCHER_DB_PASSWORD:-pagewatcher}
+    volumes:
+      - postgres_pagewatcher_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pagewatcher"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  page-watcher:
+    container_name: page-watcher
+    depends_on:
+      postgres-pagewatcher:
+        condition: service_healthy
+    build:
+      context: ./page-watcher
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3004
+      - POSTGRES_HOST=postgres-pagewatcher
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=pagewatcher
+      - POSTGRES_USER=pagewatcher
+      - POSTGRES_PASSWORD=${PAGEWATCHER_DB_PASSWORD:-pagewatcher}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.page-watcher.rule=Host(`page-watcher.internal`)"
+      - "traefik.http.routers.page-watcher.entrypoints=web"
+      - "traefik.http.services.page-watcher.loadbalancer.server.port=3004"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
   promtail:
     container_name: promtail
     image: grafana/promtail:3.3.2
@@ -271,6 +315,7 @@ networks:
 
 volumes:
   postgres_main_data:
+  postgres_pagewatcher_data:
   prometheus_data:
   grafana_data:
   loki_data:

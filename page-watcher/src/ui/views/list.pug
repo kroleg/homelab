@@ -1,0 +1,53 @@
+extends layout
+
+block content
+  h1 Page Watcher
+
+  .nav
+    a(href="/create") + New Watcher
+
+  if watchers.length === 0
+    .card
+      p No watchers configured yet.
+      a.btn.btn-primary(href="/create") Create your first watcher
+
+  each watcher in watchers
+    .card
+      div
+        if watcher.isActive
+          span.status.status-active Active
+        else if watcher.foundAt
+          span.status.status-found Found!
+        else
+          span.status.status-paused Paused
+
+        |
+        span Checking every #{watcher.intervalMinutes} minutes
+
+      h3(style="margin-top: 8px")
+        a.watcher-url(href=watcher.url, target="_blank") #{watcher.url}
+
+      p(style="margin-top: 8px")
+        | Looking for:
+        span.watcher-text #{watcher.searchText}
+
+      .meta
+        | Created: #{new Date(watcher.createdAt).toLocaleString()}
+        if watcher.lastCheckedAt
+          |  • Last checked: #{new Date(watcher.lastCheckedAt).toLocaleString()}
+        if watcher.foundAt
+          |  • Found: #{new Date(watcher.foundAt).toLocaleString()}
+
+      .actions
+        form(action=`/watchers/${watcher.id}/check`, method="POST", style="display:inline")
+          button.btn.btn-secondary.btn-sm(type="submit") Check Now
+
+        if watcher.isActive
+          form(action=`/watchers/${watcher.id}/pause`, method="POST", style="display:inline")
+            button.btn.btn-secondary.btn-sm(type="submit") Pause
+        else if !watcher.foundAt
+          form(action=`/watchers/${watcher.id}/resume`, method="POST", style="display:inline")
+            button.btn.btn-success.btn-sm(type="submit") Resume
+
+        form(action=`/watchers/${watcher.id}/delete`, method="POST", style="display:inline", onsubmit="return confirm('Delete this watcher?')")
+          button.btn.btn-danger.btn-sm(type="submit") Delete
