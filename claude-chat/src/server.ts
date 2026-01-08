@@ -42,8 +42,8 @@ app.post('/api/chat', (req, res) => {
   prompt += `User: ${message}\n\nAssistant:`;
 
   try {
-    const systemPrompt = `You are a helpful, friendly AI assistant. You provide clear, accurate, and concise answers. You can help with a wide range of tasks including answering questions, writing, analysis, math, coding, brainstorming, and general conversation. Be direct and helpful. Use markdown formatting when appropriate.`;
-    const result = execSync(`claude -p "${prompt.replace(/"/g, '\\"').replace(/\n/g, '\\n')}" --system-prompt "${systemPrompt}" --output-format text`, {
+    const systemPrompt = `You are a helpful, friendly AI assistant. You provide clear, accurate, and concise answers. You can help with a wide range of tasks including answering questions, writing, analysis, math, coding, brainstorming, and general conversation. Be direct and helpful. Use markdown formatting when appropriate. You can search the web for current information when needed.`;
+    const result = execSync(`claude -p "${prompt.replace(/"/g, '\\"').replace(/\n/g, '\\n')}" --system-prompt "${systemPrompt}" --tools "WebSearch,WebFetch" --output-format text`, {
       encoding: 'utf-8',
       cwd: '/tmp',
       env: { ...process.env, FORCE_COLOR: '0' },
