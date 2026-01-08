@@ -1,0 +1,13 @@
+http:
+  routers:
+    claude-chat:
+      rule: "Host(`chat.internal`)"
+      entrypoints:
+        - web
+      service: claude-chat
+
+  services:
+    claude-chat:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3005"

@@ -5,6 +5,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 ## Subfolders
 
 - calendar - Family calendar display service for iPad using iCal.js and rrule
+- claude-chat - Web chat interface for Claude API (runs on host via systemd, not Docker)
 - config - Configuration data (DNS blocklist, host-to-IP mappings)
 - db - SQLite database storage directory
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
@@ -17,6 +18,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - prometheus - Prometheus time-series database configuration
 - promtail - Loki log shipper for Docker container logs
 - shared-logs - Shared logging output directory for services
+- traefik - Traefik reverse proxy dynamic configuration
 - vector - Data pipeline for transforming Docker logs to Seq
 - vpn-toggle - Simple UI for toggling VPN connections
 
@@ -33,3 +35,4 @@ Docker Compose, Node.js/TypeScript, Prometheus/Grafana
 - Start all: `docker compose up -d`
 - Rebuild service: `docker compose up -d --build <service>`
 - Logs: `docker compose logs -f <service>`
+- When adding new services, update the Subfolders list in this file

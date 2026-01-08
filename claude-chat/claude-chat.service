@@ -1,0 +1,16 @@
+[Unit]
+Description=Claude Chat Web Service
+After=network.target
+
+[Service]
+Type=simple
+User=kroleg
+WorkingDirectory=/home/kroleg/homelab/claude-chat
+ExecStart=/home/kroleg/opt/node-current/bin/node src/server.ts
+Restart=on-failure
+RestartSec=5
+Environment=PORT=3005
+Environment=PATH=/home/kroleg/.local/bin:/home/kroleg/opt/node-current/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target
