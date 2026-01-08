@@ -6,213 +6,235 @@ html(lang="en")
     title Claude Chat
     script(src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+" crossorigin="anonymous")
     style.
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      :root {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f3f4f6;
+        --bg-tertiary: #e5e7eb;
+        --text-primary: #111827;
+        --text-secondary: #6b7280;
+        --border-color: #d1d5db;
+        --border-focus: #9ca3af;
+        --accent: #f97316;
+        --user-avatar: #d1d5db;
+        --code-bg: #e5e7eb;
+        --error-bg: #fee2e2;
+        --error-text: #dc2626;
+        --link-color: #2563eb;
       }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg-primary: #111827;
+          --bg-secondary: #1f2937;
+          --bg-tertiary: #374151;
+          --text-primary: #f3f4f6;
+          --text-secondary: #9ca3af;
+          --border-color: #4b5563;
+          --border-focus: #6b7280;
+          --user-avatar: #4b5563;
+          --code-bg: #1f2937;
+          --error-bg: rgba(127, 29, 29, 0.3);
+          --error-text: #f87171;
+          --link-color: #60a5fa;
+        }
+      }
+
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #212121;
-        color: #ececec;
+        background: var(--bg-primary);
+        color: var(--text-primary);
         height: 100vh;
         display: flex;
         flex-direction: column;
       }
-      .header {
-        padding: 16px 24px;
-        border-bottom: 1px solid #424242;
-        display: flex;
-        align-items: center;
-        gap: 12px;
+
+      header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--border-color);
       }
-      .header h1 {
-        font-size: 18px;
+
+      header h1 {
+        font-size: 1.125rem;
         font-weight: 600;
       }
+
       .chat-container {
         flex: 1;
         overflow-y: auto;
-        padding: 24px;
+        padding: 1.5rem;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 1.5rem;
       }
-      .message {
-        max-width: 800px;
-        width: 100%;
-        margin: 0 auto;
-        display: flex;
-        gap: 16px;
-      }
-      .message-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 4px;
+
+      .empty-state {
+        flex: 1;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 600;
-        font-size: 14px;
-        flex-shrink: 0;
+        color: var(--text-secondary);
+        font-size: 1.125rem;
       }
-      .message.user .message-avatar {
-        background: #5c5c5c;
-      }
-      .message.assistant .message-avatar {
-        background: #d97757;
-        color: white;
-      }
-      .message-content {
-        flex: 1;
-        line-height: 1.6;
-        word-break: break-word;
-      }
-      .message.user .message-content {
-        white-space: pre-wrap;
-      }
-      .message-content p {
-        margin: 0 0 12px 0;
-      }
-      .message-content p:last-child {
-        margin-bottom: 0;
-      }
-      .message-content ul, .message-content ol {
-        margin: 0 0 12px 20px;
-      }
-      .message-content h1, .message-content h2, .message-content h3 {
-        margin: 16px 0 8px 0;
-      }
-      .message-content h1:first-child, .message-content h2:first-child, .message-content h3:first-child {
-        margin-top: 0;
-      }
-      .message-content code {
-        background: #2d2d2d;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-        font-size: 14px;
-      }
-      .message-content pre {
-        background: #2d2d2d;
-        padding: 16px;
-        border-radius: 8px;
-        overflow-x: auto;
-        margin: 12px 0;
-      }
-      .message-content pre code {
-        background: none;
-        padding: 0;
-      }
+
       .input-container {
-        padding: 16px 24px 24px;
-        max-width: 800px;
+        padding: 1rem 1.5rem 1.5rem;
+        max-width: 48rem;
         width: 100%;
         margin: 0 auto;
       }
+
       .input-wrapper {
         position: relative;
-        background: #2f2f2f;
-        border-radius: 24px;
-        border: 1px solid #424242;
+        background: var(--bg-secondary);
+        border-radius: 1.5rem;
+        border: 1px solid var(--border-color);
       }
+
       .input-wrapper:focus-within {
-        border-color: #666;
+        border-color: var(--border-focus);
       }
+
       textarea {
         width: 100%;
-        padding: 16px 60px 16px 20px;
+        padding: 1rem 3.5rem 1rem 1.25rem;
         background: transparent;
         border: none;
-        color: #ececec;
-        font-size: 16px;
+        color: var(--text-primary);
+        font-size: 1rem;
         font-family: inherit;
         resize: none;
         outline: none;
-        max-height: 200px;
+        max-height: 12rem;
         line-height: 1.5;
       }
+
       textarea::placeholder {
-        color: #888;
+        color: var(--text-secondary);
       }
+
       .send-button {
         position: absolute;
-        right: 12px;
-        bottom: 10px;
-        width: 36px;
-        height: 36px;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        width: 2.25rem;
+        height: 2.25rem;
         border-radius: 50%;
         border: none;
-        background: #ececec;
-        color: #212121;
+        background: var(--text-primary);
+        color: var(--bg-primary);
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: opacity 0.2s;
       }
+
       .send-button:disabled {
         opacity: 0.3;
         cursor: not-allowed;
       }
+
       .send-button:hover:not(:disabled) {
-        background: #fff;
+        opacity: 0.8;
       }
+
       .send-button svg {
-        width: 18px;
-        height: 18px;
+        width: 1rem;
+        height: 1rem;
       }
-      .typing-indicator {
-        display: none;
-        gap: 4px;
-        padding: 8px 0;
-      }
-      .typing-indicator.active {
+
+      .message {
+        max-width: 48rem;
+        width: 100%;
+        margin: 0 auto;
         display: flex;
+        gap: 1rem;
       }
-      .typing-indicator span {
-        width: 8px;
-        height: 8px;
-        background: #888;
-        border-radius: 50%;
-        animation: typing 1.4s infinite;
-      }
-      .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-      .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-      @keyframes typing {
-        0%, 60%, 100% { transform: translateY(0); }
-        30% { transform: translateY(-4px); }
-      }
-      .empty-state {
-        flex: 1;
+
+      .message-avatar {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.25rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #888;
-        font-size: 18px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        flex-shrink: 0;
       }
+
+      .message-avatar.user {
+        background: var(--user-avatar);
+      }
+
+      .message-avatar.assistant {
+        background: var(--accent);
+        color: white;
+      }
+
+      .message-content {
+        flex: 1;
+        line-height: 1.6;
+        word-break: break-word;
+      }
+
+      .message-content.user-content {
+        white-space: pre-wrap;
+      }
+
+      .message-content p { margin: 0 0 0.75rem 0; }
+      .message-content p:last-child { margin-bottom: 0; }
+      .message-content ul, .message-content ol { margin: 0 0 0.75rem 1.25rem; }
+      .message-content h1, .message-content h2, .message-content h3 { font-weight: 600; margin: 1rem 0 0.5rem 0; }
+      .message-content h1:first-child, .message-content h2:first-child, .message-content h3:first-child { margin-top: 0; }
+      .message-content a { color: var(--link-color); text-decoration: underline; }
+      .message-content code { background: var(--code-bg); padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-family: 'SF Mono', Monaco, monospace; font-size: 0.875rem; }
+      .message-content pre { background: var(--code-bg); padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.75rem 0; }
+      .message-content pre code { background: none; padding: 0; }
+
       .error {
-        color: #ef4444;
-        background: #2d1f1f;
-        padding: 12px 16px;
-        border-radius: 8px;
-        margin-top: 8px;
+        background: var(--error-bg);
+        color: var(--error-text);
+        padding: 0.75rem;
+        border-radius: 0.5rem;
       }
+
+      .typing-indicator {
+        display: flex;
+        gap: 0.25rem;
+        align-items: center;
+        padding: 0.5rem 0;
+      }
+
+      .typing-indicator span {
+        width: 0.5rem;
+        height: 0.5rem;
+        background: var(--text-secondary);
+        border-radius: 50%;
+        animation: bounce 1.4s infinite;
+      }
+
+      .typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
+      .typing-indicator span:nth-child(3) { animation-delay: 0.3s; }
+
+      @keyframes bounce {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-4px); }
+      }
+
   body
-    .header
+    header
       h1 Claude Chat
 
     #chat-container.chat-container
-      .empty-state#empty-state Start a conversation with Claude
+      #empty-state.empty-state Start a conversation with Claude
 
     .input-container
       form#chat-form
         .input-wrapper
-          textarea#message-input(
-            placeholder="Message Claude..."
-            rows="1"
-            autocomplete="off"
-          )
+          textarea#message-input(placeholder="Message Claude..." rows="1" autocomplete="off")
           button.send-button(type="submit" disabled)
             svg(viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2")
               path(d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z")
@@ -227,14 +249,12 @@ html(lang="en")
       let isGenerating = false;
       let history = [];
 
-      // Auto-resize textarea
       input.addEventListener('input', () => {
         input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+        input.style.height = Math.min(input.scrollHeight, 192) + 'px';
         sendButton.disabled = !input.value.trim() || isGenerating;
       });
 
-      // Handle Enter key (Shift+Enter for newline)
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
@@ -245,15 +265,14 @@ html(lang="en")
       });
 
       function addMessage(role, content) {
-        if (emptyState) {
-          emptyState.remove();
-        }
+        if (emptyState) emptyState.remove();
 
+        const isUser = role === 'user';
         const message = document.createElement('div');
-        message.className = `message ${role}`;
+        message.className = 'message';
         message.innerHTML = `
-          <div class="message-avatar">${role === 'user' ? 'You' : 'C'}</div>
-          <div class="message-content"></div>
+          <div class="message-avatar ${role}">${isUser ? 'You' : 'C'}</div>
+          <div class="message-content ${isUser ? 'user-content' : ''}"></div>
         `;
 
         const contentEl = message.querySelector('.message-content');
@@ -265,17 +284,16 @@ html(lang="en")
 
         chatContainer.appendChild(message);
         chatContainer.scrollTop = chatContainer.scrollHeight;
-
         return contentEl;
       }
 
       function addTypingIndicator() {
         const indicator = document.createElement('div');
-        indicator.className = 'message assistant';
+        indicator.className = 'message';
         indicator.id = 'typing-indicator';
         indicator.innerHTML = `
-          <div class="message-avatar">C</div>
-          <div class="typing-indicator active">
+          <div class="message-avatar assistant">C</div>
+          <div class="typing-indicator">
             <span></span><span></span><span></span>
           </div>
         `;
@@ -312,7 +330,6 @@ html(lang="en")
           });
 
           removeTypingIndicator();
-
           const data = await response.json();
 
           if (!response.ok) {
