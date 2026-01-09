@@ -9,6 +9,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - config - Configuration data (DNS blocklist, host-to-IP mappings)
 - db - SQLite database storage directory
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
+- family-dashboard - Family dashboard with quick links to homelab services
 - glance - Dashboard UI showing service health, Docker containers, and calendar widgets
 - grafana - Metrics visualization with dashboards for DNS, Keenetic, and node metrics
 - keenetic-exporter - Prometheus exporter for Keenetic router metrics

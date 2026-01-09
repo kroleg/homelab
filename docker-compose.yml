@@ -143,6 +143,24 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  family-dashboard:
+    container_name: family-dashboard
+    build:
+      context: ./family-dashboard
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3006
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.family-dashboard.rule=Host(`dom.internal`)"
+      - "traefik.http.routers.family-dashboard.entrypoints=web"
+      - "traefik.http.services.family-dashboard.loadbalancer.server.port=3006"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
   keenetic-exporter:
     container_name: keenetic-exporter
     build:

@@ -1,0 +1,17 @@
+extends layout
+
+block content
+  h1.text-3xl.font-bold.text-center.text-gray-800.mb-8= title
+
+  .grid.gap-4(class="md:grid-cols-2 lg:grid-cols-3")
+    each service in services
+      a.block.bg-white.rounded-xl.shadow-md.p-6.transition-all.duration-200(
+        href=service.url
+        class="hover:shadow-lg hover:-translate-y-1"
+      )
+        .flex.items-center.mb-4
+          .w-12.h-12.rounded-lg.flex.items-center.justify-center.text-white(class=service.color)
+            svg.w-6.h-6(xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2")
+              path(stroke-linecap="round" stroke-linejoin="round" d=service.icon)
+          h2.ml-4.text-xl.font-semibold.text-gray-800= service.name
+        p.text-gray-600= service.description
