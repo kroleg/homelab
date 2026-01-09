@@ -1,43 +1,100 @@
 extends layout
 
 block content
+  style.
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 20rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .device-name {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .status {
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+    .status.on { color: var(--primary); }
+    .status.off { color: var(--muted); }
+    .error {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .btn {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1rem;
+      font-weight: 500;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+      background: var(--secondary);
+      color: var(--secondary-fg);
+    }
+    .btn:hover:not(:disabled) { background: #e4e4e7; }
+    .btn:disabled { cursor: default; }
+    .btn.active {
+      background: var(--primary);
+      color: var(--primary-fg);
+      box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
+    }
+
   - const vpnOn = !!device.policy
-  .row.justify-content-center
-    .col-md-6.col-lg-4
-      .text-center.mb-4
-        h2.mb-3
-          if vpnOn
-            span.text-success ON
-          else
-            span.text-muted OFF
-        p.text-muted= device.name
+  .container
+    .card
+      .header
+        .device-name= device.name
+        .status(class=vpnOn ? 'on' : 'off')= vpnOn ? 'ON' : 'OFF'
 
       if error
-        .alert.alert-danger= error
+        .error= error
 
-      .d-grid.gap-2
-        button.btn.btn-lg(
+      .buttons
+        button.btn(
           type="button"
-          class=(vpnOn ? 'btn-outline-secondary' : 'btn-secondary active')
+          class=(!vpnOn ? 'active' : '')
           onclick="selectPolicy('')"
           disabled=!vpnOn
         ) Off
 
         each policy in policies
-          button.btn.btn-lg(
+          - const isActive = device.policy === policy.id
+          button.btn(
             type="button"
-            class=(device.policy === policy.id ? 'btn-primary active' : 'btn-outline-primary')
+            class=(isActive ? 'active' : '')
             onclick=`selectPolicy('${policy.id}')`
-            disabled=(device.policy === policy.id)
+            disabled=isActive
           )= policy.description || policy.name
 
-      form#policyForm(method="POST" action="/set-policy")
-        input#policyInput(type="hidden" name="policyId" value="")
+      form#form(method="POST" action="/set-policy")
+        input#policy(type="hidden" name="policyId")
         input(type="hidden" name="mac" value=device.mac)
 
   script.
-    function selectPolicy(policyId) {
-      document.getElementById('loadingOverlay').classList.add('show');
-      document.getElementById('policyInput').value = policyId;
-      document.getElementById('policyForm').submit();
+    function selectPolicy(id) {
+      document.getElementById('loading').classList.add('show');
+      document.getElementById('policy').value = id;
+      document.getElementById('form').submit();
     }
