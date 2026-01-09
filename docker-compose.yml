@@ -137,9 +137,18 @@ services:
       - shared
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.vpn-toggle.rule=Host(`vpn-toggle.internal`)"
-      - "traefik.http.routers.vpn-toggle.entrypoints=web"
-      - "traefik.http.services.vpn-toggle.loadbalancer.server.port=3002"
+      # Main router on vpn.internal
+      - "traefik.http.routers.vpn.rule=Host(`vpn.internal`)"
+      - "traefik.http.routers.vpn.entrypoints=web"
+      - "traefik.http.services.vpn.loadbalancer.server.port=3002"
+      # Redirect from old domain
+      - "traefik.http.routers.vpn-redirect.rule=Host(`vpn-toggle.internal`)"
+      - "traefik.http.routers.vpn-redirect.entrypoints=web"
+      - "traefik.http.routers.vpn-redirect.middlewares=vpn-redirect"
+      - "traefik.http.routers.vpn-redirect.service=vpn"
+      - "traefik.http.middlewares.vpn-redirect.redirectregex.regex=^http://vpn-toggle\\.internal(.*)"
+      - "traefik.http.middlewares.vpn-redirect.redirectregex.replacement=http://vpn.internal$${1}"
+      - "traefik.http.middlewares.vpn-redirect.redirectregex.permanent=true"
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
