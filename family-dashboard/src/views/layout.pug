@@ -4,7 +4,24 @@ html(lang="en")
     meta(charset="UTF-8")
     meta(name="viewport" content="width=device-width, initial-scale=1.0")
     title= title
-    script(src="https://cdn.tailwindcss.com")
-  body.bg-gray-100.min-h-screen
-    .container.mx-auto.px-4.py-8
-      block content
+    style.
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --background: #fff;
+        --foreground: #0a0a0b;
+        --primary: #e11d48;
+        --primary-fg: #fff1f2;
+        --secondary: #f4f4f5;
+        --secondary-fg: #18181b;
+        --muted: #71717a;
+      }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+  body
+    block content

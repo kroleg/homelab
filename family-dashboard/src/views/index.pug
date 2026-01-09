@@ -1,17 +1,84 @@
 extends layout
 
 block content
-  h1.text-3xl.font-bold.text-center.text-gray-800.mb-8= title
+  style.
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 20rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--foreground);
+    }
+    .links {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+      padding: 1rem;
+      font-size: 1rem;
+      font-weight: 500;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      transition: background 0.15s;
+      background: var(--secondary);
+      color: var(--secondary-fg);
+    }
+    .link:hover {
+      background: #e4e4e7;
+    }
+    .link-icon {
+      width: 1.5rem;
+      height: 1.5rem;
+      flex-shrink: 0;
+    }
+    .link-icon svg {
+      width: 1.5rem;
+      height: 1.5rem;
+      stroke: var(--muted);
+    }
+    .link-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.125rem;
+    }
+    .link-name {
+      font-weight: 500;
+      line-height: 1.25;
+    }
+    .link-desc {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+  .container
+    .card
+      .header
+        .title= title
 
-  .grid.gap-4(class="md:grid-cols-2 lg:grid-cols-3")
-    each service in services
-      a.block.bg-white.rounded-xl.shadow-md.p-6.transition-all.duration-200(
-        href=service.url
-        class="hover:shadow-lg hover:-translate-y-1"
-      )
-        .flex.items-center.mb-4
-          .w-12.h-12.rounded-lg.flex.items-center.justify-center.text-white(class=service.color)
-            svg.w-6.h-6(xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2")
-              path(stroke-linecap="round" stroke-linejoin="round" d=service.icon)
-          h2.ml-4.text-xl.font-semibold.text-gray-800= service.name
-        p.text-gray-600= service.description
+      .links
+        each service in services
+          a.link(href=service.url)
+            .link-icon
+              svg(xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2")
+                path(stroke-linecap="round" stroke-linejoin="round" d=service.icon)
+            .link-content
+              .link-name= service.name
+              .link-desc= service.description
