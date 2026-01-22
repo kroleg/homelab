@@ -12,12 +12,14 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - family-dashboard - Family dashboard with quick links to homelab services
 - glance - Dashboard UI showing service health, Docker containers, and calendar widgets
 - grafana - Metrics visualization with dashboards for DNS, Keenetic, and node metrics
+- jellyfin - Media server for streaming movies and TV shows
 - keenetic-exporter - Prometheus exporter for Keenetic router metrics
 - main - Central API wrapper with VPN management and database integration
 - otel - OpenTelemetry collector config for OTLP to Prometheus
 - page-watcher - Web page monitoring service that detects text changes and sends notifications
 - prometheus - Prometheus time-series database configuration
 - promtail - Loki log shipper for Docker container logs
+- qbittorrent - Torrent client with web interface
 - shared-logs - Shared logging output directory for services
 - traefik - Traefik reverse proxy dynamic configuration
 - vector - Data pipeline for transforming Docker logs to Seq
