@@ -55,9 +55,9 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dns2vpn"]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   dns-to-vpn:
     container_name: dns-to-vpn
@@ -204,9 +204,9 @@ services:
       - SUBCALENDAR_LEV_COLOR=#B469FF
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3003/health"]
-      interval: 1s
-      timeout: 1s
-      retries: 5
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks:
       - default
       - shared
@@ -299,9 +299,9 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pagewatcher"]
-      interval: 5s
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   page-watcher:
     container_name: page-watcher
