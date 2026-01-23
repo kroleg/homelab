@@ -11,7 +11,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
 - family-dashboard - Family dashboard with quick links to homelab services
 - glance - Dashboard UI showing service health, Docker containers, and calendar widgets
-- grafana - Metrics visualization with dashboards for DNS, Keenetic, and node metrics
+- grafana - Metrics visualization with dashboards for DNS, Keenetic, and node metrics (see grafana/SETUP.md for host setup)
 - jellyfin - Media server for streaming movies and TV shows
 - keenetic-exporter - Prometheus exporter for Keenetic router metrics
 - main - Central API wrapper with VPN management and database integration

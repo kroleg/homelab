@@ -65,3 +65,7 @@ Replace `v24.x.x` with the actual version number.
 - `vpn-toggle.internal` - VPN toggle UI
 - `home.internal` - Glance dashboard
 - `grafana.internal` - Grafana
+
+## Host Setup
+
+- [Grafana/Power monitoring](grafana/SETUP.md)
