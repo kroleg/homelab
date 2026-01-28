@@ -111,6 +111,13 @@ block content
       font-size: 0.75rem;
       color: var(--muted);
     }
+    .torrent-path {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+      font-family: monospace;
+      word-break: break-all;
+    }
     .delete-btn {
       background: none;
       border: none;
@@ -124,12 +131,54 @@ block content
       background: #fee2e2;
       color: #b91c1c;
     }
+    .move-buttons {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .move-btn {
+      flex: 1;
+      padding: 0.5rem;
+      font-size: 0.75rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.25rem;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .move-btn:hover {
+      background: var(--primary-fg);
+      border-color: var(--primary);
+    }
     .empty-state {
       text-align: center;
       color: var(--muted);
       padding: 2rem;
     }
     input[type="file"] { display: none; }
+    .fix-paths-section {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    .fix-paths-btn {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 0.875rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .fix-paths-btn:hover {
+      background: var(--primary-fg);
+      border-color: var(--primary);
+    }
+    .fix-paths-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     .magnet-input {
       display: flex;
       gap: 0.5rem;
@@ -195,13 +244,28 @@ block content
         each t in torrents
           .torrent-card(data-hash=t.hash)
             .torrent-header
-              .torrent-name= t.name
+              .torrent-name= t.displayName
               .torrent-status(class=`status-${t.displayState}`)= t.displayState
             .progress-bar
               .progress-fill(style=`width: ${t.progressPercent}%` class=(t.progressPercent === 100 ? 'complete' : ''))
             .torrent-footer
               .torrent-info #{t.progressPercent}%
               button.delete-btn(onclick=`deleteTorrent('${t.hash}')`) Удалить
+            .torrent-path
+              span= t.relativePath
+              if t.contentFolder
+                span  / #{t.contentFolder}
+            if t.showMoveButtons
+              .move-buttons
+                if t.suggestTvShows
+                  button.move-btn(onclick=`moveTorrent('${t.hash}', 'tv-shows', this)` data-name=t.name) → Сериалы
+                else
+                  button.move-btn(onclick=`moveTorrent('${t.hash}', 'tv-shows', this)` data-name=t.name) → Сериалы
+                  button.move-btn(onclick=`moveTorrent('${t.hash}', 'movies', this)` data-name=t.name) → Фильмы
+
+    if torrents.length > 0
+      .fix-paths-section
+        button.fix-paths-btn(onclick="fixAllPaths(this)") Исправить пути для всех
 
   script.
     async function addMagnet() {
@@ -285,6 +349,50 @@ block content
         }
       } catch (err) {
         alert('Ошибка удаления');
+      }
+    }
+
+    async function moveTorrent(hash, category, btn) {
+      const name = btn.dataset.name;
+      try {
+        const response = await fetch(`/api/move/${hash}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category, name })
+        });
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Ошибка перемещения');
+        }
+      } catch (err) {
+        alert('Ошибка перемещения');
+      }
+    }
+
+    async function fixAllPaths(btn) {
+      if (!confirm('Исправить пути для всех торрентов в tv-shows и movies?')) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Исправление...';
+
+      try {
+        const response = await fetch('/api/fix-paths', { method: 'POST' });
+        if (response.ok) {
+          const data = await response.json();
+          const fixed = data.results.filter(r => r.status === 'fixed').length;
+          const skipped = data.results.filter(r => r.status === 'skipped').length;
+          const errors = data.results.filter(r => r.status === 'error').length;
+          alert(`Готово!\nИсправлено: ${fixed}\nПропущено: ${skipped}\nОшибок: ${errors}`);
+          location.reload();
+        } else {
+          alert('Ошибка исправления путей');
+        }
+      } catch (err) {
+        alert('Ошибка исправления путей');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Исправить пути для всех';
       }
     }
 

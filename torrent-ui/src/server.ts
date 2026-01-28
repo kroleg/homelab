@@ -32,17 +32,74 @@ function formatBytes(bytes: number): string {
   return gb.toFixed(1) + ' GB';
 }
 
+function trimDisplayName(name: string): string {
+  // Remove [SERIAL] or similar tags at the start
+  let trimmed = name.replace(/^\[.*?\]\s*/, '');
+  // Remove everything after episode info (starting with " (" for directors or " [" for year)
+  trimmed = trimmed.replace(/\s+\([^)]*(?:,|\.)[^)]*\).*$/, '');
+  trimmed = trimmed.replace(/\s+\[\d{4}.*$/, '');
+  return trimmed.trim();
+}
+
+const BASE_PATH = '/media/downloads';
+
 app.get('/', async (req, res) => {
   try {
     const [torrents, freeSpace] = await Promise.all([
       qbt.listTorrents(),
       qbt.getFreeSpace(),
     ]);
-    const mappedTorrents = torrents.map(t => ({
-      ...t,
-      displayState: mapTorrentState(t.state),
-      progressPercent: Math.round(t.progress * 100),
-    }));
+
+    // Fetch content folder names in parallel
+    const filesPromises = torrents.map(t =>
+      qbt.getTorrentFiles(t.hash).catch(() => [])
+    );
+    const allFiles = await Promise.all(filesPromises);
+
+    const mappedTorrents = torrents.map((t, i) => {
+      const inBasePath = t.save_path === BASE_PATH;
+      const isSerial = t.name.includes('SERIAL');
+      // Get relative path (remove base path prefix)
+      let relativePath = t.save_path;
+      if (relativePath.startsWith(BASE_PATH)) {
+        relativePath = relativePath.slice(BASE_PATH.length);
+        if (relativePath.startsWith('/')) relativePath = relativePath.slice(1);
+      }
+
+      // Get content folder name from files
+      const files = allFiles[i];
+      let contentFolder = '';
+      if (files.length > 0) {
+        const firstFilePath = files[0].name;
+        const rootFolder = firstFilePath.split('/')[0];
+        if (rootFolder && rootFolder !== firstFilePath) {
+          // Check for subfolders (files at depth 3+ means root/subfolder/file)
+          const subfolders = new Set<string>();
+          for (const file of files) {
+            const parts = file.name.split('/');
+            if (parts.length >= 3) {
+              subfolders.add(parts[1]);
+            }
+          }
+          if (subfolders.size > 0) {
+            // Multi-season: show root folder + subfolders
+            contentFolder = `${rootFolder} / ${Array.from(subfolders).sort().join(', ')}`;
+          } else {
+            contentFolder = rootFolder;
+          }
+        }
+      }
+      return {
+        ...t,
+        displayName: trimDisplayName(t.name),
+        displayState: mapTorrentState(t.state),
+        progressPercent: Math.round(t.progress * 100),
+        showMoveButtons: inBasePath && t.progress === 1,
+        suggestTvShows: isSerial,
+        relativePath: relativePath || '/',
+        contentFolder,
+      };
+    });
     res.render('index', { torrents: mappedTorrents, freeSpace: formatBytes(freeSpace) });
   } catch (error) {
     logger.error('Failed to load torrents', { error });

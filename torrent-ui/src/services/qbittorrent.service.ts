@@ -9,6 +9,7 @@ export interface TorrentInfo {
   dlspeed: number;
   upspeed: number;
   eta: number;
+  save_path: string;
 }
 
 const TorrentState = {
@@ -118,6 +119,43 @@ export function createQBittorrentService(baseUrl: string, logger: Logger) {
       });
 
       logger.info(`Deleted torrent: ${hash}`);
+    },
+
+    async moveTorrent(hash: string, location: string): Promise<void> {
+      const formData = new URLSearchParams();
+      formData.append('hashes', hash);
+      formData.append('location', location);
+
+      await request('/api/v2/torrents/setLocation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+
+      logger.info(`Moved torrent ${hash} to ${location}`);
+    },
+
+    async getTorrentFiles(hash: string): Promise<{ name: string }[]> {
+      return request<{ name: string }[]>(`/api/v2/torrents/files?hash=${hash}`);
+    },
+
+    async renameTorrentFolder(hash: string, oldPath: string, newPath: string): Promise<void> {
+      const formData = new URLSearchParams();
+      formData.append('hash', hash);
+      formData.append('oldPath', oldPath);
+      formData.append('newPath', newPath);
+
+      await request('/api/v2/torrents/renameFolder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+
+      logger.info(`Renamed folder in torrent ${hash}: ${oldPath} -> ${newPath}`);
     },
   };
 }
