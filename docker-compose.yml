@@ -96,6 +96,8 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  # Static IP 192.168.80.53 - used by containers to bypass ISP DNS interception
+  # See adr/001-dns-interception-bypass.md
   dns-proxy:
     container_name: dns-proxy
     build:
@@ -120,6 +122,9 @@ services:
     volumes:
       - ./shared-logs:/logs
       - ./config:/config
+    networks:
+      default:
+        ipv4_address: 192.168.80.53
     restart: unless-stopped
 
   vpn-toggle:
@@ -370,6 +375,9 @@ services:
   jellyfin:
     container_name: jellyfin
     image: jellyfin/jellyfin:latest
+    dns: [192.168.80.53]  # bypass ISP DNS interception, see adr/001-dns-interception-bypass.md
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1  # force IPv4, no IPv6 connectivity in this network
     environment:
       - PUID=1000
       - PGID=1000
@@ -410,6 +418,10 @@ services:
     restart: unless-stopped
 
 networks:
+  default:
+    ipam:
+      config:
+        - subnet: 192.168.80.0/20
   shared:
     name: shared
 
