@@ -10,6 +10,8 @@ export interface TorrentInfo {
   upspeed: number;
   eta: number;
   save_path: string;
+  added_on: number;
+  tags: string;
 }
 
 const TorrentState = {
@@ -68,8 +70,12 @@ export function createQBittorrentService(baseUrl: string, logger: Logger) {
   }
 
   return {
-    async listTorrents(): Promise<TorrentInfo[]> {
-      return request<TorrentInfo[]>('/api/v2/torrents/info');
+    async listTorrents(tag?: string): Promise<TorrentInfo[]> {
+      const url = tag
+        ? `/api/v2/torrents/info?tag=${encodeURIComponent(tag)}`
+        : '/api/v2/torrents/info';
+      const torrents = await request<TorrentInfo[]>(url);
+      return torrents.sort((a, b) => b.added_on - a.added_on);
     },
 
     async getFreeSpace(): Promise<number> {
@@ -161,6 +167,37 @@ export function createQBittorrentService(baseUrl: string, logger: Logger) {
     async getTorrentInfo(hash: string): Promise<TorrentInfo | undefined> {
       const torrents = await request<TorrentInfo[]>(`/api/v2/torrents/info?hashes=${hash}`);
       return torrents[0];
+    },
+
+    async createTags(tags: string[]): Promise<void> {
+      const formData = new URLSearchParams();
+      formData.append('tags', tags.join(','));
+
+      await request('/api/v2/torrents/createTags', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+
+      logger.info(`Created tags: ${tags.join(', ')}`);
+    },
+
+    async addTags(hash: string, tags: string[]): Promise<void> {
+      const formData = new URLSearchParams();
+      formData.append('hashes', hash);
+      formData.append('tags', tags.join(','));
+
+      await request('/api/v2/torrents/addTags', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+
+      logger.info(`Added tags to ${hash}: ${tags.join(', ')}`);
     },
 
     async setAutorunHook(hookUrl: string): Promise<void> {

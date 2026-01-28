@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import type { Logger } from '../logger.ts';
 import type { KeeneticService } from '../services/keenetic.service.ts';
+import type { Profile } from '../config.ts';
 
-export function createApiRoutes(logger: Logger, keenetic: KeeneticService): Router {
+export function createApiRoutes(logger: Logger, keenetic: KeeneticService, profiles: Profile[]): Router {
   const router = Router();
+
+  router.get('/profiles', (_req, res) => {
+    res.json(profiles.map(p => ({ id: p.id, name: p.name, isAdmin: p.isAdmin })));
+  });
 
   router.get('/client', async (req, res) => {
     const ip = req.query.ip as string;

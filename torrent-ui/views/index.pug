@@ -128,41 +128,55 @@ block content
       color: var(--muted);
       padding: 2rem;
     }
-    input[type="file"] { display: none; }
-    .magnet-input {
+    .section {
+      margin-top: 1.5rem;
+    }
+    .section-header {
       display: flex;
+      align-items: center;
       gap: 0.5rem;
-      margin-bottom: 1.5rem;
+      padding: 0.75rem 0;
+      cursor: pointer;
+      user-select: none;
     }
-    .magnet-input input {
-      flex: 1;
-      padding: 0.75rem 1rem;
-      border: 1px solid #e5e7eb;
-      border-radius: 0.5rem;
+    .section-header:hover {
+      color: var(--primary);
+    }
+    .section-toggle {
+      font-size: 0.75rem;
+      transition: transform 0.2s;
+    }
+    .section-toggle.expanded {
+      transform: rotate(90deg);
+    }
+    .section-title {
       font-size: 0.875rem;
-      outline: none;
+      font-weight: 500;
+      color: var(--muted);
     }
-    .magnet-input input:focus {
-      border-color: var(--primary);
+    .section-content {
+      display: none;
     }
-    .magnet-input button {
-      padding: 0.75rem 1rem;
+    .section-content.expanded {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .add-btn {
+      display: block;
+      padding: 0.75rem 1.5rem;
       background: var(--primary);
       color: var(--primary-fg);
       border: none;
       border-radius: 0.5rem;
       font-size: 0.875rem;
       font-weight: 500;
-      cursor: pointer;
-    }
-    .magnet-input button:hover {
-      opacity: 0.9;
-    }
-    .or-divider {
+      text-decoration: none;
       text-align: center;
-      color: var(--muted);
-      font-size: 0.75rem;
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .add-btn:hover {
+      opacity: 0.9;
     }
 
   .container
@@ -171,111 +185,58 @@ block content
       if freeSpace
         .free-space Свободно: #{freeSpace}
 
-    .magnet-input
-      input#magnet-url(type="text" placeholder="Вставьте magnet-ссылку..." onkeydown="if(event.key==='Enter')addMagnet()")
-      button(onclick="addMagnet()") Добавить
-
-    .or-divider или
-
-    #drop-zone.drop-zone(onclick="document.getElementById('file-input').click()")
-      .drop-zone-text
-        | Перетащите
-        strong  .torrent
-        |  файл или нажмите для выбора
-      input#file-input(type="file" accept=".torrent" onchange="handleFileSelect(event)")
+    a.add-btn(href="/upload") + Добавить
 
     if error
       .error-msg= error
 
     .torrent-list
-      if torrents.length === 0
+      if torrents.length === 0 && (!sections || sections.length === 0)
         .empty-state Нет активных загрузок
       else
         each t in torrents
-          - var tooltipPath = t.relativePath + (t.contentFolder ? ' / ' + t.contentFolder : '')
-          - var tooltip = tooltipPath + '\n' + t.progressPercent + '% • ' + t.displayState
-          .torrent-card(data-hash=t.hash data-progress=t.progressPercent data-state=t.displayState title=tooltip style=`--progress: ${t.progressPercent}%` class=(t.progressPercent === 100 ? 'complete' : ''))
-            .torrent-header
-              .torrent-name= t.displayName
-              if t.progressPercent < 100
-                span.torrent-progress #{t.progressPercent}%
-              else if t.jellyfinLink
-                a.watch-link(href=t.jellyfinLink target="_blank") Смотреть ❯
-            if t.showMoveButtons
-              .move-buttons
-                if t.suggestTvShows
-                  button.move-btn(onclick=`moveTorrent('${t.hash}', 'tv-shows', this)` data-name=t.name) → Сериалы
-                else
-                  button.move-btn(onclick=`moveTorrent('${t.hash}', 'tv-shows', this)` data-name=t.name) → Сериалы
-                  button.move-btn(onclick=`moveTorrent('${t.hash}', 'movies', this)` data-name=t.name) → Фильмы
+          +torrentCard(t)
+
+        if sections && sections.length > 0
+          each section, idx in sections
+            .section
+              .section-header(onclick=`toggleSection(${idx})`)
+                span.section-toggle(id=`toggle-${idx}`) ▶
+                span.section-title= section.title
+              .section-content(id=`section-${idx}`)
+                each t in section.torrents
+                  +torrentCard(t)
+
+mixin torrentCard(t)
+  - var tooltipPath = t.relativePath + (t.contentFolder ? ' / ' + t.contentFolder : '')
+  - var tooltip = tooltipPath + '\n' + t.progressPercent + '% • ' + t.displayState
+  .torrent-card(data-hash=t.hash data-progress=t.progressPercent data-state=t.displayState title=tooltip style=`--progress: ${t.progressPercent}%` class=(t.progressPercent === 100 ? 'complete' : ''))
+    .torrent-header
+      .torrent-name= t.displayName
+      if t.progressPercent < 100
+        span.torrent-progress #{t.progressPercent}%
+      else if t.jellyfinLink
+        a.watch-link(href=t.jellyfinLink target="_blank") Смотреть ❯
+    if t.showMoveButtons
+      .move-buttons
+        if t.suggestTvShows
+          button.move-btn(onclick=`moveTorrent('${t.hash}', 'tv-shows', this)` data-name=t.name) → Сериалы
+        else
+          button.move-btn(onclick=`moveTorrent('${t.hash}', 'tv-shows', this)` data-name=t.name) → Сериалы
+          button.move-btn(onclick=`moveTorrent('${t.hash}', 'movies', this)` data-name=t.name) → Фильмы
 
   script.
-    async function addMagnet() {
-      const input = document.getElementById('magnet-url');
-      const url = input.value.trim();
-      if (!url) return;
+    function toggleSection(idx) {
+      const content = document.getElementById(`section-${idx}`);
+      const toggle = document.getElementById(`toggle-${idx}`);
+      const isExpanded = content.classList.contains('expanded');
 
-      try {
-        const response = await fetch('/api/magnet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url })
-        });
-
-        if (response.ok) {
-          location.reload();
-        } else {
-          alert('Ошибка добавления magnet-ссылки');
-        }
-      } catch (err) {
-        alert('Ошибка добавления magnet-ссылки');
-      }
-    }
-
-    const dropZone = document.getElementById('drop-zone');
-
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('drag-over');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('drag-over');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('drag-over');
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        uploadTorrent(files[0]);
-      }
-    });
-
-    function handleFileSelect(e) {
-      const file = e.target.files[0];
-      if (file) {
-        uploadTorrent(file);
-      }
-    }
-
-    async function uploadTorrent(file) {
-      const formData = new FormData();
-      formData.append('torrent', file);
-
-      try {
-        const response = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (response.ok) {
-          location.reload();
-        } else {
-          alert('Ошибка загрузки торрента');
-        }
-      } catch (err) {
-        alert('Ошибка загрузки торрента');
+      if (isExpanded) {
+        content.classList.remove('expanded');
+        toggle.classList.remove('expanded');
+      } else {
+        content.classList.add('expanded');
+        toggle.classList.add('expanded');
       }
     }
 

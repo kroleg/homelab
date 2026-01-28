@@ -35,6 +35,16 @@ html(lang="en")
         z-index: 10;
       }
       .back-link:hover { color: var(--foreground); }
+      .user-name {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+        z-index: 10;
+      }
   body
     a.back-link(href="http://dom.internal") ← Домой
+    if userProfile
+      .user-name= userProfile.name
     block content

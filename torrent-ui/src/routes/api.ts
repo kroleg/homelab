@@ -10,6 +10,36 @@ const upload = multer({ storage: multer.memoryStorage() });
 const BASE_PATH = '/media/downloads';
 const CATEGORIES = ['tv-shows', 'movies'] as const;
 
+interface UserProfile {
+  id: string;
+  name: string;
+  isAdmin: boolean;
+}
+
+function getUserTag(profile: UserProfile): string {
+  return `user-${profile.id.toLowerCase()}`;
+}
+
+async function getUserProfile(keeneticApiUrl: string, ip: string): Promise<UserProfile | null> {
+  try {
+    const response = await fetch(`${keeneticApiUrl}/api/client?ip=${encodeURIComponent(ip)}`);
+    if (response.ok) {
+      const data = await response.json() as { profile: UserProfile | null };
+      return data.profile;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+function getClientIp(req: { headers: Record<string, string | string[] | undefined>; ip?: string }): string {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  return typeof forwardedFor === 'string'
+    ? forwardedFor.split(',')[0].trim()
+    : req.ip || '';
+}
+
 function detectCategory(name: string): 'tv-shows' | 'movies' {
   // Check for TV show indicators
   const tvPatterns = [
@@ -32,8 +62,20 @@ function detectCategory(name: string): 'tv-shows' | 'movies' {
   return 'movies';
 }
 
-export function createApiRoutes(logger: Logger, qbt: QBittorrentService): Router {
+export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneticApiUrl: string): Router {
   const router = Router();
+
+  // Helper to tag torrent with user's tag
+  async function tagTorrentForUser(hash: string, clientIp: string): Promise<void> {
+    const profile = await getUserProfile(keeneticApiUrl, clientIp);
+    if (profile) {
+      const tag = getUserTag(profile);
+      // Ensure tag exists before adding it to the torrent
+      await qbt.createTags([tag]);
+      await qbt.addTags(hash, [tag]);
+      logger.info(`Tagged torrent ${hash} with ${tag}`);
+    }
+  }
 
   router.post('/upload', upload.single('torrent'), async (req, res) => {
     try {
@@ -43,7 +85,27 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService): Router
         return;
       }
 
+      const clientIp = getClientIp(req);
+
+      // Get existing hashes before adding
+      const existingTorrents = await qbt.listTorrents();
+      const existingHashes = new Set(existingTorrents.map(t => t.hash));
+
       await qbt.addTorrent(file.buffer, file.originalname);
+
+      // Tag the new torrent with user's tag (best effort)
+      setTimeout(async () => {
+        try {
+          const torrents = await qbt.listTorrents();
+          const newTorrent = torrents.find(t => !existingHashes.has(t.hash));
+          if (newTorrent) {
+            await tagTorrentForUser(newTorrent.hash, clientIp);
+          }
+        } catch (e) {
+          logger.warn('Failed to tag uploaded torrent', { error: e });
+        }
+      }, 1000);
+
       res.json({ success: true });
     } catch (error) {
       logger.error('Failed to upload torrent', { error });
@@ -59,7 +121,27 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService): Router
         return;
       }
 
+      const clientIp = getClientIp(req);
+
+      // Get existing hashes before adding
+      const existingTorrents = await qbt.listTorrents();
+      const existingHashes = new Set(existingTorrents.map(t => t.hash));
+
       await qbt.addMagnet(url);
+
+      // Tag the new torrent with user's tag (best effort)
+      setTimeout(async () => {
+        try {
+          const torrents = await qbt.listTorrents();
+          const newTorrent = torrents.find(t => !existingHashes.has(t.hash));
+          if (newTorrent) {
+            await tagTorrentForUser(newTorrent.hash, clientIp);
+          }
+        } catch (e) {
+          logger.warn('Failed to tag magnet torrent', { error: e });
+        }
+      }, 2000);
+
       res.json({ success: true });
     } catch (error) {
       logger.error('Failed to add magnet link', { error });

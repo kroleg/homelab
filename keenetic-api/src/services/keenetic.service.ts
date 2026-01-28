@@ -4,7 +4,7 @@ import type { Profile } from '../config.ts';
 
 export interface ClientInfo {
   name: string;
-  profile: { name: string; isAdmin: boolean } | null;
+  profile: { id: string; name: string; isAdmin: boolean } | null;
   ip: string;
   mac: string;
 }
@@ -181,7 +181,7 @@ export function createKeeneticService(config: {
             const profile = matchProfile(name, profiles);
             return {
               name,
-              profile: profile ? { name: profile.name, isAdmin: profile.isAdmin } : null,
+              profile: profile ? { id: profile.id, name: profile.name, isAdmin: profile.isAdmin } : null,
               ip: client.ip || '',
               mac: client.mac || '',
             };
@@ -206,7 +206,7 @@ export function createKeeneticService(config: {
               const profile = matchProfile(name, profiles);
               return {
                 name,
-                profile: profile ? { name: profile.name, isAdmin: profile.isAdmin } : null,
+                profile: profile ? { id: profile.id, name: profile.name, isAdmin: profile.isAdmin } : null,
                 ip: client.ip || '',
                 mac: client.mac || '',
               };

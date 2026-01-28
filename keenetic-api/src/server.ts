@@ -24,7 +24,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use('/api', createApiRoutes(logger, keenetic));
+app.use('/api', createApiRoutes(logger, keenetic, config.profiles));
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Server error:', err);

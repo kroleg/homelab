@@ -1,0 +1,171 @@
+extends layout
+
+block content
+  style.
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 2rem 1rem;
+      max-width: 40rem;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .free-space {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+    .drop-zone {
+      border: 2px dashed var(--muted);
+      border-radius: 0.75rem;
+      padding: 3rem 2rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: border-color 0.15s, background 0.15s;
+      cursor: pointer;
+    }
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--primary);
+      background: var(--primary-fg);
+    }
+    .drop-zone-text {
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+    .drop-zone-text strong {
+      color: var(--primary);
+    }
+    .or-divider {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .magnet-input {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .magnet-input input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    .magnet-input input:focus {
+      border-color: var(--primary);
+    }
+    .magnet-input button {
+      padding: 0.75rem 1rem;
+      background: var(--primary);
+      color: var(--primary-fg);
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .magnet-input button:hover {
+      opacity: 0.9;
+    }
+    input[type="file"] { display: none; }
+
+  .container
+    .header
+      .title Добавить загрузку
+      if freeSpace
+        .free-space Свободно: #{freeSpace}
+
+    #drop-zone.drop-zone(onclick="document.getElementById('file-input').click()")
+      .drop-zone-text
+        | Перетащите
+        strong  .torrent
+        |  файл или нажмите для выбора
+      input#file-input(type="file" accept=".torrent" onchange="handleFileSelect(event)")
+
+    .or-divider или
+
+    .magnet-input
+      input#magnet-url(type="text" placeholder="Вставьте magnet-ссылку..." onkeydown="if(event.key==='Enter')addMagnet()")
+      button(onclick="addMagnet()") Добавить
+
+  script.
+    async function addMagnet() {
+      const input = document.getElementById('magnet-url');
+      const url = input.value.trim();
+      if (!url) return;
+
+      try {
+        const response = await fetch('/api/magnet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        if (response.ok) {
+          window.location.href = '/';
+        } else {
+          alert('Ошибка добавления magnet-ссылки');
+        }
+      } catch (err) {
+        alert('Ошибка добавления magnet-ссылки');
+      }
+    }
+
+    const dropZone = document.getElementById('drop-zone');
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        uploadTorrent(files[0]);
+      }
+    });
+
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        uploadTorrent(file);
+      }
+    }
+
+    async function uploadTorrent(file) {
+      const formData = new FormData();
+      formData.append('torrent', file);
+
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          window.location.href = '/';
+        } else {
+          alert('Ошибка загрузки торрента');
+        }
+      } catch (err) {
+        alert('Ошибка загрузки торрента');
+      }
+    }

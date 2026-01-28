@@ -1,0 +1,31 @@
+extends layout
+
+block content
+  .access-denied
+    h1 Доступ запрещён
+    p Ваше устройство не зарегистрировано в системе.
+    p.ip IP: #{clientIp}
+
+  style.
+    .access-denied {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      text-align: center;
+      padding: 2rem;
+    }
+    .access-denied h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: var(--primary);
+    }
+    .access-denied p {
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .access-denied .ip {
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
