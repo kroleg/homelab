@@ -89,6 +89,14 @@ app.get('/', async (req, res) => {
           }
         }
       }
+      // Generate Jellyfin link based on category
+      let jellyfinLink = '';
+      if (relativePath.startsWith('tv-shows')) {
+        jellyfinLink = 'http://media.internal/web/index.html#!/tv.html';
+      } else if (relativePath.startsWith('movies')) {
+        jellyfinLink = 'http://media.internal/web/index.html#!/movies.html';
+      }
+
       return {
         ...t,
         displayName: trimDisplayName(t.name),
@@ -98,6 +106,7 @@ app.get('/', async (req, res) => {
         suggestTvShows: isSerial,
         relativePath: relativePath || '/',
         contentFolder,
+        jellyfinLink,
       };
     });
     res.render('index', { torrents: mappedTorrents, freeSpace: formatBytes(freeSpace) });

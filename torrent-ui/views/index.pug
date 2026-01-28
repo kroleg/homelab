@@ -150,6 +150,16 @@ block content
       background: var(--primary-fg);
       border-color: var(--primary);
     }
+    .watch-link {
+      display: inline-block;
+      font-size: 0.7rem;
+      color: var(--primary);
+      text-decoration: none;
+      margin-left: 0.5rem;
+    }
+    .watch-link:hover {
+      text-decoration: underline;
+    }
     .empty-state {
       text-align: center;
       color: var(--muted);
@@ -255,6 +265,8 @@ block content
               span= t.relativePath
               if t.contentFolder
                 span  / #{t.contentFolder}
+              if t.jellyfinLink
+                a.watch-link(href=t.jellyfinLink target="_blank") Смотреть ❯
             if t.showMoveButtons
               .move-buttons
                 if t.suggestTvShows
