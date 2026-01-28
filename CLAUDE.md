@@ -42,3 +42,4 @@ Refer to @typescript-architecture.md
 - Rebuild service: `docker compose up -d --build <service>`
 - Logs: `docker compose logs -f <service>`
 - When adding new services, update the Subfolders list in this file
+- don't mention claude in commits
