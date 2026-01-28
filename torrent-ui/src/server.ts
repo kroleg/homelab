@@ -137,8 +137,15 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
   res.status(500).json({ error: 'Internal server error' });
 });
 
-const server = app.listen(config.port, () => {
+const server = app.listen(config.port, async () => {
   logger.info(`Server running on port ${config.port}`);
+
+  // Configure qBittorrent to call us when a torrent completes
+  try {
+    await qbt.setAutorunHook(`${config.selfUrl}/api/complete`);
+  } catch (error) {
+    logger.error('Failed to configure qBittorrent autorun hook', { error });
+  }
 });
 
 function shutdown() {

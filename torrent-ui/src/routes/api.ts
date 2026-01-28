@@ -10,6 +10,28 @@ const upload = multer({ storage: multer.memoryStorage() });
 const BASE_PATH = '/media/downloads';
 const CATEGORIES = ['tv-shows', 'movies'] as const;
 
+function detectCategory(name: string): 'tv-shows' | 'movies' {
+  // Check for TV show indicators
+  const tvPatterns = [
+    /\bserial\b/i,
+    /\bseason\b/i,
+    /\bs\d{1,2}\b/i,         // S01, S1, etc.
+    /\bs\d{1,2}e\d{1,2}\b/i, // S01E01
+    /сезон/i,
+    /серия/i,
+    /серии/i,
+    /\bсерии:\s*\d/i,
+  ];
+
+  for (const pattern of tvPatterns) {
+    if (pattern.test(name)) {
+      return 'tv-shows';
+    }
+  }
+
+  return 'movies';
+}
+
 export function createApiRoutes(logger: Logger, qbt: QBittorrentService): Router {
   const router = Router();
 
@@ -227,6 +249,84 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService): Router
     } catch (error) {
       logger.error('Failed to fix paths', { error });
       res.status(500).json({ error: 'Failed to fix paths' });
+    }
+  });
+
+  router.post('/complete/:hash', async (req, res) => {
+    try {
+      const { hash } = req.params;
+      logger.info(`Torrent completed: ${hash}`);
+
+      const torrent = await qbt.getTorrentInfo(hash);
+      if (!torrent) {
+        logger.warn(`Torrent not found: ${hash}`);
+        res.status(404).json({ error: 'Torrent not found' });
+        return;
+      }
+
+      // Only process torrents in base download path
+      if (torrent.save_path !== BASE_PATH) {
+        logger.info(`Skipping already moved torrent: ${torrent.name}`);
+        res.json({ success: true, skipped: true, reason: 'Already moved' });
+        return;
+      }
+
+      const category = detectCategory(torrent.name);
+      const showName = extractShowDisplayName(torrent.name);
+
+      if (!showName) {
+        logger.warn(`Could not extract show name: ${torrent.name}`);
+        res.json({ success: true, skipped: true, reason: 'Could not extract show name' });
+        return;
+      }
+
+      const files = await qbt.getTorrentFiles(hash);
+      const rootFolder = files.length > 0 ? files[0].name.split('/')[0] : null;
+      const hasFolder = rootFolder && rootFolder !== files[0]?.name;
+
+      if (isMultiSeason(torrent.name)) {
+        const location = `${BASE_PATH}/${category}`;
+        await qbt.moveTorrent(hash, location);
+
+        if (hasFolder && rootFolder !== showName) {
+          await qbt.renameTorrentFolder(hash, rootFolder, showName);
+        }
+
+        const subfolders = new Set<string>();
+        for (const file of files) {
+          const parts = file.name.split('/');
+          if (parts.length >= 2) {
+            subfolders.add(parts[1]);
+          }
+        }
+
+        for (const subfolder of subfolders) {
+          const normalized = normalizeSeasonFolder(subfolder);
+          if (normalized && normalized !== subfolder) {
+            const oldPath = `${showName}/${subfolder}`;
+            const newPath = `${showName}/${normalized}`;
+            try {
+              await qbt.renameTorrentFolder(hash, oldPath, newPath);
+            } catch (e) {
+              logger.warn(`Failed to rename subfolder ${oldPath}`, { error: e });
+            }
+          }
+        }
+      } else {
+        const location = `${BASE_PATH}/${category}/${showName}`;
+        await qbt.moveTorrent(hash, location);
+
+        const seasonFolder = extractSeasonFolder(torrent.name);
+        if (seasonFolder && hasFolder) {
+          await qbt.renameTorrentFolder(hash, rootFolder, seasonFolder);
+        }
+      }
+
+      logger.info(`Auto-moved torrent to ${category}: ${torrent.name}`);
+      res.json({ success: true, category, showName });
+    } catch (error) {
+      logger.error('Failed to process completed torrent', { error });
+      res.status(500).json({ error: 'Failed to process completed torrent' });
     }
   });
 

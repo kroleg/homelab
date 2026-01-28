@@ -157,6 +157,29 @@ export function createQBittorrentService(baseUrl: string, logger: Logger) {
 
       logger.info(`Renamed folder in torrent ${hash}: ${oldPath} -> ${newPath}`);
     },
+
+    async getTorrentInfo(hash: string): Promise<TorrentInfo | undefined> {
+      const torrents = await request<TorrentInfo[]>(`/api/v2/torrents/info?hashes=${hash}`);
+      return torrents[0];
+    },
+
+    async setAutorunHook(hookUrl: string): Promise<void> {
+      const formData = new URLSearchParams();
+      formData.append('json', JSON.stringify({
+        autorun_enabled: true,
+        autorun_program: `curl -s -X POST "${hookUrl}/%I"`,
+      }));
+
+      await request('/api/v2/app/setPreferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+
+      logger.info(`Set autorun hook to: ${hookUrl}/%I`);
+    },
   };
 }
 
