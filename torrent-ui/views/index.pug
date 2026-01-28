@@ -61,14 +61,27 @@ block content
     .torrent-card {
       background: var(--secondary);
       border-radius: 0.5rem;
-      padding: 1rem;
+      padding: 0.75rem 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .torrent-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: var(--progress, 0%);
+      background: #d1d5db;
+      transition: width 0.3s;
     }
     .torrent-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       gap: 0.5rem;
-      margin-bottom: 0.5rem;
+      position: relative;
+      z-index: 1;
     }
     .torrent-name {
       font-weight: 500;
@@ -76,65 +89,16 @@ block content
       word-break: break-word;
       flex: 1;
     }
-    .torrent-status {
+    .torrent-progress {
       font-size: 0.75rem;
-      padding: 0.125rem 0.5rem;
-      border-radius: 9999px;
       white-space: nowrap;
-    }
-    .status-downloading { background: #dbeafe; color: #1d4ed8; }
-    .status-seeding { background: #dcfce7; color: #15803d; }
-    .status-paused { background: #fef3c7; color: #b45309; }
-    .status-queued { background: #e5e7eb; color: #4b5563; }
-    .status-checking { background: #e0e7ff; color: #4338ca; }
-    .status-error { background: #fee2e2; color: #b91c1c; }
-    .status-unknown { background: #e5e7eb; color: #6b7280; }
-    .progress-bar {
-      height: 0.5rem;
-      background: #e5e7eb;
-      border-radius: 9999px;
-      overflow: hidden;
-      margin-bottom: 0.5rem;
-    }
-    .progress-fill {
-      height: 100%;
-      background: var(--primary);
-      transition: width 0.3s;
-    }
-    .progress-fill.complete { background: var(--success); }
-    .torrent-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .torrent-info {
-      font-size: 0.75rem;
-      color: var(--muted);
-    }
-    .torrent-path {
-      font-size: 0.7rem;
-      color: var(--muted);
-      margin-top: 0.25rem;
-      font-family: monospace;
-      word-break: break-all;
-    }
-    .delete-btn {
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      font-size: 0.75rem;
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.25rem;
-    }
-    .delete-btn:hover {
-      background: #fee2e2;
-      color: #b91c1c;
     }
     .move-buttons {
       display: flex;
       gap: 0.5rem;
       margin-top: 0.5rem;
+      position: relative;
+      z-index: 1;
     }
     .move-btn {
       flex: 1;
@@ -151,11 +115,10 @@ block content
       border-color: var(--primary);
     }
     .watch-link {
-      display: inline-block;
-      font-size: 0.7rem;
-      color: var(--primary);
+      font-size: 0.75rem;
       text-decoration: none;
-      margin-left: 0.5rem;
+      white-space: nowrap;
+      color: var(--primary);
     }
     .watch-link:hover {
       text-decoration: underline;
@@ -252,20 +215,14 @@ block content
         .empty-state Нет активных загрузок
       else
         each t in torrents
-          .torrent-card(data-hash=t.hash)
+          - var tooltipPath = t.relativePath + (t.contentFolder ? ' / ' + t.contentFolder : '')
+          - var tooltip = tooltipPath + '\n' + t.progressPercent + '% • ' + t.displayState
+          .torrent-card(data-hash=t.hash data-progress=t.progressPercent data-state=t.displayState title=tooltip style=`--progress: ${t.progressPercent}%` class=(t.progressPercent === 100 ? 'complete' : ''))
             .torrent-header
               .torrent-name= t.displayName
-              .torrent-status(class=`status-${t.displayState}`)= t.displayState
-            .progress-bar
-              .progress-fill(style=`width: ${t.progressPercent}%` class=(t.progressPercent === 100 ? 'complete' : ''))
-            .torrent-footer
-              .torrent-info #{t.progressPercent}%
-              button.delete-btn(onclick=`deleteTorrent('${t.hash}')`) Удалить
-            .torrent-path
-              span= t.relativePath
-              if t.contentFolder
-                span  / #{t.contentFolder}
-              if t.jellyfinLink
+              if t.progressPercent < 100
+                span.torrent-progress #{t.progressPercent}%
+              else if t.jellyfinLink
                 a.watch-link(href=t.jellyfinLink target="_blank") Смотреть ❯
             if t.showMoveButtons
               .move-buttons
@@ -349,21 +306,6 @@ block content
       }
     }
 
-    async function deleteTorrent(hash) {
-      if (!confirm('Удалить торрент?')) return;
-
-      try {
-        const response = await fetch(`/api/delete/${hash}`, { method: 'POST' });
-        if (response.ok) {
-          location.reload();
-        } else {
-          alert('Ошибка удаления');
-        }
-      } catch (err) {
-        alert('Ошибка удаления');
-      }
-    }
-
     async function moveTorrent(hash, category, btn) {
       const name = btn.dataset.name;
       try {
@@ -408,8 +350,6 @@ block content
       }
     }
 
-    const stateClasses = ['downloading', 'seeding', 'paused', 'queued', 'checking', 'error', 'unknown'];
-
     async function pollTorrents() {
       try {
         const response = await fetch('/api/torrents');
@@ -430,19 +370,31 @@ block content
           const card = document.querySelector(`.torrent-card[data-hash="${t.hash}"]`);
           if (!card) continue;
 
-          // Update progress bar
-          const fill = card.querySelector('.progress-fill');
-          fill.style.width = t.progress + '%';
-          fill.classList.toggle('complete', t.progress === 100);
+          // Update progress background
+          card.style.setProperty('--progress', t.progress + '%');
 
-          // Update percentage text
-          card.querySelector('.torrent-info').textContent = t.progress + '%';
+          // Update progress text or reload if completed
+          const oldProgress = card.dataset.progress;
+          if (oldProgress !== String(t.progress)) {
+            if (t.progress === 100 && oldProgress !== '100') {
+              // Just completed - reload to show watch link
+              location.reload();
+              return;
+            }
+            const progressEl = card.querySelector('.torrent-progress');
+            if (progressEl) {
+              progressEl.textContent = t.progress + '%';
+            }
+            card.dataset.progress = t.progress;
+          }
 
-          // Update status badge
-          const badge = card.querySelector('.torrent-status');
-          stateClasses.forEach(s => badge.classList.remove('status-' + s));
-          badge.classList.add('status-' + t.state);
-          badge.textContent = t.state;
+          // Update tooltip
+          const oldState = card.dataset.state;
+          if (oldProgress !== String(t.progress) || oldState !== t.state) {
+            card.dataset.state = t.state;
+            const pathPart = card.title.split('\n')[0];
+            card.title = pathPart + '\n' + t.progress + '% • ' + t.state;
+          }
         }
       } catch (err) {
         // Ignore polling errors

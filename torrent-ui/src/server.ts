@@ -35,9 +35,23 @@ function formatBytes(bytes: number): string {
 function trimDisplayName(name: string): string {
   // Remove [SERIAL] or similar tags at the start
   let trimmed = name.replace(/^\[.*?\]\s*/, '');
-  // Remove everything after episode info (starting with " (" for directors or " [" for year)
+
+  // Remove author in parentheses after series info
+  trimmed = trimmed.replace(/\s*\([^)]+\/[^)]+\)/, '');
+
+  // Remove complete series info (e.g., "/ Серии: 1-25 из 25" where range equals total)
+  trimmed = trimmed.replace(/\s*\/\s*Серии:\s*(\d+)-(\d+)\s+из\s+(\d+)/g, (match, start, end, total) => {
+    const rangeCount = parseInt(end) - parseInt(start) + 1;
+    if (rangeCount === parseInt(total)) {
+      return ''; // Complete season, hide it
+    }
+    return match; // Incomplete, keep it
+  });
+
+  // Remove everything after remaining content (starting with " (" for directors or " [" for year)
   trimmed = trimmed.replace(/\s+\([^)]*(?:,|\.)[^)]*\).*$/, '');
   trimmed = trimmed.replace(/\s+\[\d{4}.*$/, '');
+
   return trimmed.trim();
 }
 
