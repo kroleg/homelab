@@ -189,6 +189,22 @@ services:
       - LOG_LEVEL=info
     restart: unless-stopped
 
+  keenetic-api:
+    container_name: keenetic-api
+    build:
+      context: ./keenetic-api
+    environment:
+      - KEENETIC_HOST=${KEENETIC_HOST}
+      - KEENETIC_LOGIN=${KEENETIC_LOGIN}
+      - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
+      - PORT=3005
+      - PROFILE_IDS=VITALIY,LEV,POLYA
+      - PROFILE_VITALIY_NAME=Виталя
+      - PROFILE_VITALIY_ADMIN=true
+      - PROFILE_LEV_NAME=Лев
+      - PROFILE_POLYA_NAME=Поля
+    restart: unless-stopped
+
   calendar:
     container_name: calendar
     build:
@@ -404,8 +420,10 @@ services:
     environment:
       - PORT=3007
       - QBITTORRENT_URL=http://qbittorrent:8080
+      - KEENETIC_API_URL=http://keenetic-api:3005
     depends_on:
       - qbittorrent
+      - keenetic-api
     networks:
       - default
       - shared

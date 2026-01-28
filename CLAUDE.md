@@ -13,6 +13,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - glance - Dashboard UI showing service health, Docker containers, and calendar widgets
 - grafana - Metrics visualization with dashboards for DNS, Keenetic, and node metrics (see grafana/SETUP.md for host setup)
 - jellyfin - Media server for streaming movies and TV shows
+- keenetic-api - REST API for Keenetic router
 - keenetic-exporter - Prometheus exporter for Keenetic router metrics
 - main - Central API wrapper with VPN management and database integration
 - otel - OpenTelemetry collector config for OTLP to Prometheus
