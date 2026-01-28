@@ -1,0 +1,332 @@
+extends layout
+
+block content
+  style.
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 2rem 1rem;
+      max-width: 40rem;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .free-space {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+    .drop-zone {
+      border: 2px dashed var(--muted);
+      border-radius: 0.75rem;
+      padding: 2rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      transition: border-color 0.15s, background 0.15s;
+      cursor: pointer;
+    }
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: var(--primary);
+      background: var(--primary-fg);
+    }
+    .drop-zone-text {
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+    .drop-zone-text strong {
+      color: var(--primary);
+    }
+    .error-msg {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+    .torrent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .torrent-card {
+      background: var(--secondary);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+    .torrent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .torrent-name {
+      font-weight: 500;
+      font-size: 0.875rem;
+      word-break: break-word;
+      flex: 1;
+    }
+    .torrent-status {
+      font-size: 0.75rem;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      white-space: nowrap;
+    }
+    .status-downloading { background: #dbeafe; color: #1d4ed8; }
+    .status-seeding { background: #dcfce7; color: #15803d; }
+    .status-paused { background: #fef3c7; color: #b45309; }
+    .status-queued { background: #e5e7eb; color: #4b5563; }
+    .status-checking { background: #e0e7ff; color: #4338ca; }
+    .status-error { background: #fee2e2; color: #b91c1c; }
+    .status-unknown { background: #e5e7eb; color: #6b7280; }
+    .progress-bar {
+      height: 0.5rem;
+      background: #e5e7eb;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.3s;
+    }
+    .progress-fill.complete { background: var(--success); }
+    .torrent-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .torrent-info {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+    }
+    .delete-btn:hover {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      padding: 2rem;
+    }
+    input[type="file"] { display: none; }
+    .magnet-input {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .magnet-input input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    .magnet-input input:focus {
+      border-color: var(--primary);
+    }
+    .magnet-input button {
+      padding: 0.75rem 1rem;
+      background: var(--primary);
+      color: var(--primary-fg);
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .magnet-input button:hover {
+      opacity: 0.9;
+    }
+    .or-divider {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+  .container
+    .header
+      .title Загрузки
+      if freeSpace
+        .free-space Свободно: #{freeSpace}
+
+    .magnet-input
+      input#magnet-url(type="text" placeholder="Вставьте magnet-ссылку..." onkeydown="if(event.key==='Enter')addMagnet()")
+      button(onclick="addMagnet()") Добавить
+
+    .or-divider или
+
+    #drop-zone.drop-zone(onclick="document.getElementById('file-input').click()")
+      .drop-zone-text
+        | Перетащите
+        strong  .torrent
+        |  файл или нажмите для выбора
+      input#file-input(type="file" accept=".torrent" onchange="handleFileSelect(event)")
+
+    if error
+      .error-msg= error
+
+    .torrent-list
+      if torrents.length === 0
+        .empty-state Нет активных загрузок
+      else
+        each t in torrents
+          .torrent-card(data-hash=t.hash)
+            .torrent-header
+              .torrent-name= t.name
+              .torrent-status(class=`status-${t.displayState}`)= t.displayState
+            .progress-bar
+              .progress-fill(style=`width: ${t.progressPercent}%` class=(t.progressPercent === 100 ? 'complete' : ''))
+            .torrent-footer
+              .torrent-info #{t.progressPercent}%
+              button.delete-btn(onclick=`deleteTorrent('${t.hash}')`) Удалить
+
+  script.
+    async function addMagnet() {
+      const input = document.getElementById('magnet-url');
+      const url = input.value.trim();
+      if (!url) return;
+
+      try {
+        const response = await fetch('/api/magnet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Ошибка добавления magnet-ссылки');
+        }
+      } catch (err) {
+        alert('Ошибка добавления magnet-ссылки');
+      }
+    }
+
+    const dropZone = document.getElementById('drop-zone');
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        uploadTorrent(files[0]);
+      }
+    });
+
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        uploadTorrent(file);
+      }
+    }
+
+    async function uploadTorrent(file) {
+      const formData = new FormData();
+      formData.append('torrent', file);
+
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Ошибка загрузки торрента');
+        }
+      } catch (err) {
+        alert('Ошибка загрузки торрента');
+      }
+    }
+
+    async function deleteTorrent(hash) {
+      if (!confirm('Удалить торрент?')) return;
+
+      try {
+        const response = await fetch(`/api/delete/${hash}`, { method: 'POST' });
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert('Ошибка удаления');
+        }
+      } catch (err) {
+        alert('Ошибка удаления');
+      }
+    }
+
+    const stateClasses = ['downloading', 'seeding', 'paused', 'queued', 'checking', 'error', 'unknown'];
+
+    async function pollTorrents() {
+      try {
+        const response = await fetch('/api/torrents');
+        if (!response.ok) return;
+
+        const torrents = await response.json();
+        const cards = document.querySelectorAll('.torrent-card');
+        const currentHashes = new Set(Array.from(cards).map(c => c.dataset.hash));
+        const newHashes = new Set(torrents.map(t => t.hash));
+
+        // Reload if torrents were added or removed
+        if (currentHashes.size !== newHashes.size || [...currentHashes].some(h => !newHashes.has(h))) {
+          location.reload();
+          return;
+        }
+
+        for (const t of torrents) {
+          const card = document.querySelector(`.torrent-card[data-hash="${t.hash}"]`);
+          if (!card) continue;
+
+          // Update progress bar
+          const fill = card.querySelector('.progress-fill');
+          fill.style.width = t.progress + '%';
+          fill.classList.toggle('complete', t.progress === 100);
+
+          // Update percentage text
+          card.querySelector('.torrent-info').textContent = t.progress + '%';
+
+          // Update status badge
+          const badge = card.querySelector('.torrent-status');
+          stateClasses.forEach(s => badge.classList.remove('status-' + s));
+          badge.classList.add('status-' + t.state);
+          badge.textContent = t.state;
+        }
+      } catch (err) {
+        // Ignore polling errors
+      }
+    }
+
+    setInterval(pollTorrents, 3000);

@@ -21,6 +21,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - promtail - Loki log shipper for Docker container logs
 - qbittorrent - Torrent client with web interface
 - shared-logs - Shared logging output directory for services
+- torrent-ui - Simple UI for uploading torrents and viewing download progress
 - traefik - Traefik reverse proxy dynamic configuration
 - vector - Data pipeline for transforming Docker logs to Seq
 - vpn-toggle - Simple UI for toggling VPN connections

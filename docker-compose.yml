@@ -389,6 +389,26 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  torrent-ui:
+    container_name: torrent-ui
+    build:
+      context: ./torrent-ui
+    environment:
+      - PORT=3007
+      - QBITTORRENT_URL=http://qbittorrent:8080
+    depends_on:
+      - qbittorrent
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.torrent-ui.rule=Host(`dl.internal`)"
+      - "traefik.http.routers.torrent-ui.entrypoints=web"
+      - "traefik.http.services.torrent-ui.loadbalancer.server.port=3007"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
 networks:
   shared:
     name: shared
