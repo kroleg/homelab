@@ -33,6 +33,8 @@ No AI mention in commits.
 
 Docker Compose, Node.js/TypeScript, Prometheus/Grafana
 
+Refer to @typescript-architecture.md
+
 ## Development
 
 - Start all: `docker compose up -d`
