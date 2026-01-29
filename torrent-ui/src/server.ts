@@ -5,12 +5,14 @@ import { loadConfig } from './config.ts';
 import { createLogger } from './logger.ts';
 import { createApiRoutes } from './routes/api.ts';
 import { createQBittorrentService, mapTorrentState, type TorrentInfo } from './services/qbittorrent.service.ts';
+import { createRutrackerService } from './services/rutracker.service.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const config = loadConfig();
 const logger = createLogger(config.logLevel);
 const qbt = createQBittorrentService(config.qbittorrentUrl, logger);
+const rutracker = createRutrackerService(config.rutrackerCookie, logger);
 
 const app = express();
 app.use(express.json());
@@ -181,10 +183,10 @@ app.get('/upload', async (req, res) => {
       return;
     }
 
-    res.render('upload', { freeSpace: formatBytes(freeSpace), userProfile });
+    res.render('upload', { freeSpace: formatBytes(freeSpace), userProfile, backLink: '/', pageTitle: 'Вручную' });
   } catch (error) {
     logger.error('Failed to load upload page', { error });
-    res.render('upload', { freeSpace: null, userProfile: null });
+    res.render('upload', { freeSpace: null, userProfile: null, backLink: '/', pageTitle: 'Вручную' });
   }
 });
 
@@ -298,7 +300,28 @@ app.get('/', async (req, res) => {
   }
 });
 
-app.use('/api', createApiRoutes(logger, qbt, config.keeneticApiUrl));
+app.get('/search', async (req, res) => {
+  try {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const clientIp = typeof forwardedFor === 'string'
+      ? forwardedFor.split(',')[0].trim()
+      : req.ip || '';
+
+    const userProfile = await getUserProfile(clientIp);
+
+    if (!userProfile) {
+      res.render('access-denied', { clientIp });
+      return;
+    }
+
+    res.render('search', { userProfile, backLink: '/', pageTitle: 'Поиск' });
+  } catch (error) {
+    logger.error('Failed to load search page', { error });
+    res.render('search', { userProfile: null, backLink: '/', pageTitle: 'Поиск' });
+  }
+});
+
+app.use('/api', createApiRoutes(logger, qbt, config.keeneticApiUrl, rutracker));
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Server error:', err);

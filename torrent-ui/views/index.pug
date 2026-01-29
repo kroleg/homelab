@@ -15,10 +15,6 @@ block content
       text-align: center;
       margin-bottom: 1.5rem;
     }
-    .title {
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
     .free-space {
       font-size: 0.75rem;
       color: var(--muted);
@@ -181,11 +177,11 @@ block content
 
   .container
     .header
-      .title Загрузки
       if freeSpace
         .free-space Свободно: #{freeSpace}
 
-    a.add-btn(href="/upload") + Добавить
+    a.add-btn(href="/search") Найти фильм / сериал
+    a.add-btn(href="/upload" style="background: var(--secondary); color: var(--secondary-fg); margin-top: -0.75rem;") + Добавить торрент вручную
 
     if error
       .error-msg= error

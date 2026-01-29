@@ -3,6 +3,7 @@ import multer from 'multer';
 import type { Logger } from '../logger.ts';
 import type { QBittorrentService } from '../services/qbittorrent.service.ts';
 import { mapTorrentState } from '../services/qbittorrent.service.ts';
+import type { RutrackerService } from '../services/rutracker.service.ts';
 import { extractShowDisplayName, extractSeasonFolder, isMultiSeason, normalizeSeasonFolder } from '../utils/folder-path.ts';
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -62,7 +63,7 @@ function detectCategory(name: string): 'tv-shows' | 'movies' {
   return 'movies';
 }
 
-export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneticApiUrl: string): Router {
+export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneticApiUrl: string, rutracker: RutrackerService): Router {
   const router = Router();
 
   // Helper to tag torrent with user's tag
@@ -409,6 +410,66 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
     } catch (error) {
       logger.error('Failed to process completed torrent', { error });
       res.status(500).json({ error: 'Failed to process completed torrent' });
+    }
+  });
+
+  router.get('/search', async (req, res) => {
+    try {
+      const query = req.query.q;
+      if (!query || typeof query !== 'string') {
+        res.status(400).json({ error: 'Missing search query' });
+        return;
+      }
+
+      const results = await rutracker.search(query);
+      res.json(results);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Search failed: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
+  router.post('/search/download', async (req, res) => {
+    try {
+      const { id, name } = req.body;
+      if (!id) {
+        res.status(400).json({ error: 'Missing torrent id' });
+        return;
+      }
+
+      const clientIp = getClientIp(req);
+
+      // Get existing hashes before adding
+      const existingTorrents = await qbt.listTorrents();
+      const existingHashes = new Set(existingTorrents.map(t => t.hash));
+
+      // Download .torrent from rutracker
+      const { buffer, filename } = await rutracker.downloadTorrent(id);
+      logger.info(`Downloaded torrent from RuTracker: ${name || filename}`);
+
+      // Add to qBittorrent
+      await qbt.addTorrent(buffer, filename);
+
+      // Wait for qBittorrent to register the torrent, then tag it
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await new Promise(r => setTimeout(r, 500));
+        try {
+          const torrents = await qbt.listTorrents();
+          const newTorrent = torrents.find(t => !existingHashes.has(t.hash));
+          if (newTorrent) {
+            await tagTorrentForUser(newTorrent.hash, clientIp);
+            break;
+          }
+        } catch (e) {
+          logger.warn('Failed to tag search-downloaded torrent', { error: e });
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Search download failed', { error });
+      res.status(500).json({ error: 'Failed to download torrent' });
     }
   });
 

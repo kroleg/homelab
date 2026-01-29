@@ -94,7 +94,8 @@ Solution: Disable IPv6 at the container level using sysctl, forcing the applicat
 
 ## Affected Services
 
-- `jellyfin` - requires TMDb access for metadata/images
+- `jellyfin` - requires TMDb access for metadata/images (+ IPv6 disabled via sysctl due to .NET preferring AAAA records)
+- `torrent-ui` - requires RuTracker access for search (dns only, no sysctl needed)
 
 ### Configuration Template
 

@@ -6,12 +6,15 @@ export function loadConfig() {
   const selfUrl = process.env.SELF_URL || `http://torrent-ui:${port}`;
   const keeneticApiUrl = process.env.KEENETIC_API_URL || 'http://keenetic-api:3000';
 
+  const rutrackerCookie = process.env.RUTRACKER_COOKIE || '';
+
   return {
     port,
     logLevel,
     qbittorrentUrl,
     selfUrl,
     keeneticApiUrl,
+    rutrackerCookie,
   };
 }
 
