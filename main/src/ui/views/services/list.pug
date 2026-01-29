@@ -3,6 +3,11 @@ extends ../layout.pug
 block title-actions
   a.btn.btn-primary.ms-3(href='/services/create') New
 
+block head
+  style.
+    .flag-icon { font-size: 1.4rem; }
+    .flag-disabled { filter: grayscale(100%); opacity: 0.5; }
+
 block content
   .d-flex.align-items-center.gap-3.mb-3
     input#serviceFilter.form-control(type='text', placeholder='Filter services...', style='max-width: 300px', autofocus)
@@ -21,22 +26,20 @@ block content
       table.table.table-striped.table-hover
         thead
           tr
-            th Status
+            th
             th Name
-            th Interfaces
             th Domains
             th Actions
         tbody
           each service in services
             tr
-              td
-                if service.enabled
-                  span.badge.bg-success on
-                else
-                  span.badge.bg-secondary off
+              td.status-cell
+                each iface in service.interfaces
+                  - const flagMap = { lithuania: '🇱🇹', netherlands: '🇳🇱', new_york: '🇺🇸', usa: '🇺🇸', us: '🇺🇸', poland: '🇵🇱', germany: '🇩🇪', uk: '🇬🇧', united_kingdom: '🇬🇧', france: '🇫🇷', canada: '🇨🇦', japan: '🇯🇵', australia: '🇦🇺', sweden: '🇸🇪', switzerland: '🇨🇭', italy: '🇮🇹', spain: '🇪🇸', brazil: '🇧🇷', india: '🇮🇳', singapore: '🇸🇬', south_korea: '🇰🇷', turkey: '🇹🇷', mexico: '🇲🇽', argentina: '🇦🇷', finland: '🇫🇮', norway: '🇳🇴', denmark: '🇩🇰', ireland: '🇮🇪', czech_republic: '🇨🇿', romania: '🇷🇴', bulgaria: '🇧🇬', austria: '🇦🇹', belgium: '🇧🇪', portugal: '🇵🇹', serbia: '🇷🇸', ukraine: '🇺🇦', georgia: '🇬🇪', israel: '🇮🇱', hong_kong: '🇭🇰', taiwan: '🇹🇼', latvia: '🇱🇻', estonia: '🇪🇪' }
+                  - const flag = flagMap[iface.name.toLowerCase()] || '🏳️'
+                  span.flag-icon(class=service.enabled ? '' : 'flag-disabled', title=iface.name)= flag
               td
                 a(href=`/services/${service.id}`)= service.name
-              td= service.interfaces.join(', ')
               td= service.matchingDomains.join(', ')
               td
                 a.btn.btn-sm.btn-secondary(href=`/services/update/${service.id}`) Edit

@@ -110,7 +110,14 @@ export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => v
 
     const servicesWithInterfaceNames = services.map(service => ({
       ...service,
-      interfaces: service.interfaces.map(ifaceIdOrName => interfaces.find(i => i.name === ifaceIdOrName || i.id === ifaceIdOrName)?.name || ifaceIdOrName),
+      interfaces: service.interfaces.map(ifaceIdOrName => {
+        const resolved = ifaceIdOrName === 'default' ? (DEFAULT_VPN_INTERFACE || ifaceIdOrName) : ifaceIdOrName;
+        const iface = interfaces.find(i => i.name === resolved || i.id === resolved);
+        return {
+          name: iface?.name || resolved,
+          connected: iface?.connected ?? false,
+        };
+      }),
     }));
 
     res.render('services/list', { services: servicesWithInterfaceNames, interfaces, notConnectedInterfaces, title: 'Services', currentPath: req.path, defaultVpnInterface: DEFAULT_VPN_INTERFACE });
