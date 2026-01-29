@@ -89,6 +89,11 @@ block content
       font-size: 0.75rem;
       white-space: nowrap;
     }
+    .torrent-size {
+      font-size: 0.75rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
     .move-buttons {
       display: flex;
       gap: 0.5rem;
@@ -209,6 +214,7 @@ mixin torrentCard(t)
   .torrent-card(data-hash=t.hash data-progress=t.progressPercent data-state=t.displayState title=tooltip style=`--progress: ${t.progressPercent}%` class=(t.progressPercent === 100 ? 'complete' : ''))
     .torrent-header
       .torrent-name= t.displayName
+      span.torrent-size= t.displaySize
       if t.progressPercent < 100
         span.torrent-progress #{t.progressPercent}%
       else if t.jellyfinLink

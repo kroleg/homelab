@@ -99,6 +99,7 @@ interface MappedTorrent {
   name: string;
   tags: string;
   displayName: string;
+  displaySize: string;
   displayState: string;
   progressPercent: number;
   showMoveButtons: boolean;
@@ -156,6 +157,7 @@ function mapTorrent(t: TorrentInfo, files: { name: string }[]): MappedTorrent {
     name: t.name,
     tags: t.tags,
     displayName: trimDisplayName(t.name),
+    displaySize: formatBytes(t.size),
     displayState: mapTorrentState(t.state),
     progressPercent: Math.round(t.progress * 100),
     showMoveButtons: inBasePath && t.progress === 1,
