@@ -1,16 +1,18 @@
 extends ../layout.pug
 
-block content
-  if notConnectedInterfaces.length === 0
-    .alert.alert-info(role='alert')
-      | ℹ️ all interfaces connected
-  else
-    .alert.alert-danger(role='alert')
-      | ❌ interfaces not connected:
-      each iface in notConnectedInterfaces
-        strong.ms-1= iface.name
+block title-actions
+  a.btn.btn-primary.ms-3(href='/services/create') New
 
-  a.btn.btn-primary.mb-3(href='/services/create') Create New Service
+block content
+  .d-flex.align-items-center.gap-3.mb-3
+    input#serviceFilter.form-control(type='text', placeholder='Filter services...', style='max-width: 300px', autofocus)
+    .ms-auto
+      if notConnectedInterfaces.length === 0
+        span.text-info ℹ️ all interfaces connected
+      else
+        span.text-danger ❌ interfaces not connected:
+        each iface in notConnectedInterfaces
+          strong.ms-1= iface.name
 
   if services.length === 0
     p.text-muted No services found.
@@ -38,3 +40,13 @@ block content
               td= service.matchingDomains.join(', ')
               td
                 a.btn.btn-sm.btn-secondary(href=`/services/update/${service.id}`) Edit
+
+    script.
+      document.getElementById('serviceFilter').addEventListener('input', function() {
+        const filter = this.value.toLowerCase();
+        const rows = document.querySelectorAll('table tbody tr');
+        rows.forEach(function(row) {
+          const text = row.textContent.toLowerCase();
+          row.style.display = text.includes(filter) ? '' : 'none';
+        });
+      });
