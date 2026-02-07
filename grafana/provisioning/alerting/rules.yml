@@ -1,0 +1,243 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: disk-alerts
+    folder: Infrastructure
+    interval: 1m
+    rules:
+      - uid: hdd-temp-high
+        title: HDD Temperature High
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: node_hwmon_temp_celsius{chip="target1:0:0_1:0:0:0"}
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 55
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: HDD too hot
+          summary_ok: HDD OK
+          value: "{{ $values.B }}°C"
+        labels:
+          severity: warning
+      - uid: cpu-temp-high
+        title: CPU Temperature High
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: node_hwmon_temp_celsius{chip="platform_coretemp_0",sensor="temp1"}
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 80
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: CPU too hot
+          summary_ok: CPU OK
+          value: "{{ $values.B }}°C"
+        labels:
+          severity: warning
+      - uid: cpu-usage-high
+        title: CPU Usage High
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 40
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: CPU overloaded
+          summary_ok: CPU OK
+          value: "{{ $values.B }}%"
+        labels:
+          severity: warning
+      - uid: ram-low
+        title: RAM Low
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: node_memory_MemAvailable_bytes / 1024 / 1024 / 1024
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: lt
+                    params:
+                      - 2
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: RAM low
+          summary_ok: RAM OK
+          value: "{{ $values.B }}GB free"
+        labels:
+          severity: warning
+      - uid: disk-root-low
+        title: Disk / Low
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: PBFA97CFB590B2093
+            model:
+              expr: node_filesystem_avail_bytes{mountpoint="/",fstype!="rootfs"} / 1024 / 1024 / 1024
+              refId: A
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              refId: B
+              expression: A
+              reducer: last
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: C
+              expression: B
+              conditions:
+                - evaluator:
+                    type: lt
+                    params:
+                      - 30
+                  operator:
+                    type: and
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: Disk / low
+          summary_ok: Disk / OK
+          value: "{{ $values.B }}GB free"
+        labels:
+          severity: warning
