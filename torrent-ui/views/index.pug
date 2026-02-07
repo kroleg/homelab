@@ -408,7 +408,11 @@ mixin torrentCard(t)
           body: JSON.stringify({ name: newName })
         });
         if (response.ok) {
-          location.reload();
+          const card = document.querySelector(`.torrent-card[data-hash="${hash}"]`);
+          if (card) {
+            const nameEl = card.querySelector('.torrent-name');
+            if (nameEl) nameEl.textContent = newName;
+          }
         } else {
           alert('Ошибка переименования');
         }
@@ -422,7 +426,9 @@ mixin torrentCard(t)
       try {
         const response = await fetch(`/api/delete/${hash}`, { method: 'POST' });
         if (response.ok) {
-          location.reload();
+          const card = document.querySelector(`.torrent-card[data-hash="${hash}"]`);
+          if (card) card.remove();
+          checkEmptyState();
         } else {
           alert('Ошибка удаления');
         }
@@ -433,6 +439,8 @@ mixin torrentCard(t)
 
     async function moveTorrent(hash, category, btn) {
       const name = btn.dataset.name;
+      btn.disabled = true;
+      btn.textContent = '...';
       try {
         const response = await fetch(`/api/move/${hash}`, {
           method: 'POST',
@@ -440,12 +448,39 @@ mixin torrentCard(t)
           body: JSON.stringify({ category, name })
         });
         if (response.ok) {
-          location.reload();
+          const card = document.querySelector(`.torrent-card[data-hash="${hash}"]`);
+          if (card) {
+            card.classList.remove('pending-category');
+            const actions = card.querySelector('.torrent-actions');
+            if (actions) {
+              const moveButtons = actions.querySelectorAll('.action-btn:not(.danger)');
+              moveButtons.forEach(b => {
+                if (b.textContent.includes('Переместить')) b.remove();
+              });
+            }
+            const categoryEl = card.querySelector('.torrent-category');
+            if (categoryEl) {
+              categoryEl.className = 'torrent-category ' + category;
+              categoryEl.textContent = category === 'tv-shows' ? 'Сериалы' : 'Фильмы';
+            }
+          }
         } else {
           alert('Ошибка перемещения');
+          btn.disabled = false;
+          btn.textContent = category === 'tv-shows' ? 'Переместить в Сериалы' : 'Переместить в Фильмы';
         }
       } catch (err) {
         alert('Ошибка перемещения');
+        btn.disabled = false;
+        btn.textContent = category === 'tv-shows' ? 'Переместить в Сериалы' : 'Переместить в Фильмы';
+      }
+    }
+
+    function checkEmptyState() {
+      const list = document.querySelector('.torrent-list');
+      const cards = list.querySelectorAll('.torrent-card');
+      if (cards.length === 0 && !list.querySelector('.empty-state')) {
+        list.innerHTML = '<div class="empty-state">Нет активных загрузок</div>';
       }
     }
 
@@ -455,15 +490,6 @@ mixin torrentCard(t)
         if (!response.ok) return;
 
         const torrents = await response.json();
-        const cards = document.querySelectorAll('.torrent-card');
-        const currentHashes = new Set(Array.from(cards).map(c => c.dataset.hash));
-        const newHashes = new Set(torrents.map(t => t.hash));
-
-        // Reload if torrents were added or removed
-        if (currentHashes.size !== newHashes.size || [...currentHashes].some(h => !newHashes.has(h))) {
-          location.reload();
-          return;
-        }
 
         for (const t of torrents) {
           const card = document.querySelector(`.torrent-card[data-hash="${t.hash}"]`);
@@ -472,27 +498,33 @@ mixin torrentCard(t)
           // Update progress background
           card.style.setProperty('--progress', t.progress + '%');
 
-          // Update progress text or reload if completed
+          // Update progress text
           const oldProgress = card.dataset.progress;
           if (oldProgress !== String(t.progress)) {
-            if (t.progress === 100 && oldProgress !== '100') {
-              // Just completed - reload to show watch link
-              location.reload();
-              return;
-            }
             const progressEl = card.querySelector('.torrent-progress');
             if (progressEl) {
               progressEl.textContent = t.progress + '%';
             }
             card.dataset.progress = t.progress;
+
+            // Hide progress, show pending badge when complete
+            if (t.progress === 100 && oldProgress !== '100') {
+              if (progressEl) progressEl.style.display = 'none';
+              const meta = card.querySelector('.torrent-meta');
+              if (meta && !meta.querySelector('.torrent-category')) {
+                const badge = document.createElement('span');
+                badge.className = 'torrent-category pending';
+                badge.textContent = 'Выберите';
+                meta.appendChild(badge);
+                card.classList.add('pending-category');
+              }
+            }
           }
 
-          // Update tooltip
+          // Update state
           const oldState = card.dataset.state;
-          if (oldProgress !== String(t.progress) || oldState !== t.state) {
+          if (oldState !== t.state) {
             card.dataset.state = t.state;
-            const pathPart = card.title.split('\n')[0];
-            card.title = pathPart + '\n' + t.progress + '% • ' + t.state;
           }
         }
       } catch (err) {
