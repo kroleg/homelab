@@ -437,6 +437,34 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  scrutiny:
+    container_name: scrutiny
+    image: ghcr.io/analogj/scrutiny:master-omnibus
+    cap_add:
+      - SYS_RAWIO
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Moscow
+      - COLLECTOR_CRON_SCHEDULE=0 * * * *
+    volumes:
+      - ./scrutiny/config:/opt/scrutiny/config
+      - ./scrutiny/influxdb:/opt/scrutiny/influxdb
+      - /run/udev:/run/udev:ro
+    devices:
+      - /dev/sda:/dev/sda
+      - /dev/sdb:/dev/sdb
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.scrutiny.rule=Host(`disk-monitor.internal`)"
+      - "traefik.http.routers.scrutiny.entrypoints=web"
+      - "traefik.http.services.scrutiny.loadbalancer.server.port=8080"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
 networks:
   default:
     ipam:

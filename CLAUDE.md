@@ -21,6 +21,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - prometheus - Prometheus time-series database configuration
 - promtail - Loki log shipper for Docker container logs
 - qbittorrent - Torrent client with web interface
+- scrutiny - HDD/SSD health monitoring with SMART data (disk-monitor.internal)
 - shared-logs - Shared logging output directory for services
 - torrent-ui - Simple UI for uploading torrents and viewing download progress
 - traefik - Traefik reverse proxy dynamic configuration
