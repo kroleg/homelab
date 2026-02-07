@@ -94,6 +94,11 @@ async function getAllProfiles(): Promise<UserProfile[]> {
   return [];
 }
 
+interface MappedFile {
+  name: string;
+  displaySize: string;
+}
+
 interface MappedTorrent {
   hash: string;
   name: string;
@@ -108,6 +113,8 @@ interface MappedTorrent {
   contentFolder: string;
   pendingCategorization: boolean;
   currentCategory: 'tv-shows' | 'movies' | null;
+  files: MappedFile[];
+  canManage: boolean;
 }
 
 interface TorrentSection {
@@ -116,9 +123,11 @@ interface TorrentSection {
   collapsed: boolean;
 }
 
-function mapTorrent(t: TorrentInfo, files: { name: string }[]): MappedTorrent {
+function mapTorrent(t: TorrentInfo, files: { name: string; size: number }[], userTag: string, isAdmin: boolean): MappedTorrent {
   const inBasePath = t.save_path === BASE_PATH;
   const isSerial = t.name.includes('SERIAL');
+  const torrentTags = t.tags ? t.tags.split(',').map(s => s.trim()) : [];
+  const isOwner = torrentTags.includes(userTag);
 
   let relativePath = t.save_path;
   if (relativePath.startsWith(BASE_PATH)) {
@@ -153,6 +162,15 @@ function mapTorrent(t: TorrentInfo, files: { name: string }[]): MappedTorrent {
     currentCategory = 'movies';
   }
 
+  // Map files for display (limit to 20 files, show most relevant ones)
+  const mappedFiles: MappedFile[] = files
+    .filter(f => !f.name.endsWith('.txt') && !f.name.endsWith('.nfo'))
+    .slice(0, 20)
+    .map(f => ({
+      name: f.name.split('/').pop() || f.name,
+      displaySize: formatBytes(f.size),
+    }));
+
   return {
     hash: t.hash,
     name: t.name,
@@ -167,6 +185,8 @@ function mapTorrent(t: TorrentInfo, files: { name: string }[]): MappedTorrent {
     contentFolder,
     pendingCategorization: inBasePath && t.progress === 1,
     currentCategory,
+    files: mappedFiles,
+    canManage: isOwner || isAdmin,
   };
 }
 
@@ -212,18 +232,18 @@ app.get('/', async (req, res) => {
     }
 
     const torrents = await qbt.listTorrents();
+    const userTag = getUserTag(userProfile);
 
     const filesPromises = torrents.map(t =>
       qbt.getTorrentFiles(t.hash).catch(() => [])
     );
     const allFiles = await Promise.all(filesPromises);
 
-    const mappedTorrents = torrents.map((t, i) => mapTorrent(t, allFiles[i]));
+    const mappedTorrents = torrents.map((t, i) => mapTorrent(t, allFiles[i], userTag, userProfile.isAdmin));
 
     if (userProfile.isAdmin) {
       // Admin view: group by user
       const profiles = await getAllProfiles();
-      const myTag = getUserTag(userProfile);
 
       // Build tag -> profile name map
       const tagToName: Record<string, string> = {};
@@ -242,7 +262,7 @@ app.get('/', async (req, res) => {
 
         if (userTags.length === 0) {
           untaggedTorrents.push(t);
-        } else if (userTags.includes(myTag)) {
+        } else if (userTags.includes(userTag)) {
           myTorrents.push(t);
         } else {
           // Find the first user tag and group by it
@@ -285,7 +305,6 @@ app.get('/', async (req, res) => {
       });
     } else {
       // Regular user: only show their torrents
-      const userTag = getUserTag(userProfile);
       const userTorrents = mappedTorrents.filter(t => {
         const torrentTags = t.tags ? t.tags.split(',').map(s => s.trim()) : [];
         return torrentTags.includes(userTag);

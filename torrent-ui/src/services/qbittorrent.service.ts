@@ -143,8 +143,24 @@ export function createQBittorrentService(baseUrl: string, logger: Logger) {
       logger.info(`Moved torrent ${hash} to ${location}`);
     },
 
-    async getTorrentFiles(hash: string): Promise<{ name: string }[]> {
-      return request<{ name: string }[]>(`/api/v2/torrents/files?hash=${hash}`);
+    async getTorrentFiles(hash: string): Promise<{ name: string; size: number }[]> {
+      return request<{ name: string; size: number }[]>(`/api/v2/torrents/files?hash=${hash}`);
+    },
+
+    async renameTorrent(hash: string, name: string): Promise<void> {
+      const formData = new URLSearchParams();
+      formData.append('hash', hash);
+      formData.append('name', name);
+
+      await request('/api/v2/torrents/rename', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+      });
+
+      logger.info(`Renamed torrent ${hash} to: ${name}`);
     },
 
     async renameTorrentFolder(hash: string, oldPath: string, newPath: string): Promise<void> {

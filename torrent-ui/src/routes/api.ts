@@ -165,6 +165,24 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
     }
   });
 
+  router.post('/rename/:hash', async (req, res) => {
+    try {
+      const { hash } = req.params;
+      const { name } = req.body;
+
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        res.status(400).json({ error: 'Name is required' });
+        return;
+      }
+
+      await qbt.renameTorrent(hash, name.trim());
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Failed to rename torrent', { error });
+      res.status(500).json({ error: 'Failed to rename torrent' });
+    }
+  });
+
   router.get('/torrents', async (req, res) => {
     try {
       const torrents = await qbt.listTorrents();
