@@ -41,26 +41,28 @@ function getClientIp(req: { headers: Record<string, string | string[] | undefine
     : req.ip || '';
 }
 
-function detectCategory(name: string): 'tv-shows' | 'movies' {
-  // Check for TV show indicators
-  const tvPatterns = [
-    /\bserial\b/i,
-    /\bseason\b/i,
-    /\bs\d{1,2}\b/i,         // S01, S1, etc.
-    /\bs\d{1,2}e\d{1,2}\b/i, // S01E01
-    /сезон/i,
-    /серия/i,
-    /серии/i,
-    /\bсерии:\s*\d/i,
+interface CategoryDetection {
+  category: 'tv-shows' | 'movies';
+  confidence: 'high' | 'low';
+}
+
+function detectCategory(name: string): CategoryDetection {
+  // High-confidence TV patterns (very reliable indicators)
+  const highConfidenceTvPatterns = [
+    /\bs\d{1,2}e\d{1,2}\b/i,     // S01E01
+    /\bserial\b/i,               // [SERIAL] tag
+    /\bсерии:\s*\d/i,            // "Серии: 1-10"
+    /\bсезон:\s*\d/i,            // "Сезон: 1"
   ];
 
-  for (const pattern of tvPatterns) {
+  for (const pattern of highConfidenceTvPatterns) {
     if (pattern.test(name)) {
-      return 'tv-shows';
+      return { category: 'tv-shows', confidence: 'high' };
     }
   }
 
-  return 'movies';
+  // Low confidence - default to movies but require manual selection
+  return { category: 'movies', confidence: 'low' };
 }
 
 export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneticApiUrl: string, rutracker: RutrackerService): Router {
@@ -354,7 +356,16 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
         return;
       }
 
-      const category = detectCategory(torrent.name);
+      const detection = detectCategory(torrent.name);
+
+      // Skip auto-move for low confidence - let user manually select category
+      if (detection.confidence !== 'high') {
+        logger.info(`Low confidence detection for "${torrent.name}", leaving for manual categorization`);
+        res.json({ success: true, skipped: true, reason: 'Awaiting manual categorization' });
+        return;
+      }
+
+      const category = detection.category;
       const showName = extractShowDisplayName(torrent.name);
 
       if (!showName) {

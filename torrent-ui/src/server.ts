@@ -106,7 +106,8 @@ interface MappedTorrent {
   suggestTvShows: boolean;
   relativePath: string;
   contentFolder: string;
-  jellyfinLink: string;
+  pendingCategorization: boolean;
+  currentCategory: 'tv-shows' | 'movies' | null;
 }
 
 interface TorrentSection {
@@ -145,11 +146,11 @@ function mapTorrent(t: TorrentInfo, files: { name: string }[]): MappedTorrent {
     }
   }
 
-  let jellyfinLink = '';
+  let currentCategory: 'tv-shows' | 'movies' | null = null;
   if (relativePath.startsWith('tv-shows')) {
-    jellyfinLink = 'http://media.internal/web/index.html#!/tv.html';
+    currentCategory = 'tv-shows';
   } else if (relativePath.startsWith('movies')) {
-    jellyfinLink = 'http://media.internal/web/index.html#!/movies.html';
+    currentCategory = 'movies';
   }
 
   return {
@@ -164,7 +165,8 @@ function mapTorrent(t: TorrentInfo, files: { name: string }[]): MappedTorrent {
     suggestTvShows: isSerial,
     relativePath: relativePath || '/',
     contentFolder,
-    jellyfinLink,
+    pendingCategorization: inBasePath && t.progress === 1,
+    currentCategory,
   };
 }
 
