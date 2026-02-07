@@ -241,6 +241,17 @@ app.get('/', async (req, res) => {
 
     const mappedTorrents = torrents.map((t, i) => mapTorrent(t, allFiles[i], userTag, userProfile.isAdmin));
 
+    // Calculate user's total download size for limit check
+    const userTotalBytes = torrents
+      .filter(t => {
+        const tags = t.tags ? t.tags.split(',').map(s => s.trim()) : [];
+        return tags.includes(userTag);
+      })
+      .reduce((sum, t) => sum + t.size, 0);
+    const limitExceeded = !userProfile.isAdmin && userTotalBytes > config.userDownloadLimit;
+    const limitGB = config.userDownloadLimitGB;
+    const limitRemainingGB = Math.max(0, (config.userDownloadLimit - userTotalBytes) / (1024 * 1024 * 1024)).toFixed(2);
+
     if (userProfile.isAdmin) {
       // Admin view: group by user
       const profiles = await getAllProfiles();
@@ -302,6 +313,9 @@ app.get('/', async (req, res) => {
         sections,
         freeSpace: formatBytes(freeSpace),
         userProfile,
+        limitExceeded,
+        limitGB,
+        limitRemainingGB,
       });
     } else {
       // Regular user: only show their torrents
@@ -315,6 +329,9 @@ app.get('/', async (req, res) => {
         sections: [],
         freeSpace: formatBytes(freeSpace),
         userProfile,
+        limitExceeded,
+        limitGB,
+        limitRemainingGB,
       });
     }
   } catch (error) {

@@ -293,14 +293,28 @@ block content
     .add-btn:hover {
       opacity: 0.9;
     }
+    .limit-warning {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
 
   .container
     .header
-      if freeSpace
+      if userProfile && userProfile.isAdmin
         .free-space Свободно: #{freeSpace}
+      else if userProfile && limitRemainingGB
+        .free-space Лимит: #{limitRemainingGB} ГБ
 
-    a.add-btn(href="/search") Найти фильм / сериал
-    a.add-btn(href="/upload" style="background: var(--secondary); color: var(--secondary-fg); margin-top: -0.75rem;") + Добавить торрент вручную
+    if limitExceeded
+      .limit-warning Лимит #{limitGB} ГБ превышен. Удалите что-нибудь.
+    else
+      a.add-btn(href="/search") Найти фильм / сериал
+      a.add-btn(href="/upload" style="background: var(--secondary); color: var(--secondary-fg); margin-top: -0.75rem;") + Добавить торрент вручную
 
     if error
       .error-msg= error

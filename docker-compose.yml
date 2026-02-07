@@ -423,6 +423,7 @@ services:
       - QBITTORRENT_URL=http://qbittorrent:8080
       - KEENETIC_API_URL=http://keenetic-api:3005
       - RUTRACKER_COOKIE=${RUTRACKER_COOKIE}
+      - USER_DOWNLOAD_LIMIT_GB=100
     dns: [192.168.80.53]
     depends_on:
       - qbittorrent
