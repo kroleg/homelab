@@ -372,6 +372,116 @@
               },
               {
                 "color": "yellow",
+                "value": 200000000000
+              },
+              {
+                "color": "green",
+                "value": 500000000000
+              }
+            ]
+          },
+          "unit": "decbytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Temp"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "celsius"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "yellow", "value": 45},
+                    {"color": "red", "value": 55}
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "node_filesystem_avail_bytes{mountpoint=\"/mnt/data\",fstype!=\"rootfs\"}",
+          "legendFormat": "Free",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "node_filesystem_size_bytes{mountpoint=\"/mnt/data\",fstype!=\"rootfs\"}",
+          "legendFormat": "Total",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "node_hwmon_temp_celsius{chip=\"target1:0:0_1:0:0:0\"}",
+          "legendFormat": "Temp",
+          "refId": "C"
+        }
+      ],
+      "title": "Disk Media",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
                 "value": 2000000000
               },
               {
@@ -875,6 +985,24 @@
           "expr": "node_hwmon_temp_celsius{chip=\"thermal_thermal_zone0\",sensor=\"temp0\"}",
           "legendFormat": "ACPI Thermal",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "node_hwmon_temp_celsius{chip=\"target0:0:0_0:0:0:0\"}",
+          "legendFormat": "SSD",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "node_hwmon_temp_celsius{chip=\"target1:0:0_1:0:0:0\"}",
+          "legendFormat": "HDD",
+          "refId": "D"
         }
       ],
       "title": "Temperature",
