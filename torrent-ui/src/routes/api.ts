@@ -459,6 +459,23 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
     }
   });
 
+  router.get('/search/details/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        res.status(400).json({ error: 'Missing torrent id' });
+        return;
+      }
+
+      const details = await rutracker.getTopicDetails(id);
+      res.json(details);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Get topic details failed: ${msg}`);
+      res.status(500).json({ error: msg });
+    }
+  });
+
   router.post('/search/download', async (req, res) => {
     try {
       const { id, name } = req.body;

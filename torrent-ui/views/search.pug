@@ -61,10 +61,21 @@ block content
     .result-card {
       background: var(--secondary);
       border-radius: 0.5rem;
+      overflow: hidden;
+    }
+    .result-header {
       padding: 0.75rem 1rem;
       display: flex;
       gap: 0.75rem;
       align-items: flex-start;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .result-header:hover {
+      background: rgba(0,0,0,0.03);
+    }
+    .result-card.expanded .result-header {
+      border-bottom: 1px solid #e5e7eb;
     }
     .result-left {
       flex: 1;
@@ -115,6 +126,92 @@ block content
     .dl-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+    .result-details {
+      display: none;
+      padding: 0.75rem 1rem;
+      font-size: 0.8125rem;
+      background: #fafafa;
+    }
+    .result-card.expanded .result-details {
+      display: block;
+    }
+    .result-details.loading {
+      display: block;
+      color: var(--muted);
+      padding: 1rem;
+    }
+    .detail-category {
+      color: var(--primary);
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    .detail-registered {
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .detail-image {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 0.25rem;
+      margin-bottom: 0.75rem;
+      object-fit: contain;
+    }
+    .detail-description {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.5;
+      margin-bottom: 0.75rem;
+      max-height: 200px;
+      overflow-y: auto;
+      color: #444;
+    }
+    .detail-files {
+      margin-top: 0.5rem;
+    }
+    .detail-files-header {
+      font-weight: 500;
+      margin-bottom: 0.375rem;
+      color: #333;
+    }
+    .detail-files-list {
+      font-family: monospace;
+      font-size: 0.75rem;
+      max-height: 150px;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.25rem;
+      padding: 0.5rem;
+    }
+    .detail-file {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.125rem 0;
+    }
+    .detail-file-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .detail-file-size {
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .detail-actions {
+      margin-top: 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+    }
+    .expand-icon {
+      font-size: 0.75rem;
+      color: var(--muted);
+      transition: transform 0.2s;
+    }
+    .result-card.expanded .expand-icon {
+      transform: rotate(180deg);
     }
     .empty-state {
       text-align: center;
@@ -189,7 +286,8 @@ block content
         var html = '';
         for (var i = 0; i < data.length; i++) {
           var r = data[i];
-          html += '<div class="result-card">';
+          html += '<div class="result-card" id="card-' + r.id + '">';
+          html += '<div class="result-header" onclick="toggleDetails(\'' + r.id + '\', event)">';
           html += '<div class="result-left">';
           html += '<div class="result-title">' + escapeHtml(r.title) + '</div>';
           html += '</div>';
@@ -199,8 +297,10 @@ block content
           html += '<span class="result-seeds">S: ' + r.seeds + '</span>';
           html += '<span class="result-leeches">L: ' + r.leeches + '</span>';
           html += '</div>';
-          html += '<button class="dl-btn" onclick="downloadResult(\'' + r.id + '\', this)" data-title="' + escapeAttr(r.title) + '">Скачать</button>';
+          html += '<span class="expand-icon">▼</span>';
           html += '</div>';
+          html += '</div>';
+          html += '<div class="result-details" id="details-' + r.id + '" data-title="' + escapeAttr(r.title) + '"></div>';
           html += '</div>';
         }
         results.innerHTML = html;
@@ -219,6 +319,91 @@ block content
 
     function escapeAttr(str) {
       return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    var loadedDetails = {};
+
+    async function toggleDetails(id, event) {
+      var card = document.getElementById('card-' + id);
+      var details = document.getElementById('details-' + id);
+
+      if (card.classList.contains('expanded')) {
+        card.classList.remove('expanded');
+        return;
+      }
+
+      card.classList.add('expanded');
+
+      if (loadedDetails[id]) {
+        return;
+      }
+
+      details.innerHTML = 'Загрузка...';
+      details.classList.add('loading');
+
+      try {
+        var response = await fetch('/api/search/details/' + id);
+        if (!response.ok) {
+          var errData = await response.json().catch(function() { return {}; });
+          throw new Error(errData.error || 'Ошибка загрузки');
+        }
+
+        var data = await response.json();
+        loadedDetails[id] = data;
+        details.classList.remove('loading');
+        renderDetails(id, data);
+      } catch (err) {
+        details.classList.remove('loading');
+        details.innerHTML = '<div style="color:#b91c1c">' + escapeHtml(err.message || 'Ошибка загрузки') + '</div>';
+      }
+    }
+
+    function renderDetails(id, data) {
+      var details = document.getElementById('details-' + id);
+      var title = details.dataset.title;
+      var html = '';
+
+      if (data.category) {
+        html += '<div class="detail-category">' + escapeHtml(data.category) + '</div>';
+      }
+
+      if (data.registered) {
+        html += '<div class="detail-registered">Добавлен: ' + escapeHtml(data.registered) + '</div>';
+      }
+
+      if (data.imageUrl) {
+        html += '<img class="detail-image" src="' + escapeAttr(data.imageUrl) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">';
+      }
+
+      if (data.description) {
+        html += '<div class="detail-description">' + escapeHtml(data.description) + '</div>';
+      }
+
+      if (data.files && data.files.length > 0) {
+        html += '<div class="detail-files">';
+        html += '<div class="detail-files-header">Файлы (' + data.files.length + '):</div>';
+        html += '<div class="detail-files-list">';
+        for (var i = 0; i < data.files.length && i < 50; i++) {
+          var f = data.files[i];
+          html += '<div class="detail-file">';
+          html += '<span class="detail-file-name">' + escapeHtml(f.name) + '</span>';
+          if (f.size > 0) {
+            html += '<span class="detail-file-size">' + formatSize(f.size) + '</span>';
+          }
+          html += '</div>';
+        }
+        if (data.files.length > 50) {
+          html += '<div style="color:var(--muted);padding-top:0.25rem">...и ещё ' + (data.files.length - 50) + ' файлов</div>';
+        }
+        html += '</div>';
+        html += '</div>';
+      }
+
+      html += '<div class="detail-actions">';
+      html += '<button class="dl-btn" onclick="downloadResult(\'' + id + '\', this)" data-title="' + escapeAttr(title) + '">Скачать</button>';
+      html += '</div>';
+
+      details.innerHTML = html;
     }
 
     async function downloadResult(id, btn) {

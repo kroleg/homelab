@@ -10,6 +10,17 @@ export interface SearchResult {
   pubDate: number;
 }
 
+export interface TopicDetails {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  size: number;
+  files: { name: string; size: number }[];
+  registered: string;
+  imageUrl: string | null;
+}
+
 const MIRRORS = ['https://rutracker.org', 'https://rutracker.net', 'https://rutracker.nl'];
 
 export function createRutrackerService(cookie: string, logger: Logger) {
@@ -144,9 +155,128 @@ export function createRutrackerService(cookie: string, logger: Logger) {
     return { buffer, filename };
   }
 
+  async function getTopicDetails(topicId: string): Promise<TopicDetails> {
+    if (!cookie) {
+      throw new Error('RUTRACKER_COOKIE not configured');
+    }
+
+    const response = await fetchWithMirrors(`/forum/viewtopic.php?t=${topicId}`);
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location') || '';
+      if (location.includes('login.php')) {
+        throw new Error('Сессия RuTracker истекла — обновите RUTRACKER_COOKIE');
+      }
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const html = iconv.decode(buffer, 'win1251');
+
+    if (html.includes('login-form-full') || html.includes('login_username')) {
+      throw new Error('Сессия RuTracker истекла — обновите RUTRACKER_COOKIE');
+    }
+
+    return parseTopicDetails(topicId, html);
+  }
+
+  function parseTopicDetails(topicId: string, html: string): TopicDetails {
+    // Extract title from maintitle
+    const titleMatch = html.match(/<a[^>]+id="topic-title"[^>]*>([^<]+)<\/a>/);
+    const title = titleMatch ? titleMatch[1].trim() : '';
+
+    // Extract category/forum name
+    const categoryMatch = html.match(/<a[^>]+class="[^"]*nav[^"]*"[^>]*href="viewforum\.php[^"]*"[^>]*>([^<]+)<\/a>/g);
+    const category = categoryMatch && categoryMatch.length > 0
+      ? categoryMatch[categoryMatch.length - 1].replace(/<[^>]+>/g, '').trim()
+      : '';
+
+    // Extract description from post body (first post)
+    const postBodyMatch = html.match(/<div[^>]+class="[^"]*post_body[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/td>/);
+    let description = '';
+    if (postBodyMatch) {
+      // Clean up HTML: remove tags, decode entities, limit length
+      description = postBodyMatch[1]
+        .replace(/<var[^>]*class="postImg[^"]*"[^>]*title="([^"]*)"[^>]*><\/var>/g, '') // Remove images
+        .replace(/<span[^>]*class="post-hr"[^>]*>.*?<\/span>/g, '\n---\n') // HR to separator
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<[^>]+>/g, '') // Remove remaining tags
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, 2000); // Limit to 2000 chars
+    }
+
+    // Extract size from torrent info
+    const sizeMatch = html.match(/<li>Размер:\s*<b>([^<]+)<\/b>/);
+    let size = 0;
+    if (sizeMatch) {
+      const sizeStr = sizeMatch[1].trim();
+      const sizeNum = parseFloat(sizeStr.replace(/,/g, '.').replace(/\s/g, ''));
+      if (sizeStr.includes('GB') || sizeStr.includes('ГБ')) {
+        size = Math.round(sizeNum * 1024 * 1024 * 1024);
+      } else if (sizeStr.includes('MB') || sizeStr.includes('МБ')) {
+        size = Math.round(sizeNum * 1024 * 1024);
+      } else if (sizeStr.includes('KB') || sizeStr.includes('КБ')) {
+        size = Math.round(sizeNum * 1024);
+      }
+    }
+
+    // Extract file list from spoiler or post
+    const files: { name: string; size: number }[] = [];
+    const filesMatch = html.match(/<div[^>]+class="[^"]*sp-wrap[^"]*"[^>]*>[\s\S]*?<div[^>]+class="[^"]*sp-body[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/);
+    if (filesMatch) {
+      const fileLines = filesMatch[1].split(/<br\s*\/?>/i);
+      for (const line of fileLines) {
+        const clean = line.replace(/<[^>]+>/g, '').trim();
+        // Match pattern like "filename.mkv (1.5 GB)" or just "filename.mkv"
+        const fileMatch = clean.match(/^(.+?)\s*(?:\((\d+(?:[.,]\d+)?)\s*(GB|MB|KB|ГБ|МБ|КБ|B)?\))?$/i);
+        if (fileMatch && fileMatch[1] && fileMatch[1].includes('.')) {
+          let fileSize = 0;
+          if (fileMatch[2]) {
+            const num = parseFloat(fileMatch[2].replace(',', '.'));
+            const unit = (fileMatch[3] || '').toUpperCase();
+            if (unit.includes('G')) fileSize = Math.round(num * 1024 * 1024 * 1024);
+            else if (unit.includes('M')) fileSize = Math.round(num * 1024 * 1024);
+            else if (unit.includes('K')) fileSize = Math.round(num * 1024);
+            else fileSize = Math.round(num);
+          }
+          files.push({ name: fileMatch[1].trim(), size: fileSize });
+        }
+      }
+    }
+
+    // Extract registration date
+    const regMatch = html.match(/<li>Зарегистрирован:\s*(?:<span[^>]*>)?([^<]+)/);
+    const registered = regMatch ? regMatch[1].trim() : '';
+
+    // Extract first image URL
+    let imageUrl: string | null = null;
+    const imgMatch = html.match(/<var[^>]+class="postImg[^"]*"[^>]*title="([^"]+)"[^>]*>/);
+    if (imgMatch) {
+      imageUrl = imgMatch[1];
+    }
+
+    return {
+      id: topicId,
+      title,
+      category,
+      description,
+      size,
+      files,
+      registered,
+      imageUrl,
+    };
+  }
+
   return {
     search,
     downloadTorrent,
+    getTopicDetails,
   };
 }
 
