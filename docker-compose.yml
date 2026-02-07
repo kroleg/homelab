@@ -198,11 +198,12 @@ services:
       - KEENETIC_LOGIN=${KEENETIC_LOGIN}
       - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
       - PORT=3005
-      - PROFILE_IDS=VITALIY,LEV,POLYA
+      - PROFILE_IDS=VITALIY,LEV,POLYA,MARINA
       - PROFILE_VITALIY_NAME=Виталя
       - PROFILE_VITALIY_ADMIN=true
       - PROFILE_LEV_NAME=Лев
       - PROFILE_POLYA_NAME=Поля
+      - PROFILE_MARINA_NAME=Марина
     restart: unless-stopped
 
   calendar:
