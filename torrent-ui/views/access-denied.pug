@@ -4,6 +4,8 @@ block content
   .access-denied
     h1 Доступ запрещён
     p Ваше устройство не зарегистрировано в системе.
+    if deviceName
+      p.device Устройство: #{deviceName}
     p.ip IP: #{clientIp}
 
   style.
@@ -24,6 +26,11 @@ block content
     .access-denied p {
       color: var(--muted);
       margin-bottom: 0.5rem;
+    }
+    .access-denied .device {
+      font-family: monospace;
+      font-size: 1rem;
+      color: var(--foreground);
     }
     .access-denied .ip {
       font-family: monospace;

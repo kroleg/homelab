@@ -69,17 +69,22 @@ function getUserTag(profile: UserProfile): string {
   return `user-${profile.id.toLowerCase()}`;
 }
 
-async function getUserProfile(ip: string): Promise<UserProfile | null> {
+interface ClientInfo {
+  deviceName: string | null;
+  profile: UserProfile | null;
+}
+
+async function getClientInfo(ip: string): Promise<ClientInfo> {
   try {
     const response = await fetch(`${config.keeneticApiUrl}/api/client?ip=${encodeURIComponent(ip)}`);
     if (response.ok) {
       const data = await response.json() as { name: string; profile: UserProfile | null };
-      return data.profile;
+      return { deviceName: data.name || null, profile: data.profile };
     }
   } catch (error) {
-    logger.debug(`Failed to get user profile for IP ${ip}:`, error);
+    logger.debug(`Failed to get client info for IP ${ip}:`, error);
   }
-  return null;
+  return { deviceName: null, profile: null };
 }
 
 async function getAllProfiles(): Promise<UserProfile[]> {
@@ -197,17 +202,17 @@ app.get('/upload', async (req, res) => {
       ? forwardedFor.split(',')[0].trim()
       : req.ip || '';
 
-    const [freeSpace, userProfile] = await Promise.all([
+    const [freeSpace, clientInfo] = await Promise.all([
       qbt.getFreeSpace(),
-      getUserProfile(clientIp),
+      getClientInfo(clientIp),
     ]);
 
-    if (!userProfile) {
-      res.render('access-denied', { clientIp });
+    if (!clientInfo.profile) {
+      res.render('access-denied', { clientIp, deviceName: clientInfo.deviceName });
       return;
     }
 
-    res.render('upload', { freeSpace: formatBytes(freeSpace), userProfile, backLink: '/', pageTitle: 'Вручную' });
+    res.render('upload', { freeSpace: formatBytes(freeSpace), userProfile: clientInfo.profile, backLink: '/', pageTitle: 'Вручную' });
   } catch (error) {
     logger.error('Failed to load upload page', { error });
     res.render('upload', { freeSpace: null, userProfile: null, backLink: '/', pageTitle: 'Вручную' });
@@ -221,15 +226,17 @@ app.get('/', async (req, res) => {
       ? forwardedFor.split(',')[0].trim()
       : req.ip || '';
 
-    const [freeSpace, userProfile] = await Promise.all([
+    const [freeSpace, clientInfo] = await Promise.all([
       qbt.getFreeSpace(),
-      getUserProfile(clientIp),
+      getClientInfo(clientIp),
     ]);
 
-    if (!userProfile) {
-      res.render('access-denied', { clientIp });
+    if (!clientInfo.profile) {
+      res.render('access-denied', { clientIp, deviceName: clientInfo.deviceName });
       return;
     }
+
+    const userProfile = clientInfo.profile;
 
     const torrents = await qbt.listTorrents();
     const userTag = getUserTag(userProfile);
@@ -347,17 +354,43 @@ app.get('/search', async (req, res) => {
       ? forwardedFor.split(',')[0].trim()
       : req.ip || '';
 
-    const userProfile = await getUserProfile(clientIp);
+    const clientInfo = await getClientInfo(clientIp);
 
-    if (!userProfile) {
-      res.render('access-denied', { clientIp });
+    if (!clientInfo.profile) {
+      res.render('access-denied', { clientIp, deviceName: clientInfo.deviceName });
       return;
     }
 
-    res.render('search', { userProfile, backLink: '/', pageTitle: 'Поиск' });
+    res.render('search', { userProfile: clientInfo.profile, backLink: '/', pageTitle: 'Поиск' });
   } catch (error) {
     logger.error('Failed to load search page', { error });
     res.render('search', { userProfile: null, backLink: '/', pageTitle: 'Поиск' });
+  }
+});
+
+app.get('/placement', async (req, res) => {
+  try {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    const clientIp = typeof forwardedFor === 'string'
+      ? forwardedFor.split(',')[0].trim()
+      : req.ip || '';
+
+    const clientInfo = await getClientInfo(clientIp);
+
+    if (!clientInfo.profile) {
+      res.render('access-denied', { clientIp, deviceName: clientInfo.deviceName });
+      return;
+    }
+
+    if (!clientInfo.profile.isAdmin) {
+      res.status(403).render('access-denied', { clientIp, deviceName: clientInfo.deviceName });
+      return;
+    }
+
+    res.render('placement', { userProfile: clientInfo.profile, backLink: '/', pageTitle: 'Размещение' });
+  } catch (error) {
+    logger.error('Failed to load placement page', { error });
+    res.render('placement', { userProfile: null, backLink: '/', pageTitle: 'Размещение' });
   }
 });
 
