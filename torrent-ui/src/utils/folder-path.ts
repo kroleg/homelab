@@ -37,6 +37,20 @@ export function extractShowDisplayName(torrentName: string): string {
   // Remove [SERIAL] or similar tags
   engName = engName.replace(/^\[.*?\]\s*/, '');
 
+  // If no slash separator (English-style name), extract show name from patterns like:
+  // "The.Office.US.S02.WEB-DLRip" -> "The Office US"
+  // "Breaking.Bad.S01E01.720p" -> "Breaking Bad"
+  if (parts.length === 1) {
+    // Remove quality/release info and season/episode patterns
+    engName = engName
+      .replace(/[._-]S\d{1,2}(?:E\d{1,2})?.*$/i, '')  // Remove .S02E01... or .S02...
+      .replace(/[._-]\d{3,4}p.*$/i, '')               // Remove .720p... .1080p...
+      .replace(/[._-](?:WEB|HDTV|BluRay|BDRip|DVDRip|WEBRip).*$/i, '')  // Remove release type
+      .replace(/\./g, ' ')                            // Replace dots with spaces
+      .replace(/_/g, ' ')                             // Replace underscores with spaces
+      .trim();
+  }
+
   return engName.trim();
 }
 
@@ -47,6 +61,33 @@ export function extractSeasonFolder(torrentName: string): string | null {
     // Single season number - format as "Season 01"
     const seasonNum = parseInt(seasonMatch[1], 10);
     return `Season ${seasonNum.toString().padStart(2, '0')}`;
+  }
+
+  // Check for English season patterns: S01, S02, etc. (but not S01E01 which indicates episodes)
+  // Match .S02. or _S02_ or -S02- patterns (season only, not with episode)
+  const engSeasonMatch = torrentName.match(/[._-]S(\d{1,2})(?:[._-]|$)(?!E\d)/i);
+  if (engSeasonMatch && engSeasonMatch[1]) {
+    const seasonNum = parseInt(engSeasonMatch[1], 10);
+    return `Season ${seasonNum.toString().padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
+export function extractSeasonNumber(torrentName: string): number | null {
+  // Extract season number from various patterns
+  const patterns = [
+    /Сезон:\s*(\d+)/,           // Russian: Сезон: 1
+    /[._-]S(\d{1,2})[._E-]/i,   // English: .S02. or .S02E
+    /[._-]S(\d{1,2})$/i,        // English at end: .S02
+    /Season\s*(\d+)/i,          // English word: Season 1
+  ];
+
+  for (const pattern of patterns) {
+    const match = torrentName.match(pattern);
+    if (match && match[1]) {
+      return parseInt(match[1], 10);
+    }
   }
   return null;
 }

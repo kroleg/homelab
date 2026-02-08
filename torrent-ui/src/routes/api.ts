@@ -4,13 +4,11 @@ import type { Logger } from '../logger.ts';
 import type { QBittorrentService } from '../services/qbittorrent.service.ts';
 import { mapTorrentState } from '../services/qbittorrent.service.ts';
 import type { RutrackerService } from '../services/rutracker.service.ts';
-import { extractShowDisplayName, extractSeasonFolder, isMultiSeason, normalizeSeasonFolder } from '../utils/folder-path.ts';
+import { createPlacementService, determinePlacement, applyPlacement } from '../services/placement.service.ts';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 const DOWNLOADS_PATH = '/media/downloads';  // staging area
-const TV_SHOWS_PATH = '/media/downloads/tv-shows';    // final destination for Jellyfin
-const MOVIES_PATH = '/media/downloads/movies';        // final destination for Jellyfin
 const CATEGORIES = ['tv-shows', 'movies'] as const;
 
 interface UserProfile {
@@ -55,6 +53,7 @@ function detectCategory(name: string): CategoryDetection {
     /\bserial\b/i,               // [SERIAL] tag
     /\bсерии:\s*\d/i,            // "Серии: 1-10"
     /\bсезон:\s*\d/i,            // "Сезон: 1"
+    /[._-]S\d{1,2}[._-]/i,       // .S02. season pattern
   ];
 
   for (const pattern of highConfidenceTvPatterns) {
@@ -69,13 +68,13 @@ function detectCategory(name: string): CategoryDetection {
 
 export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneticApiUrl: string, rutracker: RutrackerService): Router {
   const router = Router();
+  const placementService = createPlacementService(qbt, logger);
 
   // Helper to tag torrent with user's tag
   async function tagTorrentForUser(hash: string, clientIp: string): Promise<void> {
     const profile = await getUserProfile(keeneticApiUrl, clientIp);
     if (profile) {
       const tag = getUserTag(profile);
-      // Ensure tag exists before adding it to the torrent
       await qbt.createTags([tag]);
       await qbt.addTags(hash, [tag]);
       logger.info(`Tagged torrent ${hash} with ${tag}`);
@@ -91,14 +90,11 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
       }
 
       const clientIp = getClientIp(req);
-
-      // Get existing hashes before adding
       const existingTorrents = await qbt.listTorrents();
       const existingHashes = new Set(existingTorrents.map(t => t.hash));
 
       await qbt.addTorrent(file.buffer, file.originalname);
 
-      // Tag the new torrent with user's tag (best effort)
       setTimeout(async () => {
         try {
           const torrents = await qbt.listTorrents();
@@ -127,14 +123,11 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
       }
 
       const clientIp = getClientIp(req);
-
-      // Get existing hashes before adding
       const existingTorrents = await qbt.listTorrents();
       const existingHashes = new Set(existingTorrents.map(t => t.hash));
 
       await qbt.addMagnet(url);
 
-      // Tag the new torrent with user's tag (best effort)
       setTimeout(async () => {
         try {
           const torrents = await qbt.listTorrents();
@@ -158,7 +151,6 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
     try {
       const { hash } = req.params;
       const deleteFiles = req.query.deleteFiles === 'true';
-
       await qbt.deleteTorrent(hash, deleteFiles);
       res.json({ success: true });
     } catch (error) {
@@ -201,6 +193,7 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
     }
   });
 
+  // Move torrent to category (manual categorization from UI)
   router.post('/move/:hash', async (req, res) => {
     try {
       const { hash } = req.params;
@@ -211,59 +204,15 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
         return;
       }
 
-      const showName = extractShowDisplayName(name || '');
-      if (!showName) {
+      const files = await qbt.getTorrentFiles(hash);
+      const placement = determinePlacement(name || '', category, files);
+
+      if (!placement) {
         res.status(400).json({ error: 'Could not determine folder name' });
         return;
       }
 
-      const files = await qbt.getTorrentFiles(hash);
-      const rootFolder = files.length > 0 ? files[0].name.split('/')[0] : null;
-      const hasFolder = rootFolder && rootFolder !== files[0]?.name;
-
-      const categoryBasePath = category === 'tv-shows' ? TV_SHOWS_PATH : MOVIES_PATH;
-
-      if (isMultiSeason(name || '')) {
-        // Multi-season: move to category root, rename main folder to show name
-        await qbt.moveTorrent(hash, categoryBasePath);
-
-        if (hasFolder && rootFolder !== showName) {
-          await qbt.renameTorrentFolder(hash, rootFolder, showName);
-        }
-
-        // Find and rename season subfolders
-        const subfolders = new Set<string>();
-        for (const file of files) {
-          const parts = file.name.split('/');
-          if (parts.length >= 2) {
-            subfolders.add(parts[1]);
-          }
-        }
-
-        for (const subfolder of subfolders) {
-          const normalized = normalizeSeasonFolder(subfolder);
-          if (normalized && normalized !== subfolder) {
-            const oldPath = `${showName}/${subfolder}`;
-            const newPath = `${showName}/${normalized}`;
-            try {
-              await qbt.renameTorrentFolder(hash, oldPath, newPath);
-            } catch (e) {
-              logger.warn(`Failed to rename subfolder ${oldPath}`, { error: e });
-            }
-          }
-        }
-      } else {
-        // Single season or movie: move to show folder
-        const location = `${categoryBasePath}/${showName}`;
-        await qbt.moveTorrent(hash, location);
-
-        // Rename content folder to "Season XX" if single season
-        const seasonFolder = extractSeasonFolder(name || '');
-        if (seasonFolder && hasFolder) {
-          await qbt.renameTorrentFolder(hash, rootFolder, seasonFolder);
-        }
-      }
-
+      await applyPlacement(qbt, logger, hash, files, placement);
       res.json({ success: true });
     } catch (error) {
       logger.error('Failed to move torrent', { error });
@@ -271,17 +220,18 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
     }
   });
 
+  // Fix all torrents in tv-shows/movies folders
   router.post('/fix-paths', async (req, res) => {
     try {
       const torrents = await qbt.listTorrents();
       const results: { hash: string; name: string; status: string; error?: string }[] = [];
 
       for (const torrent of torrents) {
-        // Determine category from current path (check both old and new locations)
+        // Determine category from current path
         let category: 'tv-shows' | 'movies' | null = null;
-        if (torrent.save_path.includes('/tv-shows') || torrent.save_path.startsWith(TV_SHOWS_PATH)) {
+        if (torrent.save_path.includes('/tv-shows')) {
           category = 'tv-shows';
-        } else if (torrent.save_path.includes('/movies') || torrent.save_path.startsWith(MOVIES_PATH)) {
+        } else if (torrent.save_path.includes('/movies')) {
           category = 'movies';
         }
 
@@ -290,60 +240,16 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
           continue;
         }
 
-        const showName = extractShowDisplayName(torrent.name);
-        if (!showName) {
-          results.push({ hash: torrent.hash, name: torrent.name, status: 'skipped', error: 'Could not extract show name' });
-          continue;
-        }
-
-        const categoryBasePath = category === 'tv-shows' ? TV_SHOWS_PATH : MOVIES_PATH;
-
         try {
           const files = await qbt.getTorrentFiles(torrent.hash);
-          const rootFolder = files.length > 0 ? files[0].name.split('/')[0] : null;
-          const hasFolder = rootFolder && rootFolder !== files[0]?.name;
+          const placement = determinePlacement(torrent.name, category, files);
 
-          if (isMultiSeason(torrent.name)) {
-            // Multi-season: move to category root, rename main folder to show name
-            await qbt.moveTorrent(torrent.hash, categoryBasePath);
-
-            if (hasFolder && rootFolder !== showName) {
-              await qbt.renameTorrentFolder(torrent.hash, rootFolder, showName);
-            }
-
-            // Find and rename season subfolders
-            const subfolders = new Set<string>();
-            for (const file of files) {
-              const parts = file.name.split('/');
-              if (parts.length >= 2) {
-                subfolders.add(parts[1]);
-              }
-            }
-
-            for (const subfolder of subfolders) {
-              const normalized = normalizeSeasonFolder(subfolder);
-              if (normalized && normalized !== subfolder) {
-                const oldPath = `${showName}/${subfolder}`;
-                const newPath = `${showName}/${normalized}`;
-                try {
-                  await qbt.renameTorrentFolder(torrent.hash, oldPath, newPath);
-                } catch (e) {
-                  logger.warn(`Failed to rename subfolder ${oldPath}`, { error: e });
-                }
-              }
-            }
-          } else {
-            // Single season or movie: move to show folder
-            const location = `${categoryBasePath}/${showName}`;
-            await qbt.moveTorrent(torrent.hash, location);
-
-            // Rename content folder to "Season XX" if single season
-            const seasonFolder = extractSeasonFolder(torrent.name);
-            if (seasonFolder && hasFolder && rootFolder !== seasonFolder) {
-              await qbt.renameTorrentFolder(torrent.hash, rootFolder, seasonFolder);
-            }
+          if (!placement) {
+            results.push({ hash: torrent.hash, name: torrent.name, status: 'skipped', error: 'Could not determine placement' });
+            continue;
           }
 
+          await applyPlacement(qbt, logger, torrent.hash, files, placement);
           results.push({ hash: torrent.hash, name: torrent.name, status: 'fixed' });
         } catch (error) {
           const errMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -359,6 +265,7 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
     }
   });
 
+  // Auto-move on torrent completion (called by qBittorrent hook)
   router.post('/complete/:hash', async (req, res) => {
     try {
       const { hash } = req.params;
@@ -387,60 +294,18 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
         return;
       }
 
-      const category = detection.category;
-      const showName = extractShowDisplayName(torrent.name);
+      const files = await qbt.getTorrentFiles(hash);
+      const placement = determinePlacement(torrent.name, detection.category, files);
 
-      if (!showName) {
-        logger.warn(`Could not extract show name: ${torrent.name}`);
-        res.json({ success: true, skipped: true, reason: 'Could not extract show name' });
+      if (!placement) {
+        logger.warn(`Could not determine placement: ${torrent.name}`);
+        res.json({ success: true, skipped: true, reason: 'Could not determine placement' });
         return;
       }
 
-      const categoryBasePath = category === 'tv-shows' ? TV_SHOWS_PATH : MOVIES_PATH;
-
-      const files = await qbt.getTorrentFiles(hash);
-      const rootFolder = files.length > 0 ? files[0].name.split('/')[0] : null;
-      const hasFolder = rootFolder && rootFolder !== files[0]?.name;
-
-      if (isMultiSeason(torrent.name)) {
-        await qbt.moveTorrent(hash, categoryBasePath);
-
-        if (hasFolder && rootFolder !== showName) {
-          await qbt.renameTorrentFolder(hash, rootFolder, showName);
-        }
-
-        const subfolders = new Set<string>();
-        for (const file of files) {
-          const parts = file.name.split('/');
-          if (parts.length >= 2) {
-            subfolders.add(parts[1]);
-          }
-        }
-
-        for (const subfolder of subfolders) {
-          const normalized = normalizeSeasonFolder(subfolder);
-          if (normalized && normalized !== subfolder) {
-            const oldPath = `${showName}/${subfolder}`;
-            const newPath = `${showName}/${normalized}`;
-            try {
-              await qbt.renameTorrentFolder(hash, oldPath, newPath);
-            } catch (e) {
-              logger.warn(`Failed to rename subfolder ${oldPath}`, { error: e });
-            }
-          }
-        }
-      } else {
-        const location = `${categoryBasePath}/${showName}`;
-        await qbt.moveTorrent(hash, location);
-
-        const seasonFolder = extractSeasonFolder(torrent.name);
-        if (seasonFolder && hasFolder) {
-          await qbt.renameTorrentFolder(hash, rootFolder, seasonFolder);
-        }
-      }
-
-      logger.info(`Auto-moved torrent to ${category}: ${torrent.name}`);
-      res.json({ success: true, category, showName });
+      await applyPlacement(qbt, logger, hash, files, placement);
+      logger.info(`Auto-moved torrent to ${detection.category}: ${torrent.name}`);
+      res.json({ success: true, category: detection.category, showName: placement.showName });
     } catch (error) {
       logger.error('Failed to process completed torrent', { error });
       res.status(500).json({ error: 'Failed to process completed torrent' });
@@ -490,19 +355,14 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
       }
 
       const clientIp = getClientIp(req);
-
-      // Get existing hashes before adding
       const existingTorrents = await qbt.listTorrents();
       const existingHashes = new Set(existingTorrents.map(t => t.hash));
 
-      // Download .torrent from rutracker
       const { buffer, filename } = await rutracker.downloadTorrent(id);
       logger.info(`Downloaded torrent from RuTracker: ${name || filename}`);
 
-      // Add to qBittorrent
       await qbt.addTorrent(buffer, filename);
 
-      // Wait for qBittorrent to register the torrent, then tag it
       for (let attempt = 0; attempt < 5; attempt++) {
         await new Promise(r => setTimeout(r, 500));
         try {
@@ -521,6 +381,30 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
     } catch (error) {
       logger.error('Search download failed', { error });
       res.status(500).json({ error: 'Failed to download torrent' });
+    }
+  });
+
+  // Analyze torrent placements - returns both misplaced and correct
+  router.get('/placement', async (req, res) => {
+    try {
+      const placements = await placementService.getAllPlacements();
+      res.json(placements);
+    } catch (error) {
+      logger.error('Failed to analyze placement', { error });
+      res.status(500).json({ error: 'Failed to analyze placement' });
+    }
+  });
+
+  // Fix a single misplaced torrent
+  router.post('/placement/fix/:hash', async (req, res) => {
+    try {
+      const { hash } = req.params;
+      await placementService.fixPlacement(hash);
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Failed to fix placement', { error });
+      const msg = error instanceof Error ? error.message : 'Failed to fix placement';
+      res.status(500).json({ error: msg });
     }
   });
 
