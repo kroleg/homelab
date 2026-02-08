@@ -7,15 +7,48 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3006;
+const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005';
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
+app.set('trust proxy', true);
 
 interface ServiceLink {
   name: string;
   url: string;
   description: string;
   icon: string;
+}
+
+interface ClientInfo {
+  ip: string;
+  profile: {
+    id: string;
+    name: string;
+    isAdmin: boolean;
+  } | null;
+  device: {
+    name: string;
+    mac: string;
+  } | null;
+}
+
+async function getClientInfo(ip: string): Promise<ClientInfo | null> {
+  try {
+    const response = await fetch(`${KEENETIC_API_URL}/api/client?ip=${ip}`);
+    if (!response.ok) return null;
+    return await response.json() as ClientInfo;
+  } catch {
+    return null;
+  }
+}
+
+function getClientIp(req: express.Request): string {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (typeof forwardedFor === 'string') {
+    return forwardedFor.split(',')[0].trim();
+  }
+  return req.ip || req.socket.remoteAddress || '';
 }
 
 const services: ServiceLink[] = [
@@ -51,14 +84,59 @@ const services: ServiceLink[] = [
   }
 ];
 
-app.get('/', (req, res) => {
+const adminServices: ServiceLink[] = [
+  {
+    name: 'Grafana',
+    url: 'http://grafana.internal',
+    description: 'Мониторинг и метрики',
+    icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z'
+  },
+  {
+    name: 'Админ',
+    url: 'http://admin.internal',
+    description: 'DNS и VPN управление',
+    icon: 'M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75'
+  },
+  {
+    name: 'Glance',
+    url: 'http://home.internal',
+    description: 'Обзор сервисов',
+    icon: 'M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25'
+  },
+  {
+    name: 'Диски',
+    url: 'http://disk-monitor.internal',
+    description: 'Здоровье HDD/SSD',
+    icon: 'M21.75 17.25v-.228a4.5 4.5 0 0 0-.12-1.03l-2.268-9.64a3.375 3.375 0 0 0-3.285-2.602H7.923a3.375 3.375 0 0 0-3.285 2.602l-2.268 9.64a4.5 4.5 0 0 0-.12 1.03v.228m19.5 0a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3m19.5 0a3 3 0 0 0-3-3H5.25a3 3 0 0 0-3 3m16.5 0h.008v.008h-.008v-.008Zm-3 0h.008v.008h-.008v-.008Z'
+  },
+  {
+    name: 'qBittorrent',
+    url: 'http://torrent.internal',
+    description: 'Торрент-клиент',
+    icon: 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5'
+  },
+  {
+    name: 'Page Watcher',
+    url: 'http://page-watcher.internal',
+    description: 'Мониторинг страниц',
+    icon: 'M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178ZM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'
+  }
+];
+
+app.get('/', async (req, res) => {
+  const clientIp = getClientIp(req);
+  const clientInfo = await getClientInfo(clientIp);
+  const isAdmin = clientInfo?.profile?.isAdmin ?? false;
+
   res.render('index', {
     title: 'Семейная панель',
-    services
+    services,
+    adminServices: isAdmin ? adminServices : [],
+    isAdmin
   });
 });
 
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 

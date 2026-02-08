@@ -166,8 +166,11 @@ services:
     build:
       context: ./family-dashboard
       dockerfile: Dockerfile
+    depends_on:
+      - keenetic-api
     environment:
       - PORT=3006
+      - KEENETIC_API_URL=http://keenetic-api:3005
     networks:
       - default
       - shared

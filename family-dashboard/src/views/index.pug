@@ -68,6 +68,25 @@ block content
       color: var(--muted);
       font-weight: 400;
     }
+    .admin-section {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e4e4e7;
+    }
+    .admin-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .admin-link {
+      background: #fef3c7;
+    }
+    .admin-link:hover {
+      background: #fde68a;
+    }
   .container
     .card
       .header
@@ -82,3 +101,16 @@ block content
             .link-content
               .link-name= service.name
               .link-desc= service.description
+
+      if adminServices && adminServices.length > 0
+        .admin-section
+          .admin-header Админ
+          .links
+            each service in adminServices
+              a.link.admin-link(href=service.url)
+                .link-icon
+                  svg(xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2")
+                    path(stroke-linecap="round" stroke-linejoin="round" d=service.icon)
+                .link-content
+                  .link-name= service.name
+                  .link-desc= service.description
