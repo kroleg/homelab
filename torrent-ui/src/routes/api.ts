@@ -8,7 +8,9 @@ import { extractShowDisplayName, extractSeasonFolder, isMultiSeason, normalizeSe
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-const BASE_PATH = '/media/downloads';
+const DOWNLOADS_PATH = '/media/downloads';  // staging area
+const TV_SHOWS_PATH = '/media/downloads/tv-shows';    // final destination for Jellyfin
+const MOVIES_PATH = '/media/downloads/movies';        // final destination for Jellyfin
 const CATEGORIES = ['tv-shows', 'movies'] as const;
 
 interface UserProfile {
@@ -219,10 +221,11 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
       const rootFolder = files.length > 0 ? files[0].name.split('/')[0] : null;
       const hasFolder = rootFolder && rootFolder !== files[0]?.name;
 
+      const categoryBasePath = category === 'tv-shows' ? TV_SHOWS_PATH : MOVIES_PATH;
+
       if (isMultiSeason(name || '')) {
         // Multi-season: move to category root, rename main folder to show name
-        const location = `${BASE_PATH}/${category}`;
-        await qbt.moveTorrent(hash, location);
+        await qbt.moveTorrent(hash, categoryBasePath);
 
         if (hasFolder && rootFolder !== showName) {
           await qbt.renameTorrentFolder(hash, rootFolder, showName);
@@ -251,7 +254,7 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
         }
       } else {
         // Single season or movie: move to show folder
-        const location = `${BASE_PATH}/${category}/${showName}`;
+        const location = `${categoryBasePath}/${showName}`;
         await qbt.moveTorrent(hash, location);
 
         // Rename content folder to "Season XX" if single season
@@ -274,11 +277,11 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
       const results: { hash: string; name: string; status: string; error?: string }[] = [];
 
       for (const torrent of torrents) {
-        // Determine category from current path
+        // Determine category from current path (check both old and new locations)
         let category: 'tv-shows' | 'movies' | null = null;
-        if (torrent.save_path.includes('/tv-shows')) {
+        if (torrent.save_path.includes('/tv-shows') || torrent.save_path.startsWith(TV_SHOWS_PATH)) {
           category = 'tv-shows';
-        } else if (torrent.save_path.includes('/movies')) {
+        } else if (torrent.save_path.includes('/movies') || torrent.save_path.startsWith(MOVIES_PATH)) {
           category = 'movies';
         }
 
@@ -293,6 +296,8 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
           continue;
         }
 
+        const categoryBasePath = category === 'tv-shows' ? TV_SHOWS_PATH : MOVIES_PATH;
+
         try {
           const files = await qbt.getTorrentFiles(torrent.hash);
           const rootFolder = files.length > 0 ? files[0].name.split('/')[0] : null;
@@ -300,8 +305,7 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
 
           if (isMultiSeason(torrent.name)) {
             // Multi-season: move to category root, rename main folder to show name
-            const location = `${BASE_PATH}/${category}`;
-            await qbt.moveTorrent(torrent.hash, location);
+            await qbt.moveTorrent(torrent.hash, categoryBasePath);
 
             if (hasFolder && rootFolder !== showName) {
               await qbt.renameTorrentFolder(torrent.hash, rootFolder, showName);
@@ -330,7 +334,7 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
             }
           } else {
             // Single season or movie: move to show folder
-            const location = `${BASE_PATH}/${category}/${showName}`;
+            const location = `${categoryBasePath}/${showName}`;
             await qbt.moveTorrent(torrent.hash, location);
 
             // Rename content folder to "Season XX" if single season
@@ -367,8 +371,8 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
         return;
       }
 
-      // Only process torrents in base download path
-      if (torrent.save_path !== BASE_PATH) {
+      // Only process torrents in staging download path
+      if (torrent.save_path !== DOWNLOADS_PATH) {
         logger.info(`Skipping already moved torrent: ${torrent.name}`);
         res.json({ success: true, skipped: true, reason: 'Already moved' });
         return;
@@ -392,13 +396,14 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
         return;
       }
 
+      const categoryBasePath = category === 'tv-shows' ? TV_SHOWS_PATH : MOVIES_PATH;
+
       const files = await qbt.getTorrentFiles(hash);
       const rootFolder = files.length > 0 ? files[0].name.split('/')[0] : null;
       const hasFolder = rootFolder && rootFolder !== files[0]?.name;
 
       if (isMultiSeason(torrent.name)) {
-        const location = `${BASE_PATH}/${category}`;
-        await qbt.moveTorrent(hash, location);
+        await qbt.moveTorrent(hash, categoryBasePath);
 
         if (hasFolder && rootFolder !== showName) {
           await qbt.renameTorrentFolder(hash, rootFolder, showName);
@@ -425,7 +430,7 @@ export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneti
           }
         }
       } else {
-        const location = `${BASE_PATH}/${category}/${showName}`;
+        const location = `${categoryBasePath}/${showName}`;
         await qbt.moveTorrent(hash, location);
 
         const seasonFolder = extractSeasonFolder(torrent.name);
