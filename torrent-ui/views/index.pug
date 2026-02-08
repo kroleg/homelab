@@ -314,7 +314,8 @@ block content
       .limit-warning Лимит #{limitGB} ГБ превышен. Удалите что-нибудь.
     else
       a.add-btn(href="/search") Найти фильм / сериал
-      a.add-btn(href="/upload" style="background: var(--secondary); color: var(--secondary-fg); margin-top: -0.75rem;") + Добавить торрент вручную
+      if userProfile && userProfile.isAdmin
+        a.add-btn(href="/upload" style="background: var(--secondary); color: var(--secondary-fg); margin-top: -0.75rem;") + Добавить торрент вручную
 
     if error
       .error-msg= error
