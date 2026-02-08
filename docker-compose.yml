@@ -115,6 +115,10 @@ services:
       #   - udp://192.168.1.1:53 (Plain DNS over UDP)
       # - UPSTREAM_DNS_SERVERS=dot://77.88.8.8:853#common.dot.dns.yandex.net
       - UPSTREAM_DNS_SERVERS=dot://1.1.1.1:853#cloudflare-dns.com
+      # Alternate DNS for specific domains
+      # those ips are routed through vpn to bypass dns geoblocking
+      - ALT_DNS_UPSTREAM=udp://8.8.4.4:53
+      - ALT_DNS_DOMAINS=themoviedb.org,tmdb.org,tmdb-image-prod.b-cdn.net
     ports:
       - "53:53/tcp"
       - "53:53/udp"

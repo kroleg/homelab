@@ -125,6 +125,26 @@ export class DnsProxy {
     return false;
   }
 
+  private getUpstreamServerForDomain(hostname: string): UpstreamServer {
+    if (!this.config.altDnsUpstream || this.config.altDnsDomains.size === 0) {
+      return this.config.upstreamServers[0];
+    }
+
+    const lower = hostname.toLowerCase();
+    const parts = lower.split('.');
+
+    // Check if domain or any parent domain is in altDnsDomains
+    for (let i = 0; i < parts.length - 1; i++) {
+      const domain = parts.slice(i).join('.');
+      if (this.config.altDnsDomains.has(domain)) {
+        this.logger.debug(`Using alt DNS for ${hostname} (matched ${domain})`);
+        return this.config.altDnsUpstream;
+      }
+    }
+
+    return this.config.upstreamServers[0];
+  }
+
   private async logResolvedHost(params: { clientIp: string, hostname: string, ips: string[] }) {
     const { clientIp, hostname, ips } = params;
     const logEntry = JSON.stringify({ ts: new Date().toISOString(), clientIp, hostname, ips }) + '\n';
@@ -210,8 +230,8 @@ export class DnsProxy {
       });
     }
 
-    // Get upstream server (TODO: Implement round-robin)
-    const upstreamServer = this.config.upstreamServers[0];
+    // Get upstream server based on domain
+    const upstreamServer = this.getUpstreamServerForDomain(question.name);
 
     try {
       // Query upstream server based on protocol
