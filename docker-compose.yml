@@ -444,6 +444,31 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  telegram-bot:
+    container_name: telegram-bot
+    build: ./telegram-bot
+    environment:
+      - PORT=3008
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - LOG_LEVEL=info
+      - SYS_PATH=/host/sys
+      - PROC_PATH=/host/proc
+      - ROOTFS_PATH=/rootfs
+    volumes:
+      - /sys:/host/sys:ro
+      - /proc:/host/proc:ro
+      - /:/rootfs:ro
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.telegram-bot.rule=Host(`telegram-bot.internal`)"
+      - "traefik.http.services.telegram-bot.loadbalancer.server.port=3008"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
   scrutiny:
     container_name: scrutiny
     image: ghcr.io/analogj/scrutiny:master-omnibus

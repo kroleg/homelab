@@ -23,6 +23,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - qbittorrent - Torrent client with web interface
 - scrutiny - HDD/SSD health monitoring with SMART data (disk-monitor.internal)
 - shared-logs - Shared logging output directory for services
+- telegram-bot - Telegram bot for commands and notifications with HTTP API
 - torrent-ui - Simple UI for uploading torrents and viewing download progress
 - traefik - Traefik reverse proxy dynamic configuration
 - vector - Data pipeline for transforming Docker logs to Seq
