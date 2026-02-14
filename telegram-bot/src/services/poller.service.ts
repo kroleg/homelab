@@ -22,6 +22,10 @@ export function createPollerService(
           if (update.message) {
             await commandHandler.handleCommand(update.message);
           }
+
+          if (update.callback_query) {
+            await commandHandler.handleCallbackQuery(update.callback_query);
+          }
         }
       } catch (error) {
         logger.error('Polling error', { error });

@@ -4,6 +4,7 @@ import { createLogger } from './logger.ts';
 import { createApiRoutes } from './routes/api.ts';
 import { createTelegramService } from './services/telegram.service.ts';
 import { createHardwareService } from './services/hardware.service.ts';
+import { createDockerService } from './services/docker.service.ts';
 import { createCommandHandler } from './services/command-handler.ts';
 import { createPollerService } from './services/poller.service.ts';
 
@@ -23,7 +24,15 @@ const hardware = createHardwareService(
   logger
 );
 
-const commandHandler = createCommandHandler(telegram, hardware, logger);
+const docker = createDockerService(config.dockerSocketPath, logger);
+
+const commandHandler = createCommandHandler(
+  telegram,
+  hardware,
+  docker,
+  config.telegramChatId,
+  logger
+);
 const poller = createPollerService(telegram, commandHandler, logger);
 
 const app = express();

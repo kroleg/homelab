@@ -462,6 +462,7 @@ services:
       - /sys:/host/sys:ro
       - /proc:/host/proc:ro
       - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - "3008:3008"
     networks:

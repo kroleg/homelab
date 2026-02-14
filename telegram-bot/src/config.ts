@@ -18,6 +18,7 @@ export function loadConfig() {
     sysPath: process.env.SYS_PATH || '/sys',
     procPath: process.env.PROC_PATH || '/proc',
     rootfsPath: process.env.ROOTFS_PATH || '/',
+    dockerSocketPath: process.env.DOCKER_SOCKET_PATH || '/var/run/docker.sock',
   };
 }
 
