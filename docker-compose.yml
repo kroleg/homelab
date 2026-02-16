@@ -447,6 +447,28 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  devices:
+    container_name: devices
+    build:
+      context: ./devices
+      dockerfile: Dockerfile
+    environment:
+      - PORT=3009
+      - LOG_LEVEL=info
+      - KEENETIC_API_URL=http://keenetic-api:3005
+    depends_on:
+      - keenetic-api
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.devices.rule=Host(`devices.internal`)"
+      - "traefik.http.routers.devices.entrypoints=web"
+      - "traefik.http.services.devices.loadbalancer.server.port=3009"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
   telegram-bot:
     container_name: telegram-bot
     build: ./telegram-bot

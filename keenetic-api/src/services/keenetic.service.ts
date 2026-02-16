@@ -5,8 +5,10 @@ import type { Profile } from '../config.ts';
 export interface ClientInfo {
   name: string;
   profile: { id: string; name: string; isAdmin: boolean } | null;
-  ip: string;
+  ip: string | null;
   mac: string;
+  online: boolean;
+  policy: string | null;
 }
 
 function matchProfile(deviceName: string, profiles: Profile[]): Profile | null {
@@ -182,8 +184,10 @@ export function createKeeneticService(config: {
             return {
               name,
               profile: profile ? { id: profile.id, name: profile.name, isAdmin: profile.isAdmin } : null,
-              ip: client.ip || '',
+              ip: client.ip || null,
               mac: client.mac || '',
+              online: client.active === true,
+              policy: null, // Not needed for admin check
             };
           }
         }
@@ -197,23 +201,60 @@ export function createKeeneticService(config: {
 
     async getClients(): Promise<ClientInfo[]> {
       try {
-        const response = await getWithAuth('/rci/show/ip/hotspot/host');
-        if (response.status === 200 && Array.isArray(response.data)) {
-          return response.data
-            .filter((client: { ip: string }) => client.ip !== '0.0.0.0')
-            .map((client: { name?: string; ip?: string; mac?: string }) => {
-              const name = client.name || 'Unknown';
-              const profile = matchProfile(name, profiles);
-              return {
-                name,
-                profile: profile ? { id: profile.id, name: profile.name, isAdmin: profile.isAdmin } : null,
-                ip: client.ip || '',
-                mac: client.mac || '',
-              };
-            });
+        // Fetch all data in parallel
+        const [response, policyResponse, policyNamesResponse] = await Promise.all([
+          getWithAuth('/rci/show/ip/hotspot'),
+          getWithAuth('/rci/show/rc/ip/hotspot/host'),
+          getWithAuth('/rci/show/rc/ip/policy'),
+        ]);
+
+        if (response.status !== 200 || !response.data) {
+          logger.error(`Failed to get clients. Status: ${response.status}`);
+          return [];
         }
-        logger.error(`Failed to get clients. Status: ${response.status}`);
-        return [];
+
+        // Build policy assignment map (returns object, not array)
+        const policyMap = new Map<string, string>();
+        if (policyResponse.status !== 200) {
+          logger.error(`Failed to fetch policy assignments: ${policyResponse.status}`);
+        } else if (policyResponse.data && typeof policyResponse.data === 'object') {
+          for (const host of Object.values(policyResponse.data as Record<string, { mac?: string; policy?: string }>)) {
+            if (host.mac && host.policy) {
+              policyMap.set(host.mac.toLowerCase(), host.policy);
+            }
+          }
+        }
+
+        // Build policy names map for human-readable display
+        const policyNames = new Map<string, string>();
+        if (policyNamesResponse.status !== 200) {
+          logger.error(`Failed to fetch policy names: ${policyNamesResponse.status}`);
+        } else if (policyNamesResponse.data && typeof policyNamesResponse.data === 'object') {
+          for (const [id, policy] of Object.entries(policyNamesResponse.data as Record<string, { description?: string }>)) {
+            // Keenetic prefixes policy descriptions with "!" - strip it for display
+            const name = policy.description?.replace(/^!/, '') || id;
+            policyNames.set(id, name);
+          }
+        }
+
+        const data = response.data as { host?: Array<{ name?: string; ip?: string; mac?: string; active?: boolean; registered?: boolean }> };
+        const hosts = data.host || [];
+        return hosts
+          .filter(client => client.registered)
+          .map(client => {
+            const name = client.name || 'Unknown';
+            const mac = client.mac || '';
+            const profile = matchProfile(name, profiles);
+            const policyId = mac ? policyMap.get(mac.toLowerCase()) : undefined;
+            return {
+              name,
+              profile: profile ? { id: profile.id, name: profile.name, isAdmin: profile.isAdmin } : null,
+              ip: client.ip && client.ip !== '0.0.0.0' ? client.ip : null,
+              mac,
+              online: client.active === true,
+              policy: policyId ? (policyNames.get(policyId) || policyId) : null,
+            };
+          });
       } catch (error) {
         logger.error('Error fetching clients:', error);
         return [];
