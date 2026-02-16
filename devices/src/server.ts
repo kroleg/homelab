@@ -4,6 +4,11 @@ import { fileURLToPath } from 'url';
 import { loadConfig } from './config.ts';
 import { createLogger } from './logger.ts';
 import { createKeeneticService } from './services/keenetic.service.ts';
+import { createDeviceService } from './services/device.service.ts';
+import { initDatabase, runMigrations, closeDatabase } from './storage/db.ts';
+import { createUserRepository } from './storage/user.repository.ts';
+import { createDeviceRepository } from './storage/device.repository.ts';
+import { DeviceType } from './storage/db-schema.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -11,23 +16,57 @@ const config = loadConfig();
 const logger = createLogger(config.logLevel);
 const keenetic = createKeeneticService(config.keeneticApiUrl, logger);
 
+// Initialize database
+const db = initDatabase(config.postgres, logger);
+await runMigrations(db, logger);
+
+const userRepo = createUserRepository(db);
+const deviceRepo = createDeviceRepository(db);
+const deviceService = createDeviceService(keenetic, userRepo, deviceRepo, logger);
+
 const app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 app.set('trust proxy', 1);
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 async function isAdmin(req: express.Request): Promise<boolean> {
   let clientIp = req.ip || '';
-  // Strip IPv4-mapped IPv6 prefix
   if (clientIp.startsWith('::ffff:')) {
     clientIp = clientIp.slice(7);
   }
   logger.debug(`Checking admin status for IP: ${clientIp}`);
+
+  // Get device MAC from keenetic
   const client = await keenetic.getClientByIp(clientIp);
-  return client?.profile?.isAdmin ?? false;
+  if (!client?.mac) {
+    logger.warn(`Access denied: no device found for IP ${clientIp}`);
+    return false;
+  }
+
+  const mac = client.mac.toUpperCase();
+
+  // Check bootstrap admin MACs (env-based fallback)
+  if (config.adminMacs.includes(mac)) {
+    logger.debug(`MAC ${mac} is in ADMIN_MACS`);
+    return true;
+  }
+
+  // Check DB: device -> user -> isAdmin
+  const device = await deviceRepo.findByMac(mac);
+  if (device?.userId) {
+    const user = await userRepo.findById(device.userId);
+    if (user?.isAdmin) {
+      logger.debug(`MAC ${mac} belongs to admin user ${user.name}`);
+      return true;
+    }
+  }
+
+  logger.warn(`Access denied: MAC ${mac} (${client.name}) is not an admin`);
+  return false;
 }
 
-// Admin check middleware
 async function requireAdmin(
   req: express.Request,
   res: express.Response,
@@ -39,6 +78,7 @@ async function requireAdmin(
     res.status(403).render('error', {
       title: 'Доступ запрещен',
       message: 'Доступ только для администраторов',
+      homeUrl: config.homeUrl,
     });
   }
 }
@@ -48,48 +88,267 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Index page - list all devices grouped by owner
+// Main page - users with devices + unassigned + unregistered
 app.get('/', requireAdmin, async (_req, res) => {
   try {
-    const children = await keenetic.getChildren();
-    const clients = await keenetic.getClients();
+    const [usersWithDevices, unassignedDevices, unregisteredDevices, allUsers] = await Promise.all([
+      deviceService.getUsersWithDevices(),
+      deviceService.getUnassignedDevices(),
+      deviceService.getUnregisteredDevices(),
+      deviceService.getAllUsers(),
+    ]);
 
-    const sortDevices = (devices: typeof clients) =>
-      devices.sort((a, b) => {
-        if (a.online !== b.online) return a.online ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-
-    const childrenWithDevices = children.map(child => {
-      const devices = sortDevices(clients.filter(c => c.profile?.id === child.id));
-      const onlineCount = devices.filter(d => d.online).length;
-      return {
-        ...child,
-        devices,
-        onlineCount,
-      };
-    });
-
-    // Unowned devices (no profile assigned)
-    const unownedDevices = sortDevices(clients.filter(c => c.profile === null));
-    const unownedOnlineCount = unownedDevices.filter(d => d.online).length;
+    const unassignedOnlineCount = unassignedDevices.filter(d => d.online).length;
+    const unregisteredOnlineCount = unregisteredDevices.filter(d => d.online).length;
 
     res.render('index', {
       title: 'Устройства',
-      children: childrenWithDevices,
-      unowned: {
+      users: usersWithDevices,
+      unassigned: {
         name: 'Без владельца',
-        devices: unownedDevices,
-        onlineCount: unownedOnlineCount,
+        devices: unassignedDevices,
+        onlineCount: unassignedOnlineCount,
       },
+      unregistered: {
+        name: 'Не зарегистрированы',
+        devices: unregisteredDevices,
+        onlineCount: unregisteredOnlineCount,
+      },
+      allUsers,
+      deviceTypes: Object.values(DeviceType),
       homeUrl: config.homeUrl,
     });
   } catch (error) {
-    logger.error('Error loading children:', error);
+    logger.error('Error loading data:', error);
     res.status(500).render('error', {
       title: 'Ошибка',
       message: 'Не удалось загрузить данные',
+      homeUrl: config.homeUrl,
     });
+  }
+});
+
+// Create user
+app.post('/users', requireAdmin, async (req, res) => {
+  try {
+    const { name, slug, isAdmin: isAdminStr } = req.body;
+    if (!name || !slug) {
+      return res.status(400).render('error', {
+        title: 'Ошибка',
+        message: 'Имя и slug обязательны',
+        homeUrl: config.homeUrl,
+      });
+    }
+    await deviceService.createUser(name, slug.toLowerCase(), isAdminStr === 'on');
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error creating user:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось создать пользователя',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// Delete user
+app.post('/users/:id/delete', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id as string);
+    await deviceService.deleteUser(userId);
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error deleting user:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось удалить пользователя',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// Toggle admin status
+app.post('/users/:id/toggle-admin', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id as string);
+    await deviceService.toggleAdmin(userId);
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error toggling admin:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось изменить статус администратора',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// Update user
+app.post('/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id as string);
+    const { name, slug, isAdmin: isAdminStr } = req.body;
+
+    const updateData: { name?: string; slug?: string; isAdmin?: boolean } = {};
+
+    if (name?.trim()) {
+      updateData.name = name.trim();
+    }
+    if (slug?.trim()) {
+      updateData.slug = slug.trim().toLowerCase();
+    }
+    updateData.isAdmin = isAdminStr === 'on';
+
+    await deviceService.updateUser(userId, updateData);
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error updating user:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось обновить пользователя',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// Register device
+app.post('/devices/register', requireAdmin, async (req, res) => {
+  try {
+    const { mac, userId, deviceType, customName } = req.body;
+    if (!mac) {
+      return res.status(400).render('error', {
+        title: 'Ошибка',
+        message: 'MAC адрес обязателен',
+        homeUrl: config.homeUrl,
+      });
+    }
+    await deviceService.registerDevice(
+      mac,
+      userId ? parseInt(userId) : null,
+      deviceType || 'other',
+      customName || undefined
+    );
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error registering device:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось зарегистрировать устройство',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// Change device owner
+app.post('/devices/:id/owner', requireAdmin, async (req, res) => {
+  try {
+    const deviceId = parseInt(req.params.id as string);
+    const { userId } = req.body;
+    await deviceService.changeOwner(deviceId, userId ? parseInt(userId) : null);
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error changing owner:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось изменить владельца',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// Change device type
+app.post('/devices/:id/type', requireAdmin, async (req, res) => {
+  try {
+    const deviceId = parseInt(req.params.id as string);
+    const { deviceType } = req.body;
+    if (!Object.values(DeviceType).includes(deviceType)) {
+      return res.status(400).render('error', {
+        title: 'Ошибка',
+        message: 'Неверный тип устройства',
+        homeUrl: config.homeUrl,
+      });
+    }
+    await deviceService.updateDeviceType(deviceId, deviceType);
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error changing device type:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось изменить тип устройства',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// Update device (combined: customName, deviceType, userId)
+app.post('/devices/:id', requireAdmin, async (req, res) => {
+  try {
+    const deviceId = parseInt(req.params.id as string);
+    const { customName, deviceType, userId } = req.body;
+
+    const updateData: {
+      customName?: string | null;
+      deviceType?: (typeof DeviceType)[keyof typeof DeviceType];
+      userId?: number | null;
+    } = {};
+
+    if (customName !== undefined) {
+      updateData.customName = customName.trim() || null;
+    }
+    if (deviceType && Object.values(DeviceType).includes(deviceType)) {
+      updateData.deviceType = deviceType as (typeof DeviceType)[keyof typeof DeviceType];
+    }
+    if (userId !== undefined) {
+      updateData.userId = userId ? parseInt(userId) : null;
+    }
+
+    await deviceService.updateDevice(deviceId, updateData);
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error updating device:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось обновить устройство',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// API endpoints
+app.get('/api/users', requireAdmin, async (_req, res) => {
+  try {
+    const users = await deviceService.getUsersWithDevices();
+    res.json(users);
+  } catch (error) {
+    logger.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/devices', requireAdmin, async (_req, res) => {
+  try {
+    const [assigned, unassigned] = await Promise.all([
+      deviceService.getUsersWithDevices(),
+      deviceService.getUnassignedDevices(),
+    ]);
+    const allDevices = [
+      ...assigned.flatMap(u => u.devices),
+      ...unassigned,
+    ];
+    res.json(allDevices);
+  } catch (error) {
+    logger.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/discovered', requireAdmin, async (_req, res) => {
+  try {
+    const devices = await deviceService.getUnregisteredDevices();
+    res.json(devices);
+  } catch (error) {
+    logger.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -99,6 +358,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   res.status(500).render('error', {
     title: 'Ошибка',
     message: 'Внутренняя ошибка сервера',
+    homeUrl: config.homeUrl,
   });
 });
 
@@ -106,9 +366,12 @@ const server = app.listen(config.port, () => {
   logger.info(`Devices running on http://localhost:${config.port}`);
 });
 
-function shutdown() {
+async function shutdown() {
   logger.info('Shutting down...');
-  server.close(() => process.exit(0));
+  server.close(async () => {
+    await closeDatabase(logger);
+    process.exit(0);
+  });
 }
 
 process.on('SIGTERM', shutdown);

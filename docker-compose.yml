@@ -450,6 +450,22 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  postgres-devices:
+    container_name: postgres-devices
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=devices
+      - POSTGRES_USER=devices
+      - POSTGRES_PASSWORD=${DEVICES_DB_PASSWORD:-devices}
+    volumes:
+      - postgres_devices_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devices"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   devices:
     container_name: devices
     build:
@@ -459,8 +475,17 @@ services:
       - PORT=3009
       - LOG_LEVEL=info
       - KEENETIC_API_URL=http://keenetic-api:3005
+      - POSTGRES_HOST=postgres-devices
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=devices
+      - POSTGRES_USER=devices
+      - POSTGRES_PASSWORD=${DEVICES_DB_PASSWORD:-devices}
+      - ADMIN_MACS=AC:B4:80:F2:51:1C,84:2F:57:7A:02:8E
     depends_on:
-      - keenetic-api
+      postgres-devices:
+        condition: service_healthy
+      keenetic-api:
+        condition: service_started
     networks:
       - default
       - shared
@@ -539,6 +564,7 @@ networks:
 volumes:
   postgres_main_data:
   postgres_pagewatcher_data:
+  postgres_devices_data:
   prometheus_data:
   grafana_data:
   loki_data:

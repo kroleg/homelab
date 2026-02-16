@@ -16,12 +16,12 @@ export interface Device {
 }
 
 export interface ClientInfo {
+  name: string;
   ip: string;
+  mac: string;
+  online: boolean;
   profile: Profile | null;
-  device: {
-    name: string;
-    mac: string;
-  } | null;
+  policy: string | null;
 }
 
 export function createKeeneticService(apiUrl: string, logger: Logger) {

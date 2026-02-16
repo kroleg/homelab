@@ -18,7 +18,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - main - Central API wrapper with VPN management and database integration
 - otel - OpenTelemetry collector config for OTLP to Prometheus
 - page-watcher - Web page monitoring service that detects text changes and sends notifications
-- devices - Admin UI for viewing network devices grouped by owner (devices.internal)
+- devices - Admin UI for managing users and devices with PostgreSQL storage (devices.internal)
 - prometheus - Prometheus time-series database configuration
 - promtail - Loki log shipper for Docker container logs
 - qbittorrent - Torrent client with web interface
