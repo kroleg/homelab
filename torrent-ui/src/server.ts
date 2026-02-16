@@ -60,13 +60,21 @@ function trimDisplayName(name: string): string {
 const BASE_PATH = '/media/downloads';
 
 interface UserProfile {
-  id: string;
+  id: number;
   name: string;
+  slug: string;
   isAdmin: boolean;
 }
 
 function getUserTag(profile: UserProfile): string {
-  return `user-${profile.id.toLowerCase()}`;
+  return `user-${profile.slug}`;
+}
+
+interface WhoamiResponse {
+  mac: string | null;
+  device: { id: number; customName: string | null; deviceType: string } | null;
+  user: UserProfile | null;
+  isAdmin: boolean;
 }
 
 interface ClientInfo {
@@ -76,10 +84,13 @@ interface ClientInfo {
 
 async function getClientInfo(ip: string): Promise<ClientInfo> {
   try {
-    const response = await fetch(`${config.keeneticApiUrl}/api/client?ip=${encodeURIComponent(ip)}`);
+    const response = await fetch(`${config.devicesApiUrl}/api/whoami?ip=${encodeURIComponent(ip)}`);
     if (response.ok) {
-      const data = await response.json() as { name: string; profile: UserProfile | null };
-      return { deviceName: data.name || null, profile: data.profile };
+      const data = await response.json() as WhoamiResponse;
+      const deviceName = data.device?.customName || null;
+      // If user exists, use it; otherwise create a pseudo-profile from admin status
+      const profile = data.user ? { ...data.user, isAdmin: data.isAdmin } : null;
+      return { deviceName, profile };
     }
   } catch (error) {
     logger.debug(`Failed to get client info for IP ${ip}:`, error);
@@ -87,14 +98,14 @@ async function getClientInfo(ip: string): Promise<ClientInfo> {
   return { deviceName: null, profile: null };
 }
 
-async function getAllProfiles(): Promise<UserProfile[]> {
+async function getAllUsers(): Promise<UserProfile[]> {
   try {
-    const response = await fetch(`${config.keeneticApiUrl}/api/profiles`);
+    const response = await fetch(`${config.devicesApiUrl}/api/users`);
     if (response.ok) {
       return await response.json() as UserProfile[];
     }
   } catch (error) {
-    logger.debug('Failed to get profiles:', error);
+    logger.debug('Failed to get users:', error);
   }
   return [];
 }
@@ -261,12 +272,12 @@ app.get('/', async (req, res) => {
 
     if (userProfile.isAdmin) {
       // Admin view: group by user
-      const profiles = await getAllProfiles();
+      const users = await getAllUsers();
 
-      // Build tag -> profile name map
+      // Build tag -> user name map
       const tagToName: Record<string, string> = {};
-      for (const p of profiles) {
-        tagToName[getUserTag(p)] = p.name;
+      for (const u of users) {
+        tagToName[getUserTag(u)] = u.name;
       }
 
       // Group torrents
@@ -394,7 +405,7 @@ app.get('/placement', async (req, res) => {
   }
 });
 
-app.use('/api', createApiRoutes(logger, qbt, config.keeneticApiUrl, rutracker));
+app.use('/api', createApiRoutes(logger, qbt, config.devicesApiUrl, rutracker));
 
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error('Server error:', err);

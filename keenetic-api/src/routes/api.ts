@@ -1,14 +1,9 @@
 import { Router } from 'express';
 import type { Logger } from '../logger.ts';
 import type { KeeneticService } from '../services/keenetic.service.ts';
-import type { Profile } from '../config.ts';
 
-export function createApiRoutes(logger: Logger, keenetic: KeeneticService, profiles: Profile[]): Router {
+export function createApiRoutes(logger: Logger, keenetic: KeeneticService): Router {
   const router = Router();
-
-  router.get('/profiles', (_req, res) => {
-    res.json(profiles.map(p => ({ id: p.id, name: p.name, isAdmin: p.isAdmin })));
-  });
 
   router.get('/client', async (req, res) => {
     const ip = req.query.ip as string;
@@ -31,6 +26,31 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, profi
     logger.debug('Listing all clients');
     const clients = await keenetic.getClients();
     res.json(clients);
+  });
+
+  router.get('/policies', async (_req, res) => {
+    logger.debug('Listing all policies');
+    const policies = await keenetic.getPolicies();
+    res.json(policies);
+  });
+
+  router.post('/clients/:mac/policy', async (req, res) => {
+    const { mac } = req.params;
+    const { policyId } = req.body;
+
+    if (!mac) {
+      res.status(400).json({ error: 'MAC address is required' });
+      return;
+    }
+
+    logger.debug(`Setting policy ${policyId || 'none'} for MAC: ${mac}`);
+    const success = await keenetic.setClientPolicy(mac, policyId || null);
+
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to set policy' });
+    }
   });
 
   return router;

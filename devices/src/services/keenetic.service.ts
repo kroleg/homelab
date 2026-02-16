@@ -1,17 +1,10 @@
 import type { Logger } from '../logger.ts';
 
-export interface Profile {
-  id: string;
-  name: string;
-  isAdmin: boolean;
-}
-
 export interface Device {
   name: string;
   mac: string;
   ip: string | null;
   online: boolean;
-  profile: Profile | null;
   policy: string | null;
 }
 
@@ -20,7 +13,6 @@ export interface ClientInfo {
   ip: string;
   mac: string;
   online: boolean;
-  profile: Profile | null;
   policy: string | null;
 }
 
@@ -40,16 +32,6 @@ export function createKeeneticService(apiUrl: string, logger: Logger) {
   }
 
   return {
-    async getProfiles(): Promise<Profile[]> {
-      const profiles = await fetchJson<Profile[]>('/api/profiles');
-      return profiles || [];
-    },
-
-    async getChildren(): Promise<Profile[]> {
-      const profiles = await this.getProfiles();
-      return profiles.filter(p => !p.isAdmin);
-    },
-
     async getClients(): Promise<Device[]> {
       const clients = await fetchJson<Device[]>('/api/clients');
       return clients || [];

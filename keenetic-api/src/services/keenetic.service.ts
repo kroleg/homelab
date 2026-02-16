@@ -1,39 +1,21 @@
 import crypto from 'crypto';
 import type { Logger } from '../logger.ts';
-import type { Profile } from '../config.ts';
 
 export interface ClientInfo {
   name: string;
-  profile: { id: string; name: string; isAdmin: boolean } | null;
   ip: string | null;
   mac: string;
   online: boolean;
   policy: string | null;
 }
 
-function matchProfile(deviceName: string, profiles: Profile[]): Profile | null {
-  if (!deviceName || profiles.length === 0) return null;
-
-  const deviceNameLower = deviceName.toLowerCase();
-
-  // Find profile whose name appears in device name
-  for (const profile of profiles) {
-    if (deviceNameLower.includes(profile.name.toLowerCase())) {
-      return profile;
-    }
-  }
-
-  return null;
-}
-
 export function createKeeneticService(config: {
   host: string;
   login: string;
   password: string;
-  profiles: Profile[];
   logger: Logger;
 }) {
-  const { host, login, password, profiles, logger } = config;
+  const { host, login, password, logger } = config;
   let cookies = '';
 
   async function getRequest(path: string): Promise<{
@@ -179,15 +161,12 @@ export function createKeeneticService(config: {
         if (response.status === 200 && Array.isArray(response.data)) {
           const client = response.data.find((c: { ip: string }) => c.ip === ip);
           if (client) {
-            const name = client.name || 'Unknown';
-            const profile = matchProfile(name, profiles);
             return {
-              name,
-              profile: profile ? { id: profile.id, name: profile.name, isAdmin: profile.isAdmin } : null,
+              name: client.name || 'Unknown',
               ip: client.ip || null,
               mac: client.mac || '',
               online: client.active === true,
-              policy: null, // Not needed for admin check
+              policy: null,
             };
           }
         }
@@ -242,13 +221,10 @@ export function createKeeneticService(config: {
         return hosts
           .filter(client => client.registered)
           .map(client => {
-            const name = client.name || 'Unknown';
             const mac = client.mac || '';
-            const profile = matchProfile(name, profiles);
             const policyId = mac ? policyMap.get(mac.toLowerCase()) : undefined;
             return {
-              name,
-              profile: profile ? { id: profile.id, name: profile.name, isAdmin: profile.isAdmin } : null,
+              name: client.name || 'Unknown',
               ip: client.ip && client.ip !== '0.0.0.0' ? client.ip : null,
               mac,
               online: client.active === true,
@@ -258,6 +234,49 @@ export function createKeeneticService(config: {
       } catch (error) {
         logger.error('Error fetching clients:', error);
         return [];
+      }
+    },
+
+    async getPolicies(): Promise<{ id: string; name: string }[]> {
+      try {
+        const response = await getWithAuth('/rci/show/rc/ip/policy');
+        if (response.status === 200 && response.data && typeof response.data === 'object') {
+          return Object.entries(response.data as Record<string, { description?: string }>).map(([id, policy]) => ({
+            id,
+            name: policy.description?.replace(/^!/, '') || id,
+          }));
+        }
+        logger.error(`Failed to get policies. Status: ${response.status}`);
+        return [];
+      } catch (error) {
+        logger.error('Error fetching policies:', error);
+        return [];
+      }
+    },
+
+    async setClientPolicy(mac: string, policyId: string | null): Promise<boolean> {
+      try {
+        await ensureAuthenticated();
+        const payload = policyId
+          ? [
+              { ip: { hotspot: { host: { mac, permit: true, policy: policyId } } } },
+              { system: { configuration: { save: {} } } }
+            ]
+          : [
+              { ip: { hotspot: { host: { mac, permit: true, policy: { no: true } } } } },
+              { system: { configuration: { save: {} } } }
+            ];
+
+        const response = await postRequest('/rci/', payload);
+        if (response.status === 200) {
+          logger.info(`Policy ${policyId || 'removed'} set for MAC: ${mac}`);
+          return true;
+        }
+        logger.error(`Failed to set policy. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error setting client policy:', error);
+        return false;
       }
     },
   };

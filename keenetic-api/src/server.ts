@@ -11,11 +11,8 @@ const keenetic = createKeeneticService({
   host: config.keeneticHost,
   login: config.keeneticLogin,
   password: config.keeneticPassword,
-  profiles: config.profiles,
   logger,
 });
-
-logger.info(`Loaded ${config.profiles.length} profiles: ${config.profiles.map(p => p.name).join(', ')}`);
 
 const app = express();
 app.use(express.json());
@@ -24,7 +21,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use('/api', createApiRoutes(logger, keenetic, config.profiles));
+app.use('/api', createApiRoutes(logger, keenetic));
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Server error:', err);

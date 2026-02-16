@@ -30,6 +30,15 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - vector - Data pipeline for transforming Docker logs to Seq
 - vpn-toggle - Simple UI for toggling VPN connections
 
+## Service Architecture
+
+Key service responsibilities and dependencies:
+
+- **keenetic-api** - Low-level Keenetic router API. Source of truth for router data (clients, policies, MAC addresses). Other services should call this for any Keenetic-related data.
+- **devices** - User and device management (DB-backed). Provides `/api/whoami` for admin status checks. Uses keenetic-api for router data.
+- **main/dns-to-vpn** - DNS routing and VPN domain management. Uses keenetic-api internally. Should NOT be called by other services for Keenetic data.
+- **vpn-toggle, family-dashboard, torrent-ui** - UI services that use devices for user/admin info.
+
 ## Git
 
 No AI mention in commits.

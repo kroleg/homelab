@@ -83,6 +83,38 @@ async function requireAdmin(
   }
 }
 
+// VPN policy helpers (via keenetic-api)
+interface VpnPolicy {
+  id: string;
+  name: string;
+}
+
+async function getVpnPolicies(): Promise<VpnPolicy[]> {
+  try {
+    const response = await fetch(`${config.keeneticApiUrl}/api/policies`);
+    if (response.ok) {
+      return await response.json() as VpnPolicy[];
+    }
+  } catch (error) {
+    logger.error('Failed to fetch VPN policies:', error);
+  }
+  return [];
+}
+
+async function setDevicePolicy(mac: string, policyId: string | null): Promise<boolean> {
+  try {
+    const response = await fetch(`${config.keeneticApiUrl}/api/clients/${encodeURIComponent(mac)}/policy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ policyId }),
+    });
+    return response.ok;
+  } catch (error) {
+    logger.error('Failed to set device policy:', error);
+    return false;
+  }
+}
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -280,11 +312,57 @@ app.post('/devices/:id/type', requireAdmin, async (req, res) => {
   }
 });
 
-// Update device (combined: customName, deviceType, userId)
+// Get device for editing (AJAX)
+app.get('/devices/:id', requireAdmin, async (req, res) => {
+  try {
+    const deviceId = parseInt(req.params.id as string);
+    const [device, allUsers, vpnPolicies] = await Promise.all([
+      deviceRepo.findById(deviceId),
+      userRepo.findAll(),
+      getVpnPolicies(),
+    ]);
+
+    if (!device) {
+      res.status(404).json({ error: 'Устройство не найдено' });
+      return;
+    }
+
+    // Get keenetic name from online devices
+    const clients = await keenetic.getClients();
+    const client = clients.find(c => c.mac.toUpperCase() === device.mac.toUpperCase());
+
+    res.json({
+      device: {
+        id: device.id,
+        mac: device.mac,
+        customName: device.customName,
+        deviceType: device.deviceType,
+        userId: device.userId,
+        keeneticName: client?.name || null,
+        policy: client?.policy || null,
+      },
+      users: allUsers.map(u => ({ id: u.id, name: u.name })),
+      deviceTypes: Object.values(DeviceType),
+      vpnPolicies,
+    });
+  } catch (error) {
+    logger.error('Error fetching device:', error);
+    res.status(500).json({ error: 'Не удалось загрузить устройство' });
+  }
+});
+
+// Update device (AJAX)
 app.post('/devices/:id', requireAdmin, async (req, res) => {
   try {
     const deviceId = parseInt(req.params.id as string);
-    const { customName, deviceType, userId } = req.body;
+    const { customName, deviceType, userId, vpnPolicy } = req.body;
+
+    // Get device first (need MAC for policy)
+    const device = await deviceRepo.findById(deviceId);
+    if (!device) {
+      res.status(404).json({ error: 'Устройство не найдено' });
+      return;
+    }
 
     const updateData: {
       customName?: string | null;
@@ -303,14 +381,21 @@ app.post('/devices/:id', requireAdmin, async (req, res) => {
     }
 
     await deviceService.updateDevice(deviceId, updateData);
-    res.redirect('/');
+
+    // Set VPN policy if provided
+    if (vpnPolicy !== undefined) {
+      const policyId = vpnPolicy || null;
+      const success = await setDevicePolicy(device.mac, policyId);
+      if (!success) {
+        res.status(500).json({ error: 'Не удалось изменить VPN политику' });
+        return;
+      }
+    }
+
+    res.json({ success: true });
   } catch (error) {
     logger.error('Error updating device:', error);
-    res.status(500).render('error', {
-      title: 'Ошибка',
-      message: 'Не удалось обновить устройство',
-      homeUrl: config.homeUrl,
-    });
+    res.status(500).json({ error: 'Не удалось обновить устройство' });
   }
 });
 
@@ -348,6 +433,82 @@ app.get('/api/discovered', requireAdmin, async (_req, res) => {
     res.json(devices);
   } catch (error) {
     logger.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Public API endpoint to list all users (used by torrent-ui for admin view)
+app.get('/api/users', async (_req, res) => {
+  try {
+    const users = await userRepo.findAll();
+    res.json(users.map(u => ({
+      id: u.id,
+      name: u.name,
+      slug: u.slug,
+      isAdmin: u.isAdmin,
+    })));
+  } catch (error) {
+    logger.error('API error in /api/users:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Public API endpoint for admin status lookup (used by other services)
+app.get('/api/whoami', async (req, res) => {
+  try {
+    const ip = req.query.ip as string;
+    if (!ip) {
+      res.status(400).json({ error: 'ip query parameter required' });
+      return;
+    }
+
+    // Get device MAC from keenetic
+    const client = await keenetic.getClientByIp(ip);
+    if (!client?.mac) {
+      res.json({
+        mac: null,
+        device: null,
+        user: null,
+        isAdmin: false,
+      });
+      return;
+    }
+
+    const mac = client.mac.toUpperCase();
+
+    // Look up device in DB by MAC
+    const device = await deviceRepo.findByMac(mac);
+
+    // Look up user if device has userId
+    let user = null;
+    if (device?.userId) {
+      user = await userRepo.findById(device.userId);
+    }
+
+    // Compute isAdmin: ADMIN_MACS.includes(mac) || user?.isAdmin
+    const isAdmin = config.adminMacs.includes(mac) || user?.isAdmin === true;
+
+    res.json({
+      mac,
+      device: device
+        ? {
+            id: device.id,
+            customName: device.customName,
+            deviceType: device.deviceType,
+          }
+        : null,
+      user: user
+        ? {
+            id: user.id,
+            name: user.name,
+            slug: user.slug,
+            isAdmin: user.isAdmin,
+          }
+        : null,
+      isAdmin,
+    });
+  } catch (error) {
+    logger.error('API error in /api/whoami:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

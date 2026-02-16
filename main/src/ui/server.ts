@@ -3,7 +3,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServicesRouter } from './services.routes.ts';
 import { createLogsRouter } from './logs.routes.ts';
-import { createDevicesRouter } from './devices.routes.ts';
 import { createCheckRouter } from './check.routes.ts';
 import { createApiRouter } from './api.routes.ts';
 import type { Logger } from 'winston';
@@ -25,7 +24,6 @@ export function startUI(logger: Logger, api: KeeneticApi, onServiceChange?: () =
 
   app.use('/services', createServicesRouter(api, onServiceChange));
   app.use('/logs', createLogsRouter({ api }));
-  app.use('/devices', createDevicesRouter(api));
   app.use('/check', createCheckRouter(api));
   app.use('/api', createApiRouter(api));
 

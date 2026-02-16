@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3006;
-const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005';
+const DEVICES_API_URL = process.env.DEVICES_API_URL || 'http://devices:3009';
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
@@ -20,26 +20,14 @@ interface ServiceLink {
   icon: string;
 }
 
-interface ClientInfo {
-  ip: string;
-  profile: {
-    id: string;
-    name: string;
-    isAdmin: boolean;
-  } | null;
-  device: {
-    name: string;
-    mac: string;
-  } | null;
-}
-
-async function getClientInfo(ip: string): Promise<ClientInfo | null> {
+async function isAdmin(ip: string): Promise<boolean> {
   try {
-    const response = await fetch(`${KEENETIC_API_URL}/api/client?ip=${ip}`);
-    if (!response.ok) return null;
-    return await response.json() as ClientInfo;
+    const response = await fetch(`${DEVICES_API_URL}/api/whoami?ip=${encodeURIComponent(ip)}`);
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data?.isAdmin ?? false;
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -131,14 +119,13 @@ const adminServices: ServiceLink[] = [
 
 app.get('/', async (req, res) => {
   const clientIp = getClientIp(req);
-  const clientInfo = await getClientInfo(clientIp);
-  const isAdmin = clientInfo?.profile?.isAdmin ?? false;
+  const admin = await isAdmin(clientIp);
 
   res.render('index', {
     title: 'Семейная панель',
     services,
-    adminServices: isAdmin ? adminServices : [],
-    isAdmin
+    adminServices: admin ? adminServices : [],
+    isAdmin: admin
   });
 });
 

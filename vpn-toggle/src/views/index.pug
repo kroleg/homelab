@@ -17,6 +17,11 @@ block content
       text-align: center;
       margin-bottom: 1.5rem;
     }
+    .user-name {
+      font-size: 1rem;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
     .device-name {
       font-size: 0.875rem;
       color: var(--muted);
@@ -62,10 +67,13 @@ block content
     }
 
   - const vpnOn = !!device.policy
+  - const displayDeviceName = deviceName || device.name
   .container
     .card
       .header
-        .device-name= device.name
+        if userName
+          .user-name= userName
+        .device-name= displayDeviceName
         .status(class=vpnOn ? 'on' : 'off')= vpnOn ? 'ON' : 'OFF'
 
       if error

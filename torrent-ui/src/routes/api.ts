@@ -12,21 +12,31 @@ const DOWNLOADS_PATH = '/media/downloads';  // staging area
 const CATEGORIES = ['tv-shows', 'movies'] as const;
 
 interface UserProfile {
-  id: string;
+  id: number;
   name: string;
+  slug: string;
   isAdmin: boolean;
 }
 
 function getUserTag(profile: UserProfile): string {
-  return `user-${profile.id.toLowerCase()}`;
+  return `user-${profile.slug}`;
 }
 
-async function getUserProfile(keeneticApiUrl: string, ip: string): Promise<UserProfile | null> {
+interface WhoamiResponse {
+  mac: string | null;
+  device: { id: number; customName: string | null; deviceType: string } | null;
+  user: UserProfile | null;
+  isAdmin: boolean;
+}
+
+async function getUserProfile(devicesApiUrl: string, ip: string): Promise<UserProfile | null> {
   try {
-    const response = await fetch(`${keeneticApiUrl}/api/client?ip=${encodeURIComponent(ip)}`);
+    const response = await fetch(`${devicesApiUrl}/api/whoami?ip=${encodeURIComponent(ip)}`);
     if (response.ok) {
-      const data = await response.json() as { profile: UserProfile | null };
-      return data.profile;
+      const data = await response.json() as WhoamiResponse;
+      if (data.user) {
+        return { ...data.user, isAdmin: data.isAdmin };
+      }
     }
   } catch {
     // Ignore errors
@@ -66,13 +76,13 @@ function detectCategory(name: string): CategoryDetection {
   return { category: 'movies', confidence: 'low' };
 }
 
-export function createApiRoutes(logger: Logger, qbt: QBittorrentService, keeneticApiUrl: string, rutracker: RutrackerService): Router {
+export function createApiRoutes(logger: Logger, qbt: QBittorrentService, devicesApiUrl: string, rutracker: RutrackerService): Router {
   const router = Router();
   const placementService = createPlacementService(qbt, logger);
 
   // Helper to tag torrent with user's tag
   async function tagTorrentForUser(hash: string, clientIp: string): Promise<void> {
-    const profile = await getUserProfile(keeneticApiUrl, clientIp);
+    const profile = await getUserProfile(devicesApiUrl, clientIp);
     if (profile) {
       const tag = getUserTag(profile);
       await qbt.createTags([tag]);

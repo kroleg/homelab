@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3002;
 const MAIN_API_URL = process.env.MAIN_API_URL || 'http://dns-to-vpn:3000/api';
-const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005';
+const DEVICES_API_URL = process.env.DEVICES_API_URL || 'http://devices:3009';
 const ADMIN_ONLY_POLICIES = (process.env.ADMIN_ONLY_POLICIES || '')
   .split(',')
   .map(s => s.trim().toLowerCase())
@@ -42,15 +42,21 @@ function normalizeIp(ip: string): string {
   return ip;
 }
 
-// Check if client is admin via keenetic-api
-async function isAdmin(ip: string): Promise<boolean> {
+interface WhoamiResponse {
+  mac: string | null;
+  device: { id: number; customName: string | null; deviceType: string } | null;
+  user: { id: number; name: string; slug: string; isAdmin: boolean } | null;
+  isAdmin: boolean;
+}
+
+// Get client info from devices service
+async function getWhoami(ip: string): Promise<WhoamiResponse | null> {
   try {
-    const response = await fetch(`${KEENETIC_API_URL}/api/client?ip=${ip}`);
-    if (!response.ok) return false;
-    const client = await response.json();
-    return client?.profile?.isAdmin ?? false;
+    const response = await fetch(`${DEVICES_API_URL}/api/whoami?ip=${encodeURIComponent(ip)}`);
+    if (!response.ok) return null;
+    return await response.json() as WhoamiResponse;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -101,9 +107,12 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
 
     const allPolicies = await policiesResponse.json();
 
+    // Get user/device info from devices service
+    const whoami = await getWhoami(clientIp);
+    const admin = whoami?.isAdmin ?? false;
+
     // Filter admin-only policies for non-admins (match by description)
     // Note: Keenetic API returns id=name="Policy0" and human-readable name in "description"
-    const admin = await isAdmin(clientIp);
     const policies = admin
       ? allPolicies
       : allPolicies.filter((p: { description?: string }) =>
@@ -114,6 +123,8 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
       title: 'VPN',
       device,
       policies,
+      userName: whoami?.user?.name ?? null,
+      deviceName: whoami?.device?.customName ?? null,
       error: null
     });
   } catch (error) {

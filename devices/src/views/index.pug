@@ -297,7 +297,7 @@ block content
       each device in devices
         - const dtype = device.deviceType || 'other'
         - const statusClass = device.online ? 'online' : 'offline'
-        a.device-row.clickable(href=`#edit-device-${device.id}`)
+        .device-row.clickable(data-device-id=device.id onclick="editDevice(this.dataset.deviceId)")
           if dtype === 'other'
             span.status-dot(class=statusClass)
           +deviceIcon(dtype, statusClass)
@@ -327,34 +327,6 @@ block content
           if device.policy
             span.device-policy= device.policy
 
-  mixin editDeviceModal(device)
-    .modal(id=`edit-device-${device.id}`)
-      .modal-content
-        .modal-title Редактировать устройство
-        form(action=`/devices/${device.id}` method="POST")
-          .form-group
-            label.form-label Название (из роутера)
-            input.form-input(type="text" value=(device.keeneticName || '—') disabled)
-          .form-group
-            label.form-label Свое название
-            input.form-input(type="text" name="customName" value=(device.customName || '') placeholder="Мой iPhone")
-          .form-group
-            label.form-label MAC
-            input.form-input(type="text" value=device.mac disabled)
-          .form-group
-            label.form-label Владелец
-            select.form-select(name="userId")
-              option(value="" selected=(!device.userId)) Без владельца
-              each user in allUsers
-                option(value=user.id selected=(device.userId === user.id))= user.name
-          .form-group
-            label.form-label Тип устройства
-            select.form-select(name="deviceType")
-              each type in deviceTypes
-                option(value=type selected=(device.deviceType === type))= type
-          .form-actions
-            a.btn.btn-secondary(href="#") Отмена
-            button.btn.btn-primary(type="submit") Сохранить
 
   mixin editUserModal(user)
     .modal(id=`edit-user-${user.id}`)
@@ -482,16 +454,142 @@ block content
             a.btn.btn-secondary(href="#") Отмена
             button.btn.btn-primary(type="submit") Добавить
 
-  //- Edit device modals for user devices
-  each user in users
-    each device in user.devices
-      +editDeviceModal(device)
-
-  //- Edit device modals for unassigned devices
-  each device in unassigned.devices
-    +editDeviceModal(device)
+  //- Single dynamic edit device modal
+  #edit-device-modal.modal
+    .modal-content
+      .modal-title Редактировать устройство
+      #edit-device-error.error(style="display:none")
+      form#edit-device-form
+        input#edit-device-id(type="hidden" name="id")
+        .form-group
+          label.form-label Название (из роутера)
+          input#edit-device-keenetic-name.form-input(type="text" disabled)
+        .form-group
+          label.form-label Свое название
+          input#edit-device-custom-name.form-input(type="text" name="customName" placeholder="Мой iPhone")
+        .form-group
+          label.form-label MAC
+          input#edit-device-mac.form-input(type="text" disabled)
+        .form-group
+          label.form-label Владелец
+          select#edit-device-user.form-select(name="userId")
+        .form-group
+          label.form-label Тип устройства
+          select#edit-device-type.form-select(name="deviceType")
+        .form-group
+          label.form-label VPN
+          select#edit-device-vpn.form-select(name="vpnPolicy")
+        .form-actions
+          button.btn.btn-secondary(type="button" onclick="closeModal()") Отмена
+          button#edit-device-submit.btn.btn-primary(type="submit") Сохранить
 
   //- Edit user modals
   each user in users
     +editUserModal(user)
+
+  script.
+    const modal = document.getElementById('edit-device-modal');
+    const form = document.getElementById('edit-device-form');
+    const errorEl = document.getElementById('edit-device-error');
+
+    function showModal() {
+      modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+      errorEl.style.display = 'none';
+    }
+
+    // Close modal on backdrop click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Close modal on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    async function editDevice(id) {
+      errorEl.style.display = 'none';
+      document.getElementById('edit-device-submit').disabled = true;
+      document.getElementById('edit-device-submit').textContent = 'Загрузка...';
+      showModal();
+
+      try {
+        const res = await fetch(`/devices/${id}`);
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Ошибка загрузки');
+        }
+        const { device, users, deviceTypes, vpnPolicies } = await res.json();
+
+        // Populate form
+        document.getElementById('edit-device-id').value = device.id;
+        document.getElementById('edit-device-keenetic-name').value = device.keeneticName || '—';
+        document.getElementById('edit-device-custom-name').value = device.customName || '';
+        document.getElementById('edit-device-mac').value = device.mac;
+
+        // Users dropdown
+        const userSelect = document.getElementById('edit-device-user');
+        userSelect.innerHTML = '<option value="">Без владельца</option>' +
+          users.map(u => `<option value="${u.id}" ${device.userId === u.id ? 'selected' : ''}>${u.name}</option>`).join('');
+
+        // Device types dropdown
+        const typeSelect = document.getElementById('edit-device-type');
+        typeSelect.innerHTML = deviceTypes.map(t =>
+          `<option value="${t}" ${device.deviceType === t ? 'selected' : ''}>${t}</option>`
+        ).join('');
+
+        // VPN policies dropdown
+        const vpnSelect = document.getElementById('edit-device-vpn');
+        vpnSelect.innerHTML = '<option value="">Выкл</option>' +
+          vpnPolicies.map(p => `<option value="${p.id}" ${device.policy === p.name ? 'selected' : ''}>${p.name}</option>`).join('');
+
+        document.getElementById('edit-device-submit').disabled = false;
+        document.getElementById('edit-device-submit').textContent = 'Сохранить';
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+        document.getElementById('edit-device-submit').disabled = true;
+        document.getElementById('edit-device-submit').textContent = 'Сохранить';
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorEl.style.display = 'none';
+
+      const id = document.getElementById('edit-device-id').value;
+      const submitBtn = document.getElementById('edit-device-submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Сохранение...';
+
+      try {
+        const res = await fetch(`/devices/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customName: document.getElementById('edit-device-custom-name').value,
+            userId: document.getElementById('edit-device-user').value,
+            deviceType: document.getElementById('edit-device-type').value,
+            vpnPolicy: document.getElementById('edit-device-vpn').value,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Ошибка сохранения');
+        }
+
+        closeModal();
+        location.reload();
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Сохранить';
+      }
+    });
 
