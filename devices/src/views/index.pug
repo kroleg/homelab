@@ -10,18 +10,40 @@ block content
       align-items: center;
       padding: 1.5rem 1rem 2rem;
     }
-    .sections {
+    .two-columns {
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
       width: 100%;
       max-width: 32rem;
     }
+    @media (min-width: 64rem) {
+      .two-columns {
+        flex-direction: row;
+        align-items: flex-start;
+        max-width: 64rem;
+      }
+      .main-column {
+        flex: 1;
+        min-width: 0;
+      }
+      .side-column {
+        width: 20rem;
+        flex-shrink: 0;
+      }
+    }
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      width: 100%;
+    }
     .section-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 0.75rem;
+      min-height: 1.625rem;
     }
     .section-title {
       font-size: 0.75rem;
@@ -350,62 +372,66 @@ block content
           button.btn.btn-danger(type="submit") Удалить пользователя
 
   .container
-    .sections
-      //- Users section
-      .section
-        .section-header
-          span.section-title Пользователи
-          a.add-btn(href="#add-user") + Добавить
+    .two-columns
+      .main-column
+        .sections
+          //- Users section
+          .section
+            .section-header
+              span.section-title Пользователи
+              a.add-btn(href="#add-user") + Добавить
 
-        each user in users
-          .group-section
-            a.group-header.clickable(href=`#edit-user-${user.id}`)
-              .group-info
-                span.group-name= user.name
-                if user.isAdmin
-                  span.admin-badge ADMIN
-              .group-stats
-                if user.onlineCount > 0
-                  span.online-dot
-                  span.online-count= user.onlineCount
-                span= `/ ${user.devices.length}`
-            .devices
-              +deviceList(user.devices)
+            each user in users
+              .group-section
+                a.group-header.clickable(href=`#edit-user-${user.id}`)
+                  .group-info
+                    span.group-name= user.name
+                    if user.isAdmin
+                      span.admin-badge ADMIN
+                  .group-stats
+                    if user.onlineCount > 0
+                      span.online-dot
+                      span.online-count= user.onlineCount
+                    span= `/ ${user.devices.length}`
+                .devices
+                  +deviceList(user.devices)
 
-      //- Unassigned section
-      if unassigned.devices.length > 0
-        .section
-          .section-header
-            span.section-title= unassigned.name
+          //- Unassigned section
+          if unassigned.devices.length > 0
+            .section
+              .section-header
+                span.section-title= unassigned.name
 
-          .group-section.dimmed
-            .group-header
-              .group-info
-                span.group-name Зарегистрированы, но без владельца
-              .group-stats
-                if unassigned.onlineCount > 0
-                  span.online-dot
-                  span.online-count= unassigned.onlineCount
-                span= `/ ${unassigned.devices.length}`
-            .devices
-              +deviceList(unassigned.devices)
+              .group-section.dimmed
+                .group-header
+                  .group-info
+                    span.group-name Зарегистрированы, но без владельца
+                  .group-stats
+                    if unassigned.onlineCount > 0
+                      span.online-dot
+                      span.online-count= unassigned.onlineCount
+                    span= `/ ${unassigned.devices.length}`
+                .devices
+                  +deviceList(unassigned.devices)
 
-      //- Unregistered section
-      .section
-        .section-header
-          span.section-title= unregistered.name
+      //- Unregistered section (side column on wide screens)
+      .side-column
+        .sections
+          .section
+            .section-header
+              span.section-title= unregistered.name
 
-        .group-section.dimmed
-          .group-header
-            .group-info
-              span.group-name Обнаружены в сети
-            .group-stats
-              if unregistered.onlineCount > 0
-                span.online-dot
-                span.online-count= unregistered.onlineCount
-              span= `/ ${unregistered.devices.length}`
-          .devices
-            +unregisteredDeviceList(unregistered.devices)
+            .group-section.dimmed
+              .group-header
+                .group-info
+                  span.group-name Обнаружены в сети
+                .group-stats
+                  if unregistered.onlineCount > 0
+                    span.online-dot
+                    span.online-count= unregistered.onlineCount
+                  span= `/ ${unregistered.devices.length}`
+              .devices
+                +unregisteredDeviceList(unregistered.devices)
 
   //- Add user modal
   .modal(id="add-user")
