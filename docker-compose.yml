@@ -135,12 +135,15 @@ services:
     container_name: vpn-toggle
     depends_on:
       - dns-to-vpn
+      - keenetic-api
     build:
       context: ./vpn-toggle
       dockerfile: Dockerfile
     environment:
       - PORT=3002
       - MAIN_API_URL=http://dns-to-vpn:3000/api
+      - KEENETIC_API_URL=http://keenetic-api:3005
+      - ADMIN_ONLY_POLICIES=kz
     networks:
       - default
       - shared

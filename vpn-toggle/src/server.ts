@@ -8,6 +8,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3002;
 const MAIN_API_URL = process.env.MAIN_API_URL || 'http://dns-to-vpn:3000/api';
+const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005';
+const ADMIN_ONLY_POLICIES = (process.env.ADMIN_ONLY_POLICIES || '')
+  .split(',')
+  .map(s => s.trim().toLowerCase())
+  .filter(Boolean);
 
 // Configure Pug as the view engine
 app.set('views', path.join(__dirname, 'views'));
@@ -37,8 +42,20 @@ function normalizeIp(ip: string): string {
   return ip;
 }
 
+// Check if client is admin via keenetic-api
+async function isAdmin(ip: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${KEENETIC_API_URL}/api/client?ip=${ip}`);
+    if (!response.ok) return false;
+    const client = await response.json();
+    return client?.profile?.isAdmin ?? false;
+  } catch {
+    return false;
+  }
+}
+
 // Main page - shows current device status and policy options
-app.get('/', async (req: Request, res: Response, next: NextFunction) => {
+app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
   try {
     const clientIp = normalizeIp(getClientIp(req));
 
@@ -66,6 +83,15 @@ app.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
     const device = await deviceResponse.json();
 
+    // Check if device is registered
+    if (!device.registered) {
+      res.status(403).render('error', {
+        title: 'Доступ запрещён',
+        message: 'Ваше устройство не зарегистрировано в сети'
+      });
+      return;
+    }
+
     // Fetch available policies from main API
     const policiesResponse = await fetch(`${MAIN_API_URL}/policies`);
 
@@ -73,7 +99,16 @@ app.get('/', async (req: Request, res: Response, next: NextFunction) => {
       throw new Error(`Failed to fetch policies: ${policiesResponse.status}`);
     }
 
-    const policies = await policiesResponse.json();
+    const allPolicies = await policiesResponse.json();
+
+    // Filter admin-only policies for non-admins (match by description)
+    // Note: Keenetic API returns id=name="Policy0" and human-readable name in "description"
+    const admin = await isAdmin(clientIp);
+    const policies = admin
+      ? allPolicies
+      : allPolicies.filter((p: { description?: string }) =>
+          !ADMIN_ONLY_POLICIES.includes((p.description || '').toLowerCase())
+        );
 
     res.render('index', {
       title: 'VPN',
@@ -91,7 +126,7 @@ app.get('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Set policy for the current device
-app.post('/set-policy', async (req: Request, res: Response, next: NextFunction) => {
+app.post('/set-policy', async (req: Request, res: Response, _next: NextFunction) => {
   try {
     const { mac, policyId } = req.body;
 
@@ -129,7 +164,7 @@ app.post('/set-policy', async (req: Request, res: Response, next: NextFunction) 
 });
 
 // Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Server error:', err);
   res.status(500).render('error', {
     title: 'Error',
