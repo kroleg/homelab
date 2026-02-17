@@ -1,4 +1,5 @@
 extends layout
+include partials/icons
 
 block content
   style.
@@ -11,7 +12,7 @@ block content
     }
     .card {
       width: 100%;
-      max-width: 20rem;
+      max-width: 32rem;
     }
     .back-link {
       font-size: 0.75rem;
@@ -59,7 +60,7 @@ block content
     .status-value {
       font-size: 0.875rem;
       font-weight: 500;
-      color: #22c55e;
+      color: var(--success);
     }
     .devices-list {
       background: var(--secondary);
@@ -83,18 +84,25 @@ block content
       flex-shrink: 0;
     }
     .status-dot.online {
-      background: #22c55e;
+      background: var(--success);
     }
     .status-dot.offline {
       background: var(--muted);
       opacity: 0.4;
     }
+    .device-icon {
+      width: 1.125rem;
+      height: 1.125rem;
+      flex-shrink: 0;
+    }
+    .device-icon.online { color: var(--success); }
+    .device-icon.offline { color: var(--muted); opacity: 0.4; }
     .device-info {
       flex: 1;
       min-width: 0;
     }
     .device-name {
-      font-size: 0.875rem;
+      font-size: 1rem;
       font-weight: 500;
       white-space: nowrap;
       overflow: hidden;
@@ -133,8 +141,12 @@ block content
             .empty-message Нет устройств
           else
             each device in devices
+              - const dtype = device.deviceType || 'other'
+              - const statusClass = device.online ? 'online' : 'offline'
               .device-row
-                span.status-dot(class=device.online ? 'online' : 'offline')
+                if dtype === 'other'
+                  span.status-dot(class=statusClass)
+                +deviceIcon(dtype, statusClass)
                 .device-info
                   .device-name= device.customName || device.keeneticName || device.mac
                   .device-details= device.mac

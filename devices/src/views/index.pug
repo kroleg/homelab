@@ -69,8 +69,22 @@ block content
       overflow: hidden;
       box-shadow: var(--card-shadow);
     }
-    .group-section + .group-section { margin-top: 0.75rem; }
     .group-section.dimmed { opacity: 0.7; }
+    .user-section {
+      margin-bottom: 1rem;
+    }
+    .user-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      gap: 0.5rem;
+      text-decoration: none;
+      color: inherit;
+    }
+    .user-header:hover .group-name {
+      color: var(--primary);
+    }
     .group-header {
       display: flex;
       align-items: center;
@@ -95,8 +109,9 @@ block content
       min-width: 0;
     }
     .group-name {
-      font-size: 0.9375rem;
+      font-size: 1.1rem;
       font-weight: 600;
+      color: var(--muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -108,24 +123,6 @@ block content
       background: var(--primary);
       color: white;
       flex-shrink: 0;
-    }
-    .group-stats {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-      font-size: 0.75rem;
-      color: var(--muted);
-      flex-shrink: 0;
-    }
-    .online-dot {
-      width: 0.5rem;
-      height: 0.5rem;
-      border-radius: 50%;
-      background: var(--success);
-    }
-    .online-count {
-      color: var(--success);
-      font-weight: 500;
     }
     .group-actions {
       display: flex;
@@ -177,7 +174,7 @@ block content
       min-width: 0;
     }
     .device-name {
-      font-size: 0.875rem;
+      font-size: 1rem;
       font-weight: 500;
       white-space: nowrap;
       overflow: hidden;
@@ -378,23 +375,19 @@ block content
           //- Users section
           .section
             .section-header
-              span.section-title Пользователи
+              span
               a.add-btn(href="#add-user") + Добавить
 
             each user in users
-              .group-section
-                a.group-header.clickable(href=`#edit-user-${user.id}`)
+              .user-section
+                a.user-header(href=`#edit-user-${user.id}`)
                   .group-info
                     span.group-name= user.name
                     if user.isAdmin
                       span.admin-badge ADMIN
-                  .group-stats
-                    if user.onlineCount > 0
-                      span.online-dot
-                      span.online-count= user.onlineCount
-                    span= `/ ${user.devices.length}`
-                .devices
-                  +deviceList(user.devices)
+                .group-section
+                  .devices
+                    +deviceList(user.devices)
 
           //- Unassigned section
           if unassigned.devices.length > 0
@@ -403,14 +396,6 @@ block content
                 span.section-title= unassigned.name
 
               .group-section.dimmed
-                .group-header
-                  .group-info
-                    span.group-name Зарегистрированы, но без владельца
-                  .group-stats
-                    if unassigned.onlineCount > 0
-                      span.online-dot
-                      span.online-count= unassigned.onlineCount
-                    span= `/ ${unassigned.devices.length}`
                 .devices
                   +deviceList(unassigned.devices)
 
@@ -422,14 +407,6 @@ block content
               span.section-title= unregistered.name
 
             .group-section.dimmed
-              .group-header
-                .group-info
-                  span.group-name Обнаружены в сети
-                .group-stats
-                  if unregistered.onlineCount > 0
-                    span.online-dot
-                    span.online-count= unregistered.onlineCount
-                  span= `/ ${unregistered.devices.length}`
               .devices
                 +unregisteredDeviceList(unregistered.devices)
 
@@ -618,4 +595,3 @@ block content
         submitBtn.textContent = 'Сохранить';
       }
     });
-
