@@ -90,6 +90,16 @@ export function createDeviceService(
       return sortByOnlineThenName(enriched);
     },
 
+    async getUserDevices(userId: number): Promise<EnrichedDevice[]> {
+      const [dbDevices, keeneticByMac] = await Promise.all([
+        deviceRepo.findByUserId(userId),
+        getKeeneticDevicesMap(),
+      ]);
+
+      const enriched = dbDevices.map(d => enrichDevice(d, keeneticByMac));
+      return sortByOnlineThenName(enriched);
+    },
+
     async getUnregisteredDevices(): Promise<DiscoveredDevice[]> {
       const [dbDevices, keeneticDevices] = await Promise.all([
         deviceRepo.findAll(),

@@ -13,14 +13,28 @@ block content
       width: 100%;
       max-width: 20rem;
     }
-    .header {
-      text-align: center;
+    .profile-section {
       margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e4e4e7;
+      text-align: center;
     }
-    .title {
-      font-size: 1.25rem;
+    .profile-name a {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #fb7185;
+      text-decoration: none;
+    }
+    .profile-name a:hover {
+      color: var(--primary);
+    }
+    .section-header {
+      font-size: 0.75rem;
       font-weight: 600;
-      color: var(--foreground);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
     }
     .links {
       display: flex;
@@ -89,9 +103,12 @@ block content
     }
   .container
     .card
-      .header
-        .title= title
+      if currentUser
+        .profile-section
+          .profile-name
+            a(href="/me")= currentUser.name
 
+      .section-header Сервисы
       .links
         each service in services
           a.link(href=service.url)

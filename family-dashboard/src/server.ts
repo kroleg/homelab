@@ -20,14 +20,20 @@ interface ServiceLink {
   icon: string;
 }
 
-async function isAdmin(ip: string): Promise<boolean> {
+interface WhoamiResponse {
+  mac: string | null;
+  device: { id: number; customName: string | null; deviceType: string } | null;
+  user: { id: number; name: string; slug: string; isAdmin: boolean } | null;
+  isAdmin: boolean;
+}
+
+async function getWhoami(ip: string): Promise<WhoamiResponse | null> {
   try {
     const response = await fetch(`${DEVICES_API_URL}/api/whoami?ip=${encodeURIComponent(ip)}`);
-    if (!response.ok) return false;
-    const data = await response.json();
-    return data?.isAdmin ?? false;
+    if (!response.ok) return null;
+    return await response.json();
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -114,13 +120,45 @@ const adminServices: ServiceLink[] = [
 
 app.get('/', async (req, res) => {
   const clientIp = getClientIp(req);
-  const admin = await isAdmin(clientIp);
+  const whoami = await getWhoami(clientIp);
+  const admin = whoami?.isAdmin ?? false;
 
   res.render('index', {
     title: 'Семейная панель',
     services,
     adminServices: admin ? adminServices : [],
-    isAdmin: admin
+    isAdmin: admin,
+    currentUser: whoami?.user ?? null,
+  });
+});
+
+app.get('/me', async (req, res) => {
+  const clientIp = getClientIp(req);
+  const whoami = await getWhoami(clientIp);
+
+  if (!whoami?.user) {
+    res.render('error', {
+      title: 'Не найден',
+      message: 'Ваше устройство не привязано к пользователю',
+    });
+    return;
+  }
+
+  // Fetch user's devices from devices API
+  let devices: Array<{ customName: string | null; mac: string; ip: string | null; online: boolean; deviceType: string }> = [];
+  try {
+    const response = await fetch(`${DEVICES_API_URL}/api/users/${whoami.user.id}/devices`);
+    if (response.ok) {
+      devices = await response.json();
+    }
+  } catch {
+    // ignore
+  }
+
+  res.render('me', {
+    title: whoami.user.name,
+    user: whoami.user,
+    devices,
   });
 });
 

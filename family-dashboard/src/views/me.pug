@@ -1,0 +1,140 @@
+extends layout
+
+block content
+  style.
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 20rem;
+    }
+    .back-link {
+      font-size: 0.75rem;
+      color: #fb7185;
+      text-decoration: none;
+      margin-bottom: 1rem;
+      display: inline-block;
+    }
+    .back-link:hover {
+      color: var(--primary);
+    }
+    .profile-header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .profile-name {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .section {
+      margin-bottom: 1.5rem;
+    }
+    .section-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .status-card {
+      background: var(--secondary);
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .status-label {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+    .status-value {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #22c55e;
+    }
+    .devices-list {
+      background: var(--secondary);
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+    .device-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-top: 1px solid #e4e4e7;
+    }
+    .device-row:first-child {
+      border-top: none;
+    }
+    .status-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-dot.online {
+      background: #22c55e;
+    }
+    .status-dot.offline {
+      background: var(--muted);
+      opacity: 0.4;
+    }
+    .device-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .device-name {
+      font-size: 0.875rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .device-details {
+      font-size: 0.625rem;
+      color: var(--muted);
+      margin-top: 0.125rem;
+    }
+    .empty-message {
+      padding: 1rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+
+  .container
+    .card
+      a.back-link(href="/") &larr; Назад
+
+      .profile-header
+        .profile-name= user.name
+
+      .section
+        .section-header Интернет
+        .status-card
+          .status-row
+            span.status-label Доступ
+            span.status-value Включен
+
+      .section
+        .section-header Мои устройства
+        .devices-list
+          if devices.length === 0
+            .empty-message Нет устройств
+          else
+            each device in devices
+              .device-row
+                span.status-dot(class=device.online ? 'online' : 'offline')
+                .device-info
+                  .device-name= device.customName || device.keeneticName || device.mac
+                  .device-details= device.mac

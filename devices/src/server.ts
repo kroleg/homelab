@@ -453,6 +453,18 @@ app.get('/api/users', async (_req, res) => {
   }
 });
 
+// Public API endpoint to get user's devices (used by family-dashboard)
+app.get('/api/users/:id/devices', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const devices = await deviceService.getUserDevices(userId);
+    res.json(devices);
+  } catch (error) {
+    logger.error('API error in /api/users/:id/devices:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Public API endpoint for admin status lookup (used by other services)
 app.get('/api/whoami', async (req, res) => {
   try {
