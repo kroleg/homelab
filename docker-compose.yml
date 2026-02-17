@@ -9,18 +9,11 @@ services:
       - "--providers.file.filename=/etc/traefik/dynamic.yml"
       - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
-    ports:
-      - "80:80"
-      - "8080:8080"
+    network_mode: host
     restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-    networks:
-      - default
-      - shared
 
   glance:
     container_name: glance

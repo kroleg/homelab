@@ -21,6 +21,14 @@ export function createDeviceRepository(db: Database) {
       return results[0];
     },
 
+    async findByTailscaleIp(ip: string): Promise<Device | undefined> {
+      const results = await db
+        .select()
+        .from(devicesTable)
+        .where(eq(devicesTable.tailscaleIp, ip));
+      return results[0];
+    },
+
     async findByUserId(userId: number): Promise<Device[]> {
       return db.select().from(devicesTable).where(eq(devicesTable.userId, userId));
     },
@@ -37,6 +45,7 @@ export function createDeviceRepository(db: Database) {
           customName: devicesTable.customName,
           userId: devicesTable.userId,
           deviceType: devicesTable.deviceType,
+          tailscaleIp: devicesTable.tailscaleIp,
           createdAt: devicesTable.createdAt,
           user: {
             id: usersTable.id,
@@ -87,7 +96,7 @@ export function createDeviceRepository(db: Database) {
 
     async update(
       id: number,
-      data: { customName?: string | null; deviceType?: DeviceType; userId?: number | null }
+      data: { customName?: string | null; deviceType?: DeviceType; userId?: number | null; tailscaleIp?: string | null }
     ): Promise<Device | undefined> {
       const results = await db
         .update(devicesTable)

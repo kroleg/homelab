@@ -10,4 +10,4 @@ http:
     claude-chat:
       loadBalancer:
         servers:
-          - url: "http://host.docker.internal:3005"
+          - url: "http://127.0.0.1:3005"

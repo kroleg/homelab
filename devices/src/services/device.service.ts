@@ -150,7 +150,7 @@ export function createDeviceService(
 
     async updateDevice(
       deviceId: number,
-      data: { customName?: string | null; deviceType?: DeviceType; userId?: number | null }
+      data: { customName?: string | null; deviceType?: DeviceType; userId?: number | null; tailscaleIp?: string | null }
     ): Promise<Device | undefined> {
       logger.info(`Updating device ${deviceId}`, data);
       return deviceRepo.update(deviceId, data);

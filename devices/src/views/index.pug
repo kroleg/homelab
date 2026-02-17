@@ -482,6 +482,9 @@ block content
         .form-group
           label.form-label VPN
           select#edit-device-vpn.form-select(name="vpnPolicy")
+        .form-group
+          label.form-label Tailscale IP
+          input#edit-device-tailscale-ip.form-input(type="text" name="tailscaleIp" placeholder="100.x.x.x")
         .form-actions
           button.btn.btn-secondary(type="button" onclick="closeModal()") Отмена
           button#edit-device-submit.btn.btn-primary(type="submit") Сохранить
@@ -550,6 +553,9 @@ block content
         vpnSelect.innerHTML = '<option value="">Выкл</option>' +
           vpnPolicies.map(p => `<option value="${p.id}" ${device.policy === p.name ? 'selected' : ''}>${p.name}</option>`).join('');
 
+        // Tailscale IP
+        document.getElementById('edit-device-tailscale-ip').value = device.tailscaleIp || '';
+
         document.getElementById('edit-device-submit').disabled = false;
         document.getElementById('edit-device-submit').textContent = 'Сохранить';
       } catch (err) {
@@ -578,6 +584,7 @@ block content
             userId: document.getElementById('edit-device-user').value,
             deviceType: document.getElementById('edit-device-type').value,
             vpnPolicy: document.getElementById('edit-device-vpn').value,
+            tailscaleIp: document.getElementById('edit-device-tailscale-ip').value,
           }),
         });
 

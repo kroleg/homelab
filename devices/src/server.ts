@@ -31,39 +31,83 @@ app.set('trust proxy', 1);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-async function isAdmin(req: express.Request): Promise<boolean> {
-  let clientIp = req.ip || '';
-  if (clientIp.startsWith('::ffff:')) {
-    clientIp = clientIp.slice(7);
+// Helper to check if IP is in Tailscale CGNAT range (100.64.0.0/10)
+function isTailscaleIp(ip: string): boolean {
+  if (!ip.startsWith('100.')) return false;
+  const second = parseInt(ip.split('.')[1]);
+  return second >= 64 && second <= 127;
+}
+
+// Lookup device and user by IP (handles both Tailscale and local IPs)
+async function lookupByIp(ip: string): Promise<{
+  mac: string | null;
+  device: { id: number; customName: string | null; deviceType: string } | null;
+  user: { id: number; name: string; slug: string; isAdmin: boolean } | null;
+  tailscale: boolean;
+}> {
+  // Normalize IP (strip IPv6 prefix)
+  const normalizedIp = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+
+  if (isTailscaleIp(normalizedIp)) {
+    const device = await deviceRepo.findByTailscaleIp(normalizedIp);
+    let user = null;
+    if (device?.userId) {
+      user = await userRepo.findById(device.userId);
+    }
+    logger.debug(`Tailscale lookup: ${normalizedIp} -> device: ${device?.mac ?? 'none'}, user: ${user?.name ?? 'none'}`);
+    return {
+      mac: device?.mac ?? null,
+      device: device ? { id: device.id, customName: device.customName, deviceType: device.deviceType } : null,
+      user: user ? { id: user.id, name: user.name, slug: user.slug, isAdmin: user.isAdmin } : null,
+      tailscale: true,
+    };
   }
+
+  // Local IP - lookup via Keenetic
+  const client = await keenetic.getClientByIp(normalizedIp);
+  if (!client?.mac) {
+    return { mac: null, device: null, user: null, tailscale: false };
+  }
+
+  const mac = client.mac.toUpperCase();
+  const device = await deviceRepo.findByMac(mac);
+  let user = null;
+  if (device?.userId) {
+    user = await userRepo.findById(device.userId);
+  }
+
+  return {
+    mac,
+    device: device ? { id: device.id, customName: device.customName, deviceType: device.deviceType } : null,
+    user: user ? { id: user.id, name: user.name, slug: user.slug, isAdmin: user.isAdmin } : null,
+    tailscale: false,
+  };
+}
+
+async function isAdmin(req: express.Request): Promise<boolean> {
+  const clientIp = req.ip || '';
   logger.debug(`Checking admin status for IP: ${clientIp}`);
 
-  // Get device MAC from keenetic
-  const client = await keenetic.getClientByIp(clientIp);
-  if (!client?.mac) {
+  const lookup = await lookupByIp(clientIp);
+
+  if (!lookup.mac) {
     logger.warn(`Access denied: no device found for IP ${clientIp}`);
     return false;
   }
 
-  const mac = client.mac.toUpperCase();
-
   // Check bootstrap admin MACs (env-based fallback)
-  if (config.adminMacs.includes(mac)) {
-    logger.debug(`MAC ${mac} is in ADMIN_MACS`);
+  if (config.adminMacs.includes(lookup.mac)) {
+    logger.debug(`MAC ${lookup.mac} is in ADMIN_MACS`);
     return true;
   }
 
-  // Check DB: device -> user -> isAdmin
-  const device = await deviceRepo.findByMac(mac);
-  if (device?.userId) {
-    const user = await userRepo.findById(device.userId);
-    if (user?.isAdmin) {
-      logger.debug(`MAC ${mac} belongs to admin user ${user.name}`);
-      return true;
-    }
+  // Check if user is admin
+  if (lookup.user?.isAdmin) {
+    logger.debug(`IP ${clientIp} belongs to admin user ${lookup.user.name}`);
+    return true;
   }
 
-  logger.warn(`Access denied: MAC ${mac} (${client.name}) is not an admin`);
+  logger.warn(`Access denied: ${clientIp} (MAC ${lookup.mac}) is not an admin`);
   return false;
 }
 
@@ -338,6 +382,7 @@ app.get('/devices/:id', requireAdmin, async (req, res) => {
         customName: device.customName,
         deviceType: device.deviceType,
         userId: device.userId,
+        tailscaleIp: device.tailscaleIp,
         keeneticName: client?.name || null,
         policy: client?.policy || null,
       },
@@ -355,7 +400,7 @@ app.get('/devices/:id', requireAdmin, async (req, res) => {
 app.post('/devices/:id', requireAdmin, async (req, res) => {
   try {
     const deviceId = parseInt(req.params.id as string);
-    const { customName, deviceType, userId, vpnPolicy } = req.body;
+    const { customName, deviceType, userId, vpnPolicy, tailscaleIp } = req.body;
 
     // Get device first (need MAC for policy)
     const device = await deviceRepo.findById(deviceId);
@@ -368,6 +413,7 @@ app.post('/devices/:id', requireAdmin, async (req, res) => {
       customName?: string | null;
       deviceType?: (typeof DeviceType)[keyof typeof DeviceType];
       userId?: number | null;
+      tailscaleIp?: string | null;
     } = {};
 
     if (customName !== undefined) {
@@ -378,6 +424,9 @@ app.post('/devices/:id', requireAdmin, async (req, res) => {
     }
     if (userId !== undefined) {
       updateData.userId = userId ? parseInt(userId) : null;
+    }
+    if (tailscaleIp !== undefined) {
+      updateData.tailscaleIp = tailscaleIp.trim() || null;
     }
 
     await deviceService.updateDevice(deviceId, updateData);
@@ -474,49 +523,13 @@ app.get('/api/whoami', async (req, res) => {
       return;
     }
 
-    // Get device MAC from keenetic
-    const client = await keenetic.getClientByIp(ip);
-    if (!client?.mac) {
-      res.json({
-        mac: null,
-        device: null,
-        user: null,
-        isAdmin: false,
-      });
-      return;
-    }
-
-    const mac = client.mac.toUpperCase();
-
-    // Look up device in DB by MAC
-    const device = await deviceRepo.findByMac(mac);
-
-    // Look up user if device has userId
-    let user = null;
-    if (device?.userId) {
-      user = await userRepo.findById(device.userId);
-    }
+    const lookup = await lookupByIp(ip);
 
     // Compute isAdmin: ADMIN_MACS.includes(mac) || user?.isAdmin
-    const isAdmin = config.adminMacs.includes(mac) || user?.isAdmin === true;
+    const isAdmin = (lookup.mac && config.adminMacs.includes(lookup.mac)) || lookup.user?.isAdmin === true;
 
     res.json({
-      mac,
-      device: device
-        ? {
-            id: device.id,
-            customName: device.customName,
-            deviceType: device.deviceType,
-          }
-        : null,
-      user: user
-        ? {
-            id: user.id,
-            name: user.name,
-            slug: user.slug,
-            isAdmin: user.isAdmin,
-          }
-        : null,
+      ...lookup,
       isAdmin,
     });
   } catch (error) {

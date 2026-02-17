@@ -25,6 +25,7 @@ export const devicesTable = pgTable('devices', {
   customName: text('custom_name'),
   userId: integer('user_id').references(() => usersTable.id, { onDelete: 'set null' }),
   deviceType: text('device_type').notNull().default('other'),
+  tailscaleIp: text('tailscale_ip').unique(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

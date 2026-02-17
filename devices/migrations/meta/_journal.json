@@ -8,6 +8,13 @@
       "when": 1771257038506,
       "tag": "0000_windy_meggan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771348747087,
+      "tag": "0001_add_tailscale_ip",
+      "breakpoints": true
     }
   ]
 }
