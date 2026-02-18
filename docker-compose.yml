@@ -202,9 +202,10 @@ services:
       - SUBCALENDAR_LEV_COLOR=#B469FF
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3003/health"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 5s
     networks:
       - default
       - shared
