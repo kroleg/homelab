@@ -14,59 +14,47 @@ html(lang="ru")
       html, body {
         margin: 0;
         padding: 0;
-        height: 100%;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: #f5f5f5;
       }
       .container {
-        height: 100%;
-        padding: 10px 20px;
-        display: flex;
-        flex-direction: column;
+        padding: 10px 20px 20px;
         max-width: 800px;
         margin: 0 auto;
       }
-      header {
+      .header-row {
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        align-items: center;
-        padding: 8px 0;
-        flex-shrink: 0;
-        flex-wrap: wrap;
-        gap: 8px;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 1.5rem 20px 0;
       }
-      header h1 {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 600;
-      }
-      .calendar-legend {
-        display: flex;
-        gap: 12px;
-        font-size: 0.85rem;
-      }
-      .legend-item {
+      .breadcrumb {
+        font-size: 0.875rem;
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 0.375rem;
       }
-      .legend-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-      }
-      .full-view-link {
-        padding: 8px 12px;
-        background: #fff;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+      .breadcrumb a {
         text-decoration: none;
-        color: #333;
-        font-size: 0.9rem;
+        color: #fb7185;
       }
-      .full-view-link:hover {
-        background: #f0f0f0;
+      .breadcrumb a:hover { color: #e11d48; }
+      .breadcrumb-sep {
+        color: grey;
       }
+      .breadcrumb-current {
+        color: #0a0a0b;
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+      .full-link {
+        font-size: 0.875rem;
+        color: #fb7185;
+        text-decoration: none;
+      }
+      .full-link:hover { color: #e11d48; }
       .day-section {
         margin-bottom: 20px;
       }
@@ -84,8 +72,6 @@ html(lang="ru")
         color: #1976d2;
       }
       .days-wrapper {
-        flex: 1;
-        overflow: auto;
         padding-bottom: 10px;
       }
       .events-list {
@@ -146,21 +132,8 @@ html(lang="ru")
         .container {
           padding: 10px 16px;
         }
-        header {
-          flex-direction: column;
-          align-items: center;
-        }
-        header h1 {
-          text-align: center;
+        .breadcrumb-current {
           font-size: 1.25rem;
-        }
-        .full-view-link {
-          padding: 6px 10px;
-          font-size: 0.8rem;
-        }
-        .calendar-legend {
-          justify-content: center;
-          flex-wrap: wrap;
         }
         .day-header {
           font-size: 0.9rem;
@@ -176,10 +149,13 @@ html(lang="ru")
         }
       }
   body
+    .header-row
+      nav.breadcrumb
+        a(href="http://dom.internal") Дом
+        span.breadcrumb-sep /
+        span.breadcrumb-current= title
+      a.full-link(href="/full") Полный вид
     .container
-      header
-        h1= title
-        a.full-view-link(href="/full") Полный вид
 
       .days-wrapper
         each day in days
