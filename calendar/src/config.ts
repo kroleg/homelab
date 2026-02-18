@@ -9,7 +9,7 @@ export interface AppConfig {
 }
 
 const DEFAULT_COLORS = [
-  '#3788d8', // blue
+  '#6b7280', // gray
   '#e74c3c', // red
   '#2ecc71', // green
   '#9b59b6', // purple

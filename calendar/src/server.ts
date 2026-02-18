@@ -109,7 +109,7 @@ function calculateEventColumns<T extends { startHour: number; endHour: number }>
 
 // Helper to apply sub-calendar prefix matching
 // Matches prefix with variations: "Вася: ", "Вася:", "Вася " for prefix "Вася"
-function applySubCalendar(title: string, defaultColor: string): { title: string; color: string; calendarId: string } {
+function applySubCalendar(title: string, defaultColor: string): { title: string; color: string; calendarId: string; person?: string } {
   for (const sub of config.subCalendars) {
     // Try variations: "prefix: ", "prefix:", "prefix "
     const variations = [
@@ -123,6 +123,7 @@ function applySubCalendar(title: string, defaultColor: string): { title: string;
           title: title.slice(variant.length).trim(),
           color: sub.color,
           calendarId: sub.id,
+          person: sub.name,
         };
       }
     }
@@ -143,8 +144,128 @@ app.get('/health', (req, res) => {
   res.send({ status: 'ok' })
 })
 
-// Main calendar page (server-side rendered)
+// Simple list view (default) - shows next 14 days
 app.get('/', async (req: Request, res: Response) => {
+  try {
+    const today = toTz(new Date());
+    const numDays = 14;
+
+    const periodStart = new Date(today);
+    periodStart.setHours(0, 0, 0, 0);
+
+    const periodEnd = new Date(periodStart);
+    periodEnd.setDate(periodEnd.getDate() + numDays);
+
+    // Check if ICS data is cached
+    if (!fetcher.isCached()) {
+      fetcher.startBackgroundFetch(periodStart, periodEnd);
+      return res.render('loading');
+    }
+
+    // Fetch events
+    const events = await fetcher.fetchEvents(periodStart, periodEnd);
+
+    // Russian day names and month names
+    const dayNames = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+    const monthNames = [
+      'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+    ];
+
+    // Build days array with events grouped by day
+    const days: Array<{
+      dateTitle: string;
+      isToday: boolean;
+      events: Array<{ id: string; title: string; color: string; timeStr: string; location?: string }>;
+    }> = [];
+    const eventsData: SSRWeekData['eventsData'] = {};
+
+    for (let i = 0; i < numDays; i++) {
+      const date = new Date(periodStart);
+      date.setDate(date.getDate() + i);
+      const dayOfWeek = date.getDay();
+
+      const dateTitle = `${dayNames[dayOfWeek]}, ${date.getDate()} ${monthNames[date.getMonth()]}`;
+      const isToday = date.toDateString() === today.toDateString();
+
+      // Filter events for this day
+      const dayEvents = events.filter((event) => {
+        const eventStart = toTz(new Date(event.start));
+        return eventStart.toDateString() === date.toDateString();
+      });
+
+      // Sort by start time (all-day first, then by time)
+      dayEvents.sort((a, b) => {
+        if (a.allDay && !b.allDay) return -1;
+        if (!a.allDay && b.allDay) return 1;
+        return new Date(a.start).getTime() - new Date(b.start).getTime();
+      });
+
+      const formattedEvents = dayEvents.map((e) => {
+        const sub = applySubCalendar(e.title, e.color);
+        const start = toTz(new Date(e.start));
+        const end = toTz(new Date(e.end));
+
+        let timeStr: string;
+        let timeDisplay: string;
+        if (e.allDay) {
+          timeStr = 'Весь день';
+          timeDisplay = `${date.getDate()} ${monthNames[date.getMonth()]} (Весь день)`;
+        } else {
+          const startTime = start.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
+          const endTime = end.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
+          timeStr = `${startTime} - ${endTime}`;
+          const dateStr = `${dayNames[dayOfWeek].slice(0, 2)}, ${date.getDate()} ${monthNames[date.getMonth()]}`;
+          timeDisplay = `${dateStr} ${startTime} - ${endTime}`;
+        }
+
+        // Store event data for modal
+        eventsData[e.id] = {
+          title: e.title,
+          timeDisplay,
+          location: e.extendedProps.location,
+          description: e.extendedProps.description,
+          calendarId: sub.calendarId || e.extendedProps.calendarId,
+        };
+
+        return {
+          id: e.id,
+          title: sub.title,
+          color: sub.color,
+          person: sub.person,
+          timeStr,
+          location: e.extendedProps.location,
+        };
+      });
+
+      days.push({
+        dateTitle,
+        isToday,
+        events: formattedEvents,
+      });
+    }
+
+    // Combine calendars and sub-calendars for legend
+    const allCalendars = [
+      ...config.calendars.map((c) => ({ id: c.id, name: c.name, color: c.color })),
+      ...config.subCalendars.map((s) => ({ id: s.id, name: s.name, color: s.color })),
+    ];
+
+    res.render('calendar-list', {
+      title: 'Календарь',
+      calendars: allCalendars,
+      refreshInterval: config.cacheTtlMinutes * 60,
+      days,
+      eventsData,
+    });
+  } catch (error) {
+    console.error('List calendar error:', error);
+    res.status(500).send('Failed to load calendar');
+  }
+});
+
+// Full calendar view (grid layout)
+app.get('/full', async (req: Request, res: Response) => {
   try {
     // Parse week parameter or use current week
     const weekParam = req.query.week as string | undefined;

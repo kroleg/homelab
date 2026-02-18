@@ -391,11 +391,12 @@ html(lang="ru")
         h1= title
         .nav-combined
           .days-toggle
-            a(href=`/?days=3` class=numDays === 3 ? 'active' : '') 3 дня
-            a(href=`/?days=7` class=numDays === 7 ? 'active' : '') Неделя
-          a.nav-arrow(href=`/?week=${prevWeek}&days=${numDays}`) &larr;
-          a.nav-today(href=`/?days=${numDays}`) Сегодня
-          a.nav-arrow(href=`/?week=${nextWeek}&days=${numDays}`) &rarr;
+            a(href=`/full?days=3` class=numDays === 3 ? 'active' : '') 3 дня
+            a(href=`/full?days=7` class=numDays === 7 ? 'active' : '') Неделя
+          a.nav-arrow(href=`/full?week=${prevWeek}&days=${numDays}`) &larr;
+          a.nav-today(href=`/full?days=${numDays}`) Сегодня
+          a.nav-arrow(href=`/full?week=${nextWeek}&days=${numDays}`) &rarr;
+          a.nav-today(href=`/?days=${numDays}`) Список
         .calendar-legend
           each cal in calendars
             .legend-item
