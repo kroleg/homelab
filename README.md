@@ -18,18 +18,32 @@ DNS-based VPN routing system for Keenetic routers. Automatically routes traffic 
 
 ## Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| [main](./main/) | 3000 | Core routing engine and admin dashboard |
-| [dns-proxy](./dns-proxy/) | 53, 3001 | DNS server with logging and ad blocking |
-| [vpn-toggle](./vpn-toggle/) | 3002 | Self-service VPN toggle for users |
+| Service | Domain | Description |
+|---------|--------|-------------|
+| [calendar](./calendar/) | calendar.internal | Family calendar display |
+| [claude-chat](./claude-chat/) | chat.internal | Claude AI chat interface |
+| [devices](./devices/) | devices.internal | User and device management |
+| [dns-proxy](./dns-proxy/) | - | DNS server with logging and ad blocking |
+| [family-dashboard](./family-dashboard/) | dom.internal | Family dashboard with quick links |
+| [grafana](./grafana/) | grafana.internal | Metrics dashboards |
+| [jellyfin](./jellyfin/) | media.internal | Media server |
+| [main](./main/) | admin.internal | DNS/VPN routing admin |
+| [page-watcher](./page-watcher/) | page-watcher.internal | Web page change notifications |
+| [qbittorrent](./qbittorrent/) | torrent.internal | Torrent client |
+| [scrutiny](./scrutiny/) | disk-monitor.internal | HDD/SSD health monitoring |
+| [telegram-bot](./telegram-bot/) | telegram-bot.internal | Telegram bot and notifications |
+| [torrent-ui](./torrent-ui/) | dl.internal | Torrent upload UI |
+| [vpn-toggle](./vpn-toggle/) | vpn.internal | Self-service VPN toggle |
 
-## Supporting Infrastructure
+### Infrastructure
 
-- **Traefik** - Reverse proxy for internal domains
-- **PostgreSQL** - Data persistence (2 instances)
-- **Prometheus** - Metrics collection
-- **Grafana** - Monitoring dashboards
+| Service | Description |
+|---------|-------------|
+| [traefik](./traefik/) | Reverse proxy for internal domains |
+| [prometheus](./prometheus/) | Metrics collection |
+| [keenetic-api](./keenetic-api/) | Keenetic router REST API |
+| [keenetic-exporter](./keenetic-exporter/) | Prometheus exporter for router metrics |
+| postgres | Data persistence (2 instances) |
 
 ## Quick Start
 
@@ -58,12 +72,7 @@ ln -s node-v24.x.x-linux-x64 node-current
 
 Replace `v24.x.x` with the actual version number.
 
-## Internal Domains
-
-- `admin.internal` - Admin dashboard
-- `vpn-toggle.internal` - VPN toggle UI
-- `grafana.internal` - Grafana
-
 ## Host Setup
 
 - [Grafana/Power monitoring](grafana/SETUP.md)
+# test
