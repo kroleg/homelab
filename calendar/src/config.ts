@@ -71,7 +71,7 @@ const SUBCALENDAR_PREFIX = 'SUBCALENDAR_';
  *
  * Use SUBCALENDAR_IDS to list sub-calendars:
  *   SUBCALENDAR_IDS=VASYA,PETYA
- *   SUBCALENDAR_VASYA_NAME=Вася       (name is also used as prefix to match)
+ *   SUBCALENDAR_VASYA_NAME=Вася,Васек   (comma-separated: first is display name, rest are aliases)
  *   SUBCALENDAR_VASYA_COLOR=#FF69B4
  */
 function parseSubCalendarConfigs(): SubCalendarConfig[] {
@@ -84,17 +84,21 @@ function parseSubCalendarConfigs(): SubCalendarConfig[] {
 
   let colorIndex = 0;
   for (const id of ids) {
-    const name = process.env[`${SUBCALENDAR_PREFIX}${id}_NAME`];
-    if (!name) {
+    const nameValue = process.env[`${SUBCALENDAR_PREFIX}${id}_NAME`];
+    if (!nameValue) {
       console.warn(`Warning: SUBCALENDAR_${id}_NAME not set, skipping`);
       continue;
     }
+
+    // Support comma-separated prefixes: first is display name, rest are aliases
+    const prefixes = nameValue.split(',').map((p) => p.trim()).filter(Boolean);
+    const name = prefixes[0];
 
     const color = process.env[`${SUBCALENDAR_PREFIX}${id}_COLOR`] || DEFAULT_COLORS[colorIndex % DEFAULT_COLORS.length];
 
     subCalendars.push({
       id: id.toLowerCase(),
-      prefix: name, // Name is used as prefix
+      prefixes,
       name,
       color,
     });

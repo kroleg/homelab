@@ -7,8 +7,8 @@ export interface CalendarConfig {
 
 export interface SubCalendarConfig {
   id: string;
-  prefix: string;
-  name: string;
+  prefixes: string[]; // All prefixes that match this sub-calendar
+  name: string; // Display name (first prefix)
   color: string;
 }
 

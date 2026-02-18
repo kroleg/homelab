@@ -107,27 +107,67 @@ function calculateEventColumns<T extends { startHour: number; endHour: number }>
   return result;
 }
 
-// Helper to apply sub-calendar prefix matching
-// Matches prefix with variations: "Вася: ", "Вася:", "Вася " for prefix "Вася"
-function applySubCalendar(title: string, defaultColor: string): { title: string; color: string; calendarId: string; person?: string } {
+// Build prefix variations for matching: "Вася: ", "Вася:", "Вася "
+function getPrefixVariations(prefix: string): string[] {
+  return [prefix + ': ', prefix + ':', prefix + ' '];
+}
+
+// Find sub-calendar by any of its prefixes
+function findSubCalendarByPrefix(prefix: string) {
   for (const sub of config.subCalendars) {
-    // Try variations: "prefix: ", "prefix:", "prefix "
-    const variations = [
-      sub.prefix + ': ',
-      sub.prefix + ':',
-      sub.prefix + ' ',
-    ];
-    for (const variant of variations) {
-      if (title.startsWith(variant)) {
+    if (sub.prefixes.some((p) => p.toLowerCase() === prefix.toLowerCase())) {
+      return sub;
+    }
+  }
+  return null;
+}
+
+// Helper to apply sub-calendar prefix matching
+// Supports: "Вася: Event", "Вася и Поля: Event", "Лева, Поля: Event"
+function applySubCalendar(title: string, defaultColor: string): { title: string; color: string; calendarId: string; person?: string } {
+  // First, try to match multiple persons pattern: "Name1 и Name2: " or "Name1, Name2: "
+  const multiPersonMatch = title.match(/^(.+?):\s*/);
+  if (multiPersonMatch) {
+    const prefixPart = multiPersonMatch[1];
+    const restTitle = title.slice(multiPersonMatch[0].length).trim();
+
+    // Split by " и " or ", " to get individual names
+    const names = prefixPart.split(/\s+и\s+|,\s*/).map((n) => n.trim()).filter(Boolean);
+
+    if (names.length > 1) {
+      // Multiple persons - find all matching sub-calendars
+      const matchedSubs = names.map((name) => findSubCalendarByPrefix(name)).filter(Boolean);
+
+      if (matchedSubs.length > 0) {
+        // Use first matched color, combine person names
+        const personNames = matchedSubs.map((s) => s!.name);
         return {
-          title: title.slice(variant.length).trim(),
-          color: sub.color,
-          calendarId: sub.id,
-          person: sub.name,
+          title: restTitle,
+          color: matchedSubs[0]!.color,
+          calendarId: matchedSubs.map((s) => s!.id).join(','),
+          person: personNames.join(' '),
         };
       }
     }
   }
+
+  // Single person matching with all prefix variations
+  for (const sub of config.subCalendars) {
+    for (const prefix of sub.prefixes) {
+      const variations = getPrefixVariations(prefix);
+      for (const variant of variations) {
+        if (title.startsWith(variant)) {
+          return {
+            title: title.slice(variant.length).trim(),
+            color: sub.color,
+            calendarId: sub.id,
+            person: sub.name,
+          };
+        }
+      }
+    }
+  }
+
   return { title, color: defaultColor, calendarId: '' };
 }
 
