@@ -15,27 +15,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
 
-  glance:
-    container_name: glance
-    image: glanceapp/glance:v0.8.4
-    restart: unless-stopped
-    volumes:
-      - ./glance/config:/app/config
-      - ./glance/assets:/app/assets
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-    ports:
-      - "8888:8080"
-    networks:
-      - shared
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.glance.rule=Host(`home.internal`)"
-      - "traefik.http.routers.glance.entrypoints=web"
-      - "traefik.http.services.glance.loadbalancer.server.port=8080"
-      - "traefik.docker.network=shared"
-
   postgres-main:
     container_name: postgres-main
     image: postgres:16-alpine

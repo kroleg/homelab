@@ -30,7 +30,6 @@ DNS-based VPN routing system for Keenetic routers. Automatically routes traffic 
 - **PostgreSQL** - Data persistence (2 instances)
 - **Prometheus** - Metrics collection
 - **Grafana** - Monitoring dashboards
-- **Glance** - Homepage dashboard
 
 ## Quick Start
 
@@ -63,7 +62,6 @@ Replace `v24.x.x` with the actual version number.
 
 - `admin.internal` - Admin dashboard
 - `vpn-toggle.internal` - VPN toggle UI
-- `home.internal` - Glance dashboard
 - `grafana.internal` - Grafana
 
 ## Host Setup
