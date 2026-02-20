@@ -16,6 +16,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - keenetic-api - REST API for Keenetic router
 - keenetic-exporter - Prometheus exporter for Keenetic router metrics
 - main (admin.internal) - Central API wrapper with VPN management and database integration
+- mtg-proxy - MTProto proxy for Telegram (port 8443, host network mode)
 - otel - OpenTelemetry collector config for OTLP to Prometheus
 - page-watcher (page-watcher.internal) - Web page monitoring service that detects text changes and sends notifications
 - prometheus - Prometheus time-series database configuration

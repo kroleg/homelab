@@ -496,6 +496,13 @@ services:
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
+  mtg-proxy:
+    container_name: mtg-proxy
+    image: ghcr.io/9seconds/mtg:2
+    command: simple-run 0.0.0.0:8443 ${MTG_PROXY_SECRET}
+    network_mode: host
+    restart: unless-stopped
+
   scrutiny:
     container_name: scrutiny
     image: ghcr.io/analogj/scrutiny:master-omnibus
