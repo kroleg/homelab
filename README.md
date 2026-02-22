@@ -6,7 +6,7 @@ DNS-based VPN routing system for Keenetic routers. Automatically routes traffic 
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  dns-proxy  │────▶│    main     │────▶│   Keenetic  │
+│  dns-proxy  │────▶│   dns-vpn   │────▶│   Keenetic  │
 │   (DNS)     │     │  (routing)  │     │   Router    │
 └─────────────┘     └─────────────┘     └─────────────┘
                            │
@@ -27,7 +27,7 @@ DNS-based VPN routing system for Keenetic routers. Automatically routes traffic 
 | [family-dashboard](./family-dashboard/) | dom.internal | Family dashboard with quick links |
 | [grafana](./grafana/) | grafana.internal | Metrics dashboards |
 | [jellyfin](./jellyfin/) | media.internal | Media server |
-| [main](./main/) | admin.internal | DNS/VPN routing admin |
+| [dns-vpn](./dns-vpn/) | admin.internal | DNS/VPN routing admin |
 | [page-watcher](./page-watcher/) | page-watcher.internal | Web page change notifications |
 | [qbittorrent](./qbittorrent/) | torrent.internal | Torrent client |
 | [scrutiny](./scrutiny/) | disk-monitor.internal | HDD/SSD health monitoring |

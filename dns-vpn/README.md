@@ -1,4 +1,4 @@
-# Main Service
+# DNS VPN Service
 
 Core routing engine that watches DNS resolutions and manages static routes on Keenetic router.
 
@@ -67,5 +67,5 @@ pnpm dev
 ## Build
 
 ```bash
-docker build -t homelab-main .
+docker build -t homelab-dns-vpn .
 ```

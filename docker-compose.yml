@@ -15,8 +15,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
 
-  postgres-main:
-    container_name: postgres-main
+  postgres-dns-vpn:
+    container_name: postgres-dns-vpn
     image: postgres:16-alpine
     environment:
       - POSTGRES_DB=dns2vpn
@@ -34,14 +34,14 @@ services:
   dns-to-vpn:
     container_name: dns-to-vpn
     depends_on:
-      postgres-main:
+      postgres-dns-vpn:
         condition: service_healthy
       dns-proxy:
         condition: service_started
       keenetic-api:
         condition: service_started
     build:
-      context: ./main
+      context: ./dns-vpn
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
@@ -49,7 +49,7 @@ services:
       - ./shared-logs:/logs
     environment:
       - WATCH_FILE=/logs/dns-proxy.log
-      - POSTGRES_HOST=postgres-main
+      - POSTGRES_HOST=postgres-dns-vpn
       - POSTGRES_PORT=5432
       - POSTGRES_DB=dns2vpn
       - POSTGRES_USER=dns2vpn

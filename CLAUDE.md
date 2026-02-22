@@ -15,7 +15,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - jellyfin (media.internal) - Media server for streaming movies and TV shows
 - keenetic-api - REST API for Keenetic router
 - keenetic-exporter - Prometheus exporter for Keenetic router metrics
-- main (admin.internal) - Central API wrapper with VPN management and database integration
+- dns-vpn (admin.internal) - Central API wrapper with VPN management and database integration
 - mtg-proxy - MTProto proxy for Telegram (port 8443, host network mode)
 - otel - OpenTelemetry collector config for OTLP to Prometheus
 - page-watcher (page-watcher.internal) - Web page monitoring service that detects text changes and sends notifications
@@ -36,7 +36,7 @@ Key service responsibilities and dependencies:
 
 - **keenetic-api** - Low-level Keenetic router API. Source of truth for router data (clients, policies, MAC addresses). Other services should call this for any Keenetic-related data.
 - **devices** - User and device management (DB-backed). Provides `/api/whoami` for admin status checks. Uses keenetic-api for router data.
-- **main/dns-to-vpn** - DNS routing and VPN domain management. Uses keenetic-api internally. Should NOT be called by other services for Keenetic data.
+- **dns-vpn** - DNS routing and VPN domain management. Uses keenetic-api internally. Should NOT be called by other services for Keenetic data.
 - **vpn-toggle, family-dashboard, torrent-ui** - UI services that use devices for user/admin info.
 
 ## Git
