@@ -12,6 +12,8 @@ export function loadConfig() {
     throw new Error('KEENETIC_PASSWORD environment variable is required');
   }
 
+  const pingIntervalMs = parseInt(process.env.PING_INTERVAL_MINUTES || '0') * 60 * 1000;
+
   return {
     port,
     logLevel,
@@ -19,6 +21,7 @@ export function loadConfig() {
     keeneticLogin: process.env.KEENETIC_LOGIN,
     keeneticPassword: process.env.KEENETIC_PASSWORD,
     defaultVpnInterface: process.env.DEFAULT_VPN_INTERFACE,
+    pingIntervalMs,
   };
 }
 

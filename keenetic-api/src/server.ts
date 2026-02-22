@@ -32,8 +32,20 @@ const server = app.listen(config.port, () => {
   logger.info(`Keenetic API running on port ${config.port}`);
 });
 
+// Set up session keep-alive ping
+let pingInterval: ReturnType<typeof setInterval> | null = null;
+if (config.pingIntervalMs > 0) {
+  pingInterval = setInterval(() => {
+    keenetic.ping();
+  }, config.pingIntervalMs);
+  logger.info(`Session ping enabled (interval: ${config.pingIntervalMs}ms)`);
+}
+
 function shutdown() {
   logger.info('Shutting down...');
+  if (pingInterval) {
+    clearInterval(pingInterval);
+  }
   server.close(() => process.exit(0));
 }
 

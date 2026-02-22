@@ -457,6 +457,17 @@ export function createKeeneticService(config: {
       }
     },
 
+    async ping(): Promise<boolean> {
+      try {
+        const result = await ensureAuthenticated();
+        logger.debug(`Ping: session ${result ? 'active' : 'failed'}`);
+        return result;
+      } catch (error) {
+        logger.error('Ping error:', error);
+        return false;
+      }
+    },
+
     async resolveInterfaceId(interfaceNameOrId: string, defaultInterface?: string): Promise<string> {
       // Handle "default" special value
       if (interfaceNameOrId === 'default') {

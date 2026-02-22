@@ -181,6 +181,7 @@ services:
       - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
       - PORT=3005
       - DEFAULT_VPN_INTERFACE=lithuania
+      - PING_INTERVAL_MINUTES=4
     restart: unless-stopped
 
   calendar:
