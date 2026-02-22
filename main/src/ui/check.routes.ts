@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import dns from 'dns/promises';
-import type { KeeneticApi } from '../keenetic-api.ts';
+import type { KeeneticClient } from '../services/keenetic-client.ts';
 
 interface RouteMatch {
   ip: string;
@@ -27,7 +27,7 @@ function isIpInNetwork(ip: string, network: string, mask: string): boolean {
   return (ipNum & maskNum) === (networkNum & maskNum);
 }
 
-export function createCheckRouter(api: KeeneticApi): express.Router {
+export function createCheckRouter(api: KeeneticClient): express.Router {
   const router = express.Router();
 
   router.use(express.urlencoded({ extended: true }));

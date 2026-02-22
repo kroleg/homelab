@@ -9,6 +9,24 @@ export interface ClientInfo {
   policy: string | null;
 }
 
+export interface RouteInfo {
+  network?: string;
+  mask?: string;
+  host?: string;
+  interface: string;
+  comment: string;
+  gateway?: string;
+  metric?: number;
+  auto?: boolean;
+}
+
+export interface InterfaceInfo {
+  id: string;
+  name: string;
+  type: string;
+  connected: boolean;
+}
+
 export function createKeeneticService(config: {
   host: string;
   login: string;
@@ -154,6 +172,11 @@ export function createKeeneticService(config: {
     return getRequest(path);
   }
 
+  async function postWithAuth(path: string, body: unknown) {
+    await ensureAuthenticated();
+    return postRequest(path, body);
+  }
+
   return {
     async getClientByIp(ip: string): Promise<ClientInfo | null> {
       try {
@@ -278,6 +301,189 @@ export function createKeeneticService(config: {
         logger.error('Error setting client policy:', error);
         return false;
       }
+    },
+
+    async getRoutes(): Promise<RouteInfo[]> {
+      try {
+        const response = await postWithAuth('/rci/', [{
+          show: {
+            sc: {
+              ip: {
+                route: {}
+              }
+            }
+          }
+        }]);
+
+        if (response.status === 200 && Array.isArray(response.data)) {
+          const routesData = (response.data as { show?: { sc?: { ip?: { route?: Record<string, RouteInfo> } } } }[])[0]?.show?.sc?.ip?.route;
+          if (routesData) {
+            return Object.values(routesData).map(route => ({
+              network: route.network,
+              mask: route.mask,
+              host: route.host,
+              interface: route.interface,
+              comment: route.comment || '',
+              gateway: route.gateway,
+              metric: route.metric,
+              auto: route.auto
+            }));
+          }
+        }
+        logger.error(`Failed to get routes. Status: ${response.status}`);
+        return [];
+      } catch (error) {
+        logger.error('Error fetching routes:', error);
+        return [];
+      }
+    },
+
+    async addRoutes(params: {
+      hosts?: string[];
+      network?: string;
+      mask?: string;
+      interfaces: string[];
+      comment: string;
+    }): Promise<string[]> {
+      try {
+        const { hosts, network, mask, interfaces: ifaceIds, comment } = params;
+
+        const payloadPrefix = {
+          webhelp: { event: { push: { data: JSON.stringify({ type: "configuration_change", value: { url: "/staticRoutes" } }) } } }
+        };
+        const payloadSuffix = { system: { configuration: { save: {} } } };
+
+        // Build route commands
+        const commands = network && mask
+          ? ifaceIds.map(iface => ({
+              ip: { route: { network, mask, interface: iface, auto: true, comment } }
+            }))
+          : (hosts || []).flatMap(host =>
+              ifaceIds.map(iface => ({
+                ip: { route: { host, interface: iface, auto: true, comment } }
+              }))
+            );
+
+        if (commands.length === 0) {
+          return [];
+        }
+
+        const response = await postWithAuth('/rci/', [
+          payloadPrefix,
+          ...commands,
+          payloadSuffix,
+        ]);
+
+        logger.debug('Add routes response: ' + JSON.stringify(response.data));
+
+        // Extract status messages from response
+        const results = (response.data as { ip?: { route?: { status?: { message?: string }[] } } }[])
+          .slice(1, -1)
+          .map(cmd => {
+            const status = cmd.ip?.route?.status;
+            const messages = status?.map((s: { message?: string }) => s.message || '').join('; ') || '';
+            return messages;
+          });
+
+        return results;
+      } catch (error) {
+        logger.error('Error adding routes:', error);
+        return [];
+      }
+    },
+
+    async removeRoutesByCommentPrefix(commentPrefix: string): Promise<number> {
+      try {
+        const routes = await this.getRoutes();
+        const routesToRemove = routes.filter(route => route.comment && route.comment.startsWith(commentPrefix));
+
+        if (routesToRemove.length === 0) {
+          logger.debug(`No routes found with comment prefix: ${commentPrefix}`);
+          return 0;
+        }
+
+        const payloadPrefix = {
+          webhelp: { event: { push: { data: JSON.stringify({ type: "configuration_change", value: { url: "/staticRoutes" } }) } } }
+        };
+        const payloadSuffix = { system: { configuration: { save: {} } } };
+
+        const commands = routesToRemove.map(route => ({
+          ip: {
+            route: {
+              no: true,
+              ...(route.network && route.mask ? {
+                network: route.network,
+                mask: route.mask
+              } : {
+                host: route.host
+              }),
+              comment: route.comment
+            }
+          }
+        }));
+
+        const response = await postWithAuth('/rci/', [
+          payloadPrefix,
+          ...commands,
+          payloadSuffix
+        ]);
+
+        logger.debug('Route removal response: ' + JSON.stringify(response.data));
+        return routesToRemove.length;
+      } catch (error) {
+        logger.error('Error removing routes:', error);
+        return 0;
+      }
+    },
+
+    async getInterfaces(types: string[] = ['Wireguard']): Promise<InterfaceInfo[]> {
+      try {
+        const response = await getWithAuth('/rci/show/interface');
+        if (response.status === 200 && response.data) {
+          const facesWithTypes = Object.values(response.data as Record<string, { id: string; type: string; description?: string; connected?: string }>)
+            .filter(i => types.includes(i.type));
+          return facesWithTypes.map(({ id, type, description, connected }) => ({
+            id,
+            name: description || id,
+            type,
+            connected: connected === 'yes'
+          }));
+        }
+        logger.error(`Failed to get interfaces. Status: ${response.status}`);
+        return [];
+      } catch (error) {
+        logger.error('Error fetching interfaces:', error);
+        return [];
+      }
+    },
+
+    async resolveInterfaceId(interfaceNameOrId: string, defaultInterface?: string): Promise<string> {
+      // Handle "default" special value
+      if (interfaceNameOrId === 'default') {
+        if (!defaultInterface) {
+          logger.warn('No default interface provided, falling back to Wireguard0');
+          return 'Wireguard0';
+        }
+        // Recursively resolve in case the default is also a name
+        return this.resolveInterfaceId(defaultInterface, undefined);
+      }
+
+      // Check if it looks like an ID (e.g., "Wireguard0", "Wireguard1", etc.)
+      const idPattern = /^[A-Za-z]+\d+$/;
+      if (idPattern.test(interfaceNameOrId)) {
+        return interfaceNameOrId;
+      }
+
+      // It's a name, look it up
+      const interfaces = await this.getInterfaces();
+      const found = interfaces.find(i => i.name === interfaceNameOrId || i.id === interfaceNameOrId);
+
+      if (!found) {
+        logger.warn(`Interface "${interfaceNameOrId}" not found, using as-is`);
+        return interfaceNameOrId;
+      }
+
+      return found.id;
     },
   };
 }

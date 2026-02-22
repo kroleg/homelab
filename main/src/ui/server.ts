@@ -6,9 +6,9 @@ import { createLogsRouter } from './logs.routes.ts';
 import { createCheckRouter } from './check.routes.ts';
 import { createApiRouter } from './api.routes.ts';
 import type { Logger } from 'winston';
-import type { KeeneticApi } from '../keenetic-api.ts';
+import type { KeeneticClient } from '../services/keenetic-client.ts';
 
-export function startUI(logger: Logger, api: KeeneticApi, onServiceChange?: () => void) {
+export function startUI(logger: Logger, api: KeeneticClient, onServiceChange?: () => void) {
 
   // Get __dirname in ES module scope
   const __filename = fileURLToPath(import.meta.url);

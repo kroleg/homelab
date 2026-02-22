@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import * as serviceRepository from '../storage/service.repository.ts';
-import type { KeeneticApi } from '../keenetic-api.ts';
+import type { KeeneticClient } from '../services/keenetic-client.ts';
 import { matchDomainsAgainstPatterns } from '../utils/dns-log-processor.ts';
 import { filterIpsCoveredByOptimizedRoutes } from '../utils/route-optimizer.ts';
 
@@ -96,7 +96,7 @@ type ServiceWithRoutes = serviceRepository.Service & {
   }[];
 };
 
-export function createServicesRouter(api: KeeneticApi, onServiceChange?: () => void): express.Router {
+export function createServicesRouter(api: KeeneticClient, onServiceChange?: () => void): express.Router {
   const servicesRouter = express.Router();
 
   // Middleware to parse URL-encoded data (for form submissions)

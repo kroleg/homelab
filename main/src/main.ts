@@ -1,5 +1,5 @@
 import { startFileWatcher } from "./file-watcher.ts";
-import { KeeneticApi } from './keenetic-api.ts';
+import { createKeeneticClient } from './services/keenetic-client.ts';
 import { createLogger } from './logger.ts';
 import { getAllServices, getServiceByName, type Service } from "./storage/service.repository.ts";
 import { runMigrations } from "./storage/db.ts";
@@ -9,22 +9,10 @@ import { optimizeRoutes, calculateOptimizationStats, filterIpsCoveredByOptimized
 
 const logger = createLogger(process.env.LOG_LEVEL || 'info');
 
-if (!process.env.KEENETIC_HOST || !process.env.KEENETIC_LOGIN || !process.env.KEENETIC_PASSWORD) {
-    console.error('Error: Missing one or more required environment variables:');
-    console.error('  KEENETIC_HOST');
-    console.error('  KEENETIC_LOGIN');
-    console.error('  KEENETIC_PASSWORD');
-    console.log('\nPlease set these environment variables before running the script.');
-    console.log("Example: export KEENETIC_HOST='http://192.168.1.1'");
-    process.exit(1);
-}
+const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005';
+logger.info(`Using Keenetic API at ${KEENETIC_API_URL}`);
 
-const api = new KeeneticApi({
-    host: process.env.KEENETIC_HOST!,
-    login: process.env.KEENETIC_LOGIN!,
-    password: process.env.KEENETIC_PASSWORD!,
-    logger,
-});
+const api = createKeeneticClient(KEENETIC_API_URL, logger);
 
 // init db
 await runMigrations();

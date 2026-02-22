@@ -18,6 +18,7 @@ export function loadConfig() {
     keeneticHost: process.env.KEENETIC_HOST,
     keeneticLogin: process.env.KEENETIC_LOGIN,
     keeneticPassword: process.env.KEENETIC_PASSWORD,
+    defaultVpnInterface: process.env.DEFAULT_VPN_INTERFACE,
   };
 }
 

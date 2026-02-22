@@ -1,7 +1,7 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
-import type { KeeneticApi } from '../keenetic-api.ts';
+import type { KeeneticClient } from '../services/keenetic-client.ts';
 
-export function createApiRouter(api: KeeneticApi): express.Router {
+export function createApiRouter(api: KeeneticClient): express.Router {
   const router = express.Router();
 
   router.use(express.json());

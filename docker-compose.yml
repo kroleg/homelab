@@ -38,6 +38,8 @@ services:
         condition: service_healthy
       dns-proxy:
         condition: service_started
+      keenetic-api:
+        condition: service_started
     build:
       context: ./main
       dockerfile: Dockerfile
@@ -52,9 +54,7 @@ services:
       - POSTGRES_DB=dns2vpn
       - POSTGRES_USER=dns2vpn
       - POSTGRES_PASSWORD=dns2vpn
-      - KEENETIC_HOST=${KEENETIC_HOST}
-      - KEENETIC_LOGIN=${KEENETIC_LOGIN}
-      - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
+      - KEENETIC_API_URL=http://keenetic-api:3005
       - DNS_API_URL=http://dns-proxy:3001
       - DEFAULT_VPN_INTERFACE=lithuania
     networks:
@@ -180,6 +180,7 @@ services:
       - KEENETIC_LOGIN=${KEENETIC_LOGIN}
       - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
       - PORT=3005
+      - DEFAULT_VPN_INTERFACE=lithuania
     restart: unless-stopped
 
   calendar:

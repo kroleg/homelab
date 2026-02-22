@@ -1,5 +1,5 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
-import type { KeeneticApi } from '../keenetic-api.ts';
+import type { KeeneticClient } from '../services/keenetic-client.ts';
 
 const DNS_API_URL = process.env.DNS_API_URL || 'http://dns-proxy:3001';
 
@@ -16,7 +16,7 @@ interface DnsLogEntry {
   updated_at: string;
 }
 
-export function createLogsRouter({ api }: { api: KeeneticApi }): express.Router {
+export function createLogsRouter({ api }: { api: KeeneticClient }): express.Router {
   const router = express.Router();
 
   // Route to display list of connected clients
