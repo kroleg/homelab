@@ -106,14 +106,14 @@ services:
   vpn-toggle:
     container_name: vpn-toggle
     depends_on:
-      - dns-to-vpn
+      - keenetic-api
       - devices
     build:
       context: ./vpn-toggle
       dockerfile: Dockerfile
     environment:
       - PORT=3002
-      - MAIN_API_URL=http://dns-to-vpn:3000/api
+      - KEENETIC_API_URL=http://keenetic-api:3005/api
       - DEVICES_API_URL=http://devices:3009
       - ADMIN_ONLY_POLICIES=kz
     networks:
@@ -181,7 +181,7 @@ services:
       - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
       - PORT=3005
       - DEFAULT_VPN_INTERFACE=lithuania
-      - PING_INTERVAL_MINUTES=4
+      - PING_INTERVAL_MINUTES=1
     restart: unless-stopped
 
   calendar:

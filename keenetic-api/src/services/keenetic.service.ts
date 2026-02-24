@@ -177,24 +177,65 @@ export function createKeeneticService(config: {
     return postRequest(path, body);
   }
 
+  // Fetches policy assignment (MAC -> policyId) and policy names (policyId -> name)
+  async function fetchPolicyMaps(): Promise<{
+    policyMap: Map<string, string>;
+    policyNames: Map<string, string>;
+  }> {
+    const [policyResponse, policyNamesResponse] = await Promise.all([
+      getWithAuth('/rci/show/rc/ip/hotspot/host'),
+      getWithAuth('/rci/show/rc/ip/policy'),
+    ]);
+
+    const policyMap = new Map<string, string>();
+    if (policyResponse.status === 200 && policyResponse.data && typeof policyResponse.data === 'object') {
+      for (const host of Object.values(policyResponse.data as Record<string, { mac?: string; policy?: string }>)) {
+        if (host.mac && host.policy) {
+          policyMap.set(host.mac.toLowerCase(), host.policy);
+        }
+      }
+    }
+
+    const policyNames = new Map<string, string>();
+    if (policyNamesResponse.status === 200 && policyNamesResponse.data && typeof policyNamesResponse.data === 'object') {
+      for (const [id, policy] of Object.entries(policyNamesResponse.data as Record<string, { description?: string }>)) {
+        const name = policy.description?.replace(/^!/, '') || id;
+        policyNames.set(id, name);
+      }
+    }
+
+    return { policyMap, policyNames };
+  }
+
   return {
     async getClientByIp(ip: string): Promise<ClientInfo | null> {
       try {
-        const response = await getWithAuth('/rci/show/ip/hotspot/host');
-        if (response.status === 200 && Array.isArray(response.data)) {
-          const client = response.data.find((c: { ip: string }) => c.ip === ip);
-          if (client) {
-            return {
-              name: client.name || 'Unknown',
-              ip: client.ip || null,
-              mac: client.mac || '',
-              online: client.active === true,
-              policy: null,
-            };
-          }
+        const [response, { policyMap, policyNames }] = await Promise.all([
+          getWithAuth('/rci/show/ip/hotspot/host'),
+          fetchPolicyMaps(),
+        ]);
+
+        if (response.status !== 200 || !Array.isArray(response.data)) {
+          logger.debug(`Failed to fetch clients: ${response.status}`);
+          return null;
         }
-        logger.debug(`Client not found for IP: ${ip}`);
-        return null;
+
+        const client = response.data.find((c: { ip: string }) => c.ip === ip);
+        if (!client) {
+          logger.debug(`Client not found for IP: ${ip}`);
+          return null;
+        }
+
+        const mac = client.mac?.toLowerCase();
+        const policyId = mac ? policyMap.get(mac) : undefined;
+
+        return {
+          name: client.name || 'Unknown',
+          ip: client.ip || null,
+          mac: client.mac || '',
+          online: client.active === true,
+          policy: policyId ? (policyNames.get(policyId) || policyId) : null,
+        };
       } catch (error) {
         logger.error('Error fetching client by IP:', error);
         return null;
@@ -203,40 +244,14 @@ export function createKeeneticService(config: {
 
     async getClients(): Promise<ClientInfo[]> {
       try {
-        // Fetch all data in parallel
-        const [response, policyResponse, policyNamesResponse] = await Promise.all([
+        const [response, { policyMap, policyNames }] = await Promise.all([
           getWithAuth('/rci/show/ip/hotspot'),
-          getWithAuth('/rci/show/rc/ip/hotspot/host'),
-          getWithAuth('/rci/show/rc/ip/policy'),
+          fetchPolicyMaps(),
         ]);
 
         if (response.status !== 200 || !response.data) {
           logger.error(`Failed to get clients. Status: ${response.status}`);
           return [];
-        }
-
-        // Build policy assignment map (returns object, not array)
-        const policyMap = new Map<string, string>();
-        if (policyResponse.status !== 200) {
-          logger.error(`Failed to fetch policy assignments: ${policyResponse.status}`);
-        } else if (policyResponse.data && typeof policyResponse.data === 'object') {
-          for (const host of Object.values(policyResponse.data as Record<string, { mac?: string; policy?: string }>)) {
-            if (host.mac && host.policy) {
-              policyMap.set(host.mac.toLowerCase(), host.policy);
-            }
-          }
-        }
-
-        // Build policy names map for human-readable display
-        const policyNames = new Map<string, string>();
-        if (policyNamesResponse.status !== 200) {
-          logger.error(`Failed to fetch policy names: ${policyNamesResponse.status}`);
-        } else if (policyNamesResponse.data && typeof policyNamesResponse.data === 'object') {
-          for (const [id, policy] of Object.entries(policyNamesResponse.data as Record<string, { description?: string }>)) {
-            // Keenetic prefixes policy descriptions with "!" - strip it for display
-            const name = policy.description?.replace(/^!/, '') || id;
-            policyNames.set(id, name);
-          }
         }
 
         const data = response.data as { host?: Array<{ name?: string; ip?: string; mac?: string; active?: boolean; registered?: boolean }> };

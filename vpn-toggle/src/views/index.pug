@@ -88,7 +88,7 @@ block content
         ) Off
 
         each policy in policies
-          - const isActive = device.policy === policy.id
+          - const isActive = device.policy === policy.name
           button.btn(
             type="button"
             class=(isActive ? 'active' : '')

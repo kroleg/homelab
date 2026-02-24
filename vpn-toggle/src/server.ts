@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3002;
-const MAIN_API_URL = process.env.MAIN_API_URL || 'http://dns-to-vpn:3000/api';
+const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005/api';
 const DEVICES_API_URL = process.env.DEVICES_API_URL || 'http://devices:3009';
 const ADMIN_ONLY_POLICIES = (process.env.ADMIN_ONLY_POLICIES || '')
   .split(',')
@@ -73,8 +73,8 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
       return;
     }
 
-    // Fetch device info from main API
-    const deviceResponse = await fetch(`${MAIN_API_URL}/device/${clientIp}`);
+    // Fetch device info from keenetic-api
+    const deviceResponse = await fetch(`${KEENETIC_API_URL}/client?ip=${encodeURIComponent(clientIp)}`);
 
     if (!deviceResponse.ok) {
       if (deviceResponse.status === 404) {
@@ -89,17 +89,8 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
 
     const device = await deviceResponse.json();
 
-    // Check if device is registered
-    if (!device.registered) {
-      res.status(403).render('error', {
-        title: 'Доступ запрещён',
-        message: 'Ваше устройство не зарегистрировано в сети'
-      });
-      return;
-    }
-
     // Fetch available policies from main API
-    const policiesResponse = await fetch(`${MAIN_API_URL}/policies`);
+    const policiesResponse = await fetch(`${KEENETIC_API_URL}/policies`);
 
     if (!policiesResponse.ok) {
       throw new Error(`Failed to fetch policies: ${policiesResponse.status}`);
@@ -149,8 +140,8 @@ app.post('/set-policy', async (req: Request, res: Response, _next: NextFunction)
       return;
     }
 
-    // Call main API to set policy
-    const response = await fetch(`${MAIN_API_URL}/device/${mac}/policy`, {
+    // Call keenetic-api to set policy
+    const response = await fetch(`${KEENETIC_API_URL}/clients/${encodeURIComponent(mac)}/policy`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -186,7 +177,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 // Start the server
 const server = app.listen(PORT, () => {
   console.log(`VPN Toggle UI is running on http://localhost:${PORT}`);
-  console.log(`Using Main API at: ${MAIN_API_URL}`);
+  console.log(`Using Main API at: ${KEENETIC_API_URL}`);
 });
 
 // Graceful shutdown
