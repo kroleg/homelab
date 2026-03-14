@@ -11,24 +11,20 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - devices (devices.internal) - Admin UI for managing users and devices with PostgreSQL storage
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
 - family-dashboard (dom.internal) - Family dashboard with quick links to homelab services
-- grafana (grafana.internal) - Metrics visualization with dashboards for DNS, Keenetic, and node metrics (see grafana/SETUP.md for host setup)
 - home-assistant (hass.internal) - Home Assistant with Zigbee2MQTT and Mosquitto MQTT broker (separate compose via include)
+- infra - Observability stack (separate compose via include): grafana, prometheus, loki, promtail, otel-collector, node-exporter
 - jellyfin (media.internal) - Media server for streaming movies and TV shows
 - keenetic-api - REST API for Keenetic router
 - keenetic-exporter - Prometheus exporter for Keenetic router metrics
 - dns-vpn (admin.internal) - Central API wrapper with VPN management and database integration
 - mtg-proxy - MTProto proxy for Telegram (port 8443, host network mode)
-- otel - OpenTelemetry collector config for OTLP to Prometheus
 - page-watcher (page-watcher.internal) - Web page monitoring service that detects text changes and sends notifications
-- prometheus - Prometheus time-series database configuration
-- promtail - Loki log shipper for Docker container logs
 - qbittorrent (torrent.internal) - Torrent client with web interface
 - scrutiny (disk-monitor.internal) - HDD/SSD health monitoring with SMART data
 - shared-logs - Shared logging output directory for services
 - telegram-bot (telegram-bot.internal) - Telegram bot for commands and notifications with HTTP API
 - torrent-ui (dl.internal) - Simple UI for uploading torrents and viewing download progress
 - traefik - Traefik reverse proxy dynamic configuration
-- vector - Data pipeline for transforming Docker logs to Seq
 - vpn-toggle (vpn.internal) - Simple UI for toggling VPN connections
 
 ## Service Architecture
