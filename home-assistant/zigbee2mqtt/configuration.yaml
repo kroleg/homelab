@@ -1,0 +1,13 @@
+mqtt:
+  server: mqtt://localhost:1883
+serial:
+  port: /dev/ttyUSB0
+frontend:
+  enabled: true
+  port: 8099
+homeassistant:
+  enabled: true
+version: 5
+devices:
+  '0xa4c138a21b7360eb':
+    friendly_name: '0xa4c138a21b7360eb'

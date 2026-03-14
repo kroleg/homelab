@@ -1,3 +1,6 @@
+include:
+  - home-assistant/docker-compose.yml
+
 services:
   traefik:
     container_name: traefik

@@ -1,0 +1,27 @@
+# HA auto-generated
+*.log
+*.log.*
+.ha_run.lock
+.HA_VERSION
+.storage/
+.cache/
+blueprints/
+backups/
+tts/
+deps/
+custom_components/
+home-assistant_v2.db
+home-assistant_v2.db-shm
+home-assistant_v2.db-wal
+
+# Zigbee2MQTT auto-generated
+zigbee2mqtt/state.json
+zigbee2mqtt/database.db
+zigbee2mqtt/log/
+zigbee2mqtt/configuration_backup_*.yaml
+zigbee2mqtt/coordinator_backup.json
+zigbee2mqtt/migration-*.log
+
+# Mosquitto runtime
+mosquitto/data/
+mosquitto/log/

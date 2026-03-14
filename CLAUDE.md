@@ -12,6 +12,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
 - family-dashboard (dom.internal) - Family dashboard with quick links to homelab services
 - grafana (grafana.internal) - Metrics visualization with dashboards for DNS, Keenetic, and node metrics (see grafana/SETUP.md for host setup)
+- home-assistant (hass.internal) - Home Assistant with Zigbee2MQTT and Mosquitto MQTT broker (separate compose via include)
 - jellyfin (media.internal) - Media server for streaming movies and TV shows
 - keenetic-api - REST API for Keenetic router
 - keenetic-exporter - Prometheus exporter for Keenetic router metrics
