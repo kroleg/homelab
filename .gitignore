@@ -2,7 +2,7 @@
 node_modules
 *.db
 *.log
-blocklist.txt
+dns-proxy/config/blocklist.txt
 jellyfin/
 qbittorrent/
 scrutiny/*

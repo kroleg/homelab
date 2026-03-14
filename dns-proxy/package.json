@@ -11,7 +11,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "blocklist:download": "curl -o ../config/blocklist.txt https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt"
+    "blocklist:download": "curl -o config/blocklist.txt https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt"
   },
   "dependencies": {
     "dns-packet": "^5.6.1",

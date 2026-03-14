@@ -102,7 +102,7 @@ services:
       - "3001:3001"
     volumes:
       - ./shared-logs:/logs
-      - ./config:/config
+      - ./dns-proxy/config:/config
     networks:
       default:
         ipv4_address: 192.168.80.53
