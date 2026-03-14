@@ -7,7 +7,6 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - calendar (calendar.internal) - Family calendar display service for iPad using iCal.js and rrule
 - claude-chat (chat.internal) - Web chat interface for Claude API (runs on host via systemd, not Docker)
 - config - Configuration data (DNS blocklist, host-to-IP mappings)
-- db - SQLite database storage directory
 - devices (devices.internal) - Admin UI for managing users and devices with PostgreSQL storage
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
 - family-dashboard (dom.internal) - Family dashboard with quick links to homelab services
