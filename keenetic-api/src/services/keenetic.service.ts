@@ -472,6 +472,23 @@ export function createKeeneticService(config: {
       }
     },
 
+    async reboot(): Promise<boolean> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { system: { reboot: {} } },
+        ]);
+        if (response.status === 200) {
+          logger.info('Router reboot initiated');
+          return true;
+        }
+        logger.error(`Failed to reboot router. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error rebooting router:', error);
+        return false;
+      }
+    },
+
     async ping(): Promise<boolean> {
       try {
         const result = await ensureAuthenticated();

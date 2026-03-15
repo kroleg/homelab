@@ -128,5 +128,15 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
     }
   });
 
+  router.post('/reboot', async (_req, res) => {
+    logger.info('Router reboot requested');
+    const success = await keenetic.reboot();
+    if (success) {
+      res.json({ success: true, message: 'Router reboot initiated' });
+    } else {
+      res.status(500).json({ error: 'Failed to reboot router' });
+    }
+  });
+
   return router;
 }
