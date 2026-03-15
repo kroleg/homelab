@@ -423,8 +423,18 @@ const server = app.listen(config.port, async () => {
   }
 });
 
+// Keep RuTracker session alive by checking it daily
+const SESSION_CHECK_INTERVAL = 24 * 60 * 60 * 1000;
+let sessionCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+if (config.rutrackerCookie) {
+  rutracker.checkSession();
+  sessionCheckTimer = setInterval(() => rutracker.checkSession(), SESSION_CHECK_INTERVAL);
+}
+
 function shutdown() {
   logger.info('Shutting down...');
+  if (sessionCheckTimer) clearInterval(sessionCheckTimer);
   server.close(() => process.exit(0));
 }
 

@@ -273,10 +273,32 @@ export function createRutrackerService(cookie: string, logger: Logger) {
     };
   }
 
+  async function checkSession(): Promise<boolean> {
+    if (!cookie) return false;
+
+    try {
+      const response = await fetchWithMirrors('/forum/index.php');
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const html = iconv.decode(buffer, 'win1251');
+
+      if (html.includes('login-form-full') || html.includes('login_username')) {
+        logger.warn('RuTracker session expired');
+        return false;
+      }
+
+      logger.info('RuTracker session is active');
+      return true;
+    } catch (error) {
+      logger.error('RuTracker session check failed', { error });
+      return false;
+    }
+  }
+
   return {
     search,
     downloadTorrent,
     getTopicDetails,
+    checkSession,
   };
 }
 
