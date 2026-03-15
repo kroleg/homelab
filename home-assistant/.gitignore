@@ -15,6 +15,7 @@ home-assistant_v2.db-shm
 home-assistant_v2.db-wal
 
 # Zigbee2MQTT auto-generated
+zigbee2mqtt/devices.yaml
 zigbee2mqtt/state.json
 zigbee2mqtt/database.db
 zigbee2mqtt/log/

@@ -8,6 +8,4 @@ frontend:
 homeassistant:
   enabled: true
 version: 5
-devices:
-  '0xa4c138a21b7360eb':
-    friendly_name: '0xa4c138a21b7360eb'
+devices: devices.yaml
