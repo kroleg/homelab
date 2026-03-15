@@ -94,7 +94,7 @@ block content
             class=(isActive ? 'active' : '')
             onclick=`selectPolicy('${policy.id}')`
             disabled=isActive
-          )= policy.description || policy.name
+          )= policy.name
 
       form#form(method="POST" action="/set-policy")
         input#policy(type="hidden" name="policyId")

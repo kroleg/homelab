@@ -102,12 +102,11 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
     const whoami = await getWhoami(clientIp);
     const admin = whoami?.isAdmin ?? false;
 
-    // Filter admin-only policies for non-admins (match by description)
-    // Note: Keenetic API returns id=name="Policy0" and human-readable name in "description"
+    // Filter admin-only policies for non-admins
     const policies = admin
       ? allPolicies
-      : allPolicies.filter((p: { description?: string }) =>
-          !ADMIN_ONLY_POLICIES.includes((p.description || '').toLowerCase())
+      : allPolicies.filter((p: { name?: string }) =>
+          !ADMIN_ONLY_POLICIES.includes((p.name || '').toLowerCase())
         );
 
     res.render('index', {
