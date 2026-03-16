@@ -1,0 +1,53 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1.0")
+    title DOCX to PDF
+    style.
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      :root {
+        --background: #fff;
+        --foreground: #0a0a0b;
+        --primary: #e11d48;
+        --primary-fg: #fff1f2;
+        --secondary: #f4f4f5;
+        --secondary-fg: #18181b;
+        --muted: #71717a;
+      }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+      .breadcrumb {
+        max-width: 40rem;
+        margin: 0 auto;
+        width: 100%;
+        padding: 1.5rem 1rem 0;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+      }
+      .breadcrumb a {
+        text-decoration: none;
+        color: #fb7185;
+      }
+      .breadcrumb a:hover { color: var(--primary); }
+      .breadcrumb-sep { color: grey; }
+      .breadcrumb-current {
+        color: var(--foreground);
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+  body
+    nav.breadcrumb
+      a(href="http://dom.internal") Дом
+      span.breadcrumb-sep /
+      span.breadcrumb-current DOCX → PDF
+    block content

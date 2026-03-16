@@ -7,6 +7,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - calendar (calendar.internal) - Family calendar display service for iPad using iCal.js and rrule
 - claude-chat (chat.internal) - Web chat interface for Claude API (runs on host via systemd, not Docker)
 - devices (devices.internal) - Admin UI for managing users and devices with PostgreSQL storage
+- docx-to-pdf (pdf.internal) - DOCX to PDF converter using LibreOffice headless
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
 - family-dashboard (dom.internal) - Family dashboard with quick links to homelab services
 - home-assistant (hass.internal) - Home Assistant with Zigbee2MQTT and Mosquitto MQTT broker (separate compose via include)

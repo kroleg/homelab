@@ -429,6 +429,22 @@ services:
     network_mode: host
     restart: unless-stopped
 
+  docx-to-pdf:
+    container_name: docx-to-pdf
+    build: ./docx-to-pdf
+    environment:
+      - PORT=3010
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docx-to-pdf.rule=Host(`pdf.internal`)"
+      - "traefik.http.routers.docx-to-pdf.entrypoints=web"
+      - "traefik.http.services.docx-to-pdf.loadbalancer.server.port=3010"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
   scrutiny:
     container_name: scrutiny
     image: ghcr.io/analogj/scrutiny:master-omnibus
