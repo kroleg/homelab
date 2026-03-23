@@ -192,6 +192,44 @@ export function createDeviceService(
       return deviceRepo.update(deviceId, data);
     },
 
+    async getWeeklyTrafficByUser(): Promise<Array<{
+      user: User;
+      daily: Record<string, number>;
+      total: number;
+    }>> {
+      const [users, dbDevices] = await Promise.all([
+        userRepo.findAll(),
+        deviceRepo.findAll(),
+      ]);
+
+      const allMacs = dbDevices.filter(d => d.userId).map(d => d.mac.toLowerCase());
+      const weeklyRows = allMacs.length > 0
+        ? await trafficRepo.getDailyTotals(allMacs, 7)
+        : [];
+
+      // Map mac -> userId
+      const macToUserId = new Map<string, number>();
+      for (const d of dbDevices) {
+        if (d.userId) macToUserId.set(d.mac.toLowerCase(), d.userId);
+      }
+
+      // Aggregate by userId + date
+      const userDailyMap = new Map<number, Record<string, number>>();
+      for (const row of weeklyRows) {
+        const userId = macToUserId.get(row.mac.toLowerCase());
+        if (!userId) continue;
+        const daily = userDailyMap.get(userId) || {};
+        daily[row.date] = (daily[row.date] || 0) + row.rx;
+        userDailyMap.set(userId, daily);
+      }
+
+      return users.map(user => {
+        const daily = userDailyMap.get(user.id) || {};
+        const total = Object.values(daily).reduce((s, v) => s + v, 0);
+        return { user, daily, total };
+      }).sort((a, b) => b.total - a.total);
+    },
+
     async getAllUsers(): Promise<User[]> {
       return userRepo.findAll();
     },

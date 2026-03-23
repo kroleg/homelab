@@ -1,0 +1,89 @@
+extends layout
+
+block content
+  style.
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem 2rem;
+    }
+    .content {
+      width: 100%;
+      max-width: 48rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    th, td {
+      padding: 0.5rem 0.625rem;
+      text-align: right;
+      border-bottom: 1px solid #e4e4e7;
+    }
+    th {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--muted);
+      border-bottom: 2px solid #e4e4e7;
+    }
+    th:first-child, td:first-child {
+      text-align: left;
+    }
+    td.name {
+      font-weight: 500;
+    }
+    td.total {
+      font-weight: 600;
+      color: var(--primary);
+    }
+    td.zero {
+      color: #d4d4d8;
+    }
+    .day-header {
+      line-height: 1.2;
+    }
+    .day-weekday {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .day-date {
+      display: block;
+      font-size: 0.5625rem;
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+  - const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+
+  .container
+    .content
+      table
+        thead
+          tr
+            th Имя
+            each day in days
+              - const d = new Date(day + 'T12:00:00')
+              th
+                .day-header
+                  span.day-weekday= weekdays[d.getDay()]
+                  span.day-date= `${d.getDate()}.${(d.getMonth()+1).toString().padStart(2, '0')}`
+            th Всего
+        tbody
+          each row in data
+            - const hasTraffic = row.total > 0
+            if hasTraffic
+              tr
+                td.name= row.user.name
+                each day in days
+                  - const val = row.daily[day] || 0
+                  if val > 0
+                    td= formatBytes(val)
+                  else
+                    td.zero —
+                td.total= formatBytes(row.total)

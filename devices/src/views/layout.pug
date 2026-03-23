@@ -53,5 +53,8 @@ html(lang="ru")
     nav.breadcrumb
       a(href=homeUrl || 'http://dom.internal') Дом
       span.breadcrumb-sep /
+      if parentTitle
+        a(href=parentUrl || '/') #{parentTitle}
+        span.breadcrumb-sep /
       span.breadcrumb-current= title || 'Устройства'
     block content

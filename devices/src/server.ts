@@ -171,10 +171,40 @@ app.get('/health', (_req, res) => {
 });
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
+
+// Traffic page - 7 day table per user
+app.get('/traffic', requireAdmin, async (_req, res) => {
+  try {
+    const data = await deviceService.getWeeklyTrafficByUser();
+
+    // Build last 7 days array (oldest first, today last)
+    const days: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+
+    res.render('traffic', {
+      title: 'Трафик',
+      parentTitle: 'Устройства',
+      parentUrl: '/',
+      data,
+      days,
+      formatBytes,
+      homeUrl: config.homeUrl,
+    });
+  } catch (error) {
+    logger.error('Error loading traffic data:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось загрузить данные трафика',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
 
 // Main page - users with devices + unassigned + unregistered
 app.get('/', requireAdmin, async (_req, res) => {
