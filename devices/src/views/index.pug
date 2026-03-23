@@ -193,6 +193,29 @@ block content
       color: #1e40af;
       flex-shrink: 0;
     }
+    .device-traffic {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--muted);
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .user-traffic-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.125rem;
+      flex-shrink: 0;
+    }
+    .user-traffic {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .user-traffic-week {
+      font-size: 0.625rem;
+      color: var(--muted);
+    }
     .device-actions {
       display: flex;
       gap: 0.25rem;
@@ -326,6 +349,8 @@ block content
               span= device.mac
               if device.ip
                 span= ` • ${device.ip}`
+          if device.traffic && device.traffic.total > 0
+            span.device-traffic= formatBytes(device.traffic.total)
           if device.policy
             span.device-policy= device.policy
 
@@ -385,6 +410,11 @@ block content
                     span.group-name= user.name
                     if user.isAdmin
                       span.admin-badge ADMIN
+                  .user-traffic-info
+                    if user.totalTraffic > 0
+                      span.user-traffic= formatBytes(user.totalTraffic)
+                    if user.weeklyTraffic > 0
+                      span.user-traffic-week= `${formatBytes(user.weeklyTraffic)} / 7д`
                 .group-section
                   .devices
                     +deviceList(user.devices)

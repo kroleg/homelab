@@ -1,7 +1,8 @@
 import type { Logger } from '../logger.ts';
-import type { KeeneticService, Device as KeeneticDevice } from './keenetic.service.ts';
+import type { KeeneticService, Device as KeeneticDevice, TrafficInfo } from './keenetic.service.ts';
 import type { UserRepository } from '../storage/user.repository.ts';
 import type { DeviceRepository } from '../storage/device.repository.ts';
+import type { TrafficRepository } from '../storage/traffic.repository.ts';
 import type { User, Device, DeviceType } from '../storage/db-schema.ts';
 
 export interface EnrichedDevice extends Device {
@@ -9,6 +10,7 @@ export interface EnrichedDevice extends Device {
   ip: string | null;
   online: boolean;
   policy: string | null;
+  traffic: TrafficInfo | null;
 }
 
 export interface DiscoveredDevice {
@@ -22,12 +24,15 @@ export interface DiscoveredDevice {
 export interface UserWithDevices extends User {
   devices: EnrichedDevice[];
   onlineCount: number;
+  totalTraffic: number;
+  weeklyTraffic: number;
 }
 
 export function createDeviceService(
   keenetic: KeeneticService,
   userRepo: UserRepository,
   deviceRepo: DeviceRepository,
+  trafficRepo: TrafficRepository,
   logger: Logger
 ) {
   async function getKeeneticDevicesMap(): Promise<Map<string, KeeneticDevice>> {
@@ -35,14 +40,20 @@ export function createDeviceService(
     return new Map(keeneticDevices.map(d => [d.mac.toUpperCase(), d]));
   }
 
-  function enrichDevice(device: Device, keeneticByMac: Map<string, KeeneticDevice>): EnrichedDevice {
+  function enrichDevice(
+    device: Device,
+    keeneticByMac: Map<string, KeeneticDevice>,
+    todayByMac?: Record<string, TrafficInfo>,
+  ): EnrichedDevice {
     const live = keeneticByMac.get(device.mac.toUpperCase());
+    const traffic = todayByMac?.[device.mac.toLowerCase()] ?? null;
     return {
       ...device,
       keeneticName: live?.name ?? null,
       ip: live?.ip ?? null,
       online: live?.online ?? false,
       policy: live?.policy ?? null,
+      traffic,
     };
   }
 
@@ -56,17 +67,38 @@ export function createDeviceService(
   }
 
   return {
-    async getUsersWithDevices(): Promise<UserWithDevices[]> {
+    async getUsersWithDevices(includeTraffic = false): Promise<UserWithDevices[]> {
       const [users, dbDevices, keeneticByMac] = await Promise.all([
         userRepo.findAll(),
         deviceRepo.findAll(),
         getKeeneticDevicesMap(),
       ]);
 
+      const allMacs = dbDevices.filter(d => d.userId).map(d => d.mac.toLowerCase());
+      let todayByMac: Record<string, TrafficInfo> | undefined;
+      let weeklyByMac: Map<string, number> | undefined;
+
+      if (includeTraffic && allMacs.length > 0) {
+        const today = new Date().toISOString().slice(0, 10);
+        const weeklyRows = await trafficRepo.getDailyTotals(allMacs, 7);
+
+        todayByMac = {};
+        weeklyByMac = new Map<string, number>();
+        for (const row of weeklyRows) {
+          const mac = row.mac.toLowerCase();
+          weeklyByMac.set(mac, (weeklyByMac.get(mac) || 0) + row.rx);
+          if (row.date === today) {
+            const prev = todayByMac[mac]?.total || 0;
+            const rx = prev + row.rx;
+            todayByMac[mac] = { rx, tx: 0, total: rx };
+          }
+        }
+      }
+
       const devicesByUserId = new Map<number, EnrichedDevice[]>();
       for (const device of dbDevices) {
         if (device.userId) {
-          const enriched = enrichDevice(device, keeneticByMac);
+          const enriched = enrichDevice(device, keeneticByMac, todayByMac);
           const list = devicesByUserId.get(device.userId) || [];
           list.push(enriched);
           devicesByUserId.set(device.userId, list);
@@ -76,7 +108,11 @@ export function createDeviceService(
       return users.map(user => {
         const devices = sortByOnlineThenName(devicesByUserId.get(user.id) || []);
         const onlineCount = devices.filter(d => d.online).length;
-        return { ...user, devices, onlineCount };
+        const totalTraffic = devices.reduce((sum, d) => sum + (d.traffic?.total ?? 0), 0);
+        const weeklyTraffic = devices.reduce((sum, d) => {
+          return sum + (weeklyByMac?.get(d.mac.toLowerCase()) || 0);
+        }, 0);
+        return { ...user, devices, onlineCount, totalTraffic, weeklyTraffic };
       });
     },
 

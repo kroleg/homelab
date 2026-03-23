@@ -8,6 +8,8 @@ import { createDeviceService } from './services/device.service.ts';
 import { initDatabase, runMigrations, closeDatabase } from './storage/db.ts';
 import { createUserRepository } from './storage/user.repository.ts';
 import { createDeviceRepository } from './storage/device.repository.ts';
+import { createTrafficRepository } from './storage/traffic.repository.ts';
+import { createTrafficPoller } from './services/traffic-poller.service.ts';
 import { DeviceType } from './storage/db-schema.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -22,7 +24,11 @@ await runMigrations(db, logger);
 
 const userRepo = createUserRepository(db);
 const deviceRepo = createDeviceRepository(db);
-const deviceService = createDeviceService(keenetic, userRepo, deviceRepo, logger);
+const trafficRepo = createTrafficRepository(db);
+const deviceService = createDeviceService(keenetic, userRepo, deviceRepo, trafficRepo, logger);
+
+const trafficPoller = createTrafficPoller(keenetic, deviceRepo, trafficRepo, logger, 10 * 60 * 1000);
+trafficPoller.start();
 
 const app = express();
 app.set('views', path.join(__dirname, 'views'));
@@ -164,11 +170,17 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`;
+}
+
 // Main page - users with devices + unassigned + unregistered
 app.get('/', requireAdmin, async (_req, res) => {
   try {
     const [usersWithDevices, unassignedDevices, unregisteredDevices, allUsers] = await Promise.all([
-      deviceService.getUsersWithDevices(),
+      deviceService.getUsersWithDevices(true),
       deviceService.getUnassignedDevices(),
       deviceService.getUnregisteredDevices(),
       deviceService.getAllUsers(),
@@ -192,6 +204,7 @@ app.get('/', requireAdmin, async (_req, res) => {
       },
       allUsers,
       deviceTypes: Object.values(DeviceType),
+      formatBytes,
       homeUrl: config.homeUrl,
     });
   } catch (error) {
@@ -554,6 +567,7 @@ const server = app.listen(config.port, () => {
 
 async function shutdown() {
   logger.info('Shutting down...');
+  trafficPoller.stop();
   server.close(async () => {
     await closeDatabase(logger);
     process.exit(0);

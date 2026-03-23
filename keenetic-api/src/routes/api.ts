@@ -128,6 +128,19 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
     }
   });
 
+  router.post('/traffic', async (req, res) => {
+    const { macs } = req.body;
+
+    if (!macs || !Array.isArray(macs) || macs.length === 0) {
+      res.status(400).json({ error: 'macs array is required' });
+      return;
+    }
+
+    logger.debug(`Fetching traffic for ${macs.length} devices`);
+    const traffic = await keenetic.getTrafficBulk(macs);
+    res.json(traffic);
+  });
+
   router.post('/reboot', async (_req, res) => {
     logger.info('Router reboot requested');
     const success = await keenetic.reboot();

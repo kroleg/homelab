@@ -16,6 +16,19 @@ export interface ClientInfo {
   policy: string | null;
 }
 
+export interface TrafficInfo {
+  rx: number;
+  tx: number;
+  total: number;
+}
+
+export interface HourlyTraffic {
+  date: string;
+  hour: number;
+  rx: number;
+  tx: number;
+}
+
 export function createKeeneticService(apiUrl: string, logger: Logger) {
   async function fetchJson<T>(path: string): Promise<T | null> {
     try {
@@ -39,6 +52,25 @@ export function createKeeneticService(apiUrl: string, logger: Logger) {
 
     async getClientByIp(ip: string): Promise<ClientInfo | null> {
       return fetchJson<ClientInfo>(`/api/client?ip=${encodeURIComponent(ip)}`);
+    },
+
+    async getTrafficBulk(macs: string[]): Promise<Record<string, HourlyTraffic[]>> {
+      if (macs.length === 0) return {};
+      try {
+        const response = await fetch(`${apiUrl}/api/traffic`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ macs }),
+        });
+        if (!response.ok) {
+          logger.error(`Traffic API error: ${response.status}`);
+          return {};
+        }
+        return await response.json() as Record<string, HourlyTraffic[]>;
+      } catch (error) {
+        logger.error(`Traffic API fetch error: ${error}`);
+        return {};
+      }
     },
   };
 }

@@ -15,6 +15,13 @@
       "when": 1771348747087,
       "tag": "0001_add_tailscale_ip",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774251678009,
+      "tag": "0002_first_smasher",
+      "breakpoints": true
     }
   ]
 }

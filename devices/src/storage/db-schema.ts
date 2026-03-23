@@ -1,4 +1,4 @@
-import { pgTable, serial, text, boolean, timestamp, integer } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, boolean, timestamp, integer, bigint, date, unique } from 'drizzle-orm/pg-core';
 
 export const DeviceType = {
   phone: 'phone',
@@ -29,7 +29,20 @@ export const devicesTable = pgTable('devices', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const hourlyTrafficTable = pgTable('hourly_traffic', {
+  id: serial('id').primaryKey(),
+  date: date('date', { mode: 'string' }).notNull(),
+  hour: integer('hour').notNull(),
+  mac: text('mac').notNull(),
+  rx: bigint('rx', { mode: 'number' }).notNull().default(0),
+  tx: bigint('tx', { mode: 'number' }).notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  unique().on(table.date, table.hour, table.mac),
+]);
+
 export type User = typeof usersTable.$inferSelect;
 export type NewUser = typeof usersTable.$inferInsert;
 export type Device = typeof devicesTable.$inferSelect;
 export type NewDevice = typeof devicesTable.$inferInsert;
+export type HourlyTraffic = typeof hourlyTrafficTable.$inferSelect;

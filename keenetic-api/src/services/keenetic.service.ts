@@ -9,6 +9,13 @@ export interface ClientInfo {
   policy: string | null;
 }
 
+export interface HourlyTraffic {
+  date: string;
+  hour: number;
+  rx: number;
+  tx: number;
+}
+
 export interface RouteInfo {
   network?: string;
   mask?: string;
@@ -497,6 +504,82 @@ export function createKeeneticService(config: {
       } catch (error) {
         logger.error('Ping error:', error);
         return false;
+      }
+    },
+
+    async getTrafficBulk(macs: string[]): Promise<Record<string, HourlyTraffic[]>> {
+      if (macs.length === 0) return {};
+
+      try {
+        // detail:2 = 3h window, 180s step — gives hourly granularity
+        const commands: unknown[] = [
+          { show: { system: {} } },
+          ...macs.flatMap(mac => [
+            { show: { ip: { hotspot: { rrd: { mac, attribute: 'rxbytes', detail: 2 } } } } },
+            { show: { ip: { hotspot: { rrd: { mac, attribute: 'txbytes', detail: 2 } } } } },
+          ]),
+        ];
+
+        const response = await postWithAuth('/rci/', commands);
+        if (response.status !== 200 || !Array.isArray(response.data)) {
+          logger.error(`Failed to get traffic. Status: ${response.status}`);
+          return {};
+        }
+
+        const results = response.data as Array<Record<string, unknown>>;
+
+        // Convert uptime-based RRD timestamps to wall clock
+        const sysData = results[0] as { show?: { system?: { uptime?: string } } };
+        const uptime = parseInt(sysData?.show?.system?.uptime || '0');
+        const bootEpoch = Date.now() / 1000 - uptime;
+
+        type RrdPoint = { t: string; v: number };
+        type RrdResult = { show?: { ip?: { hotspot?: { rrd?: { data?: RrdPoint[] } } } } };
+        const rrdResults = results.slice(1) as RrdResult[];
+
+        function bucketByHour(
+          rxData: RrdPoint[] | undefined,
+          txData: RrdPoint[] | undefined,
+        ): HourlyTraffic[] {
+          const hourlyMap = new Map<string, { rx: number; tx: number }>();
+
+          for (const point of rxData || []) {
+            const wallTime = bootEpoch + parseFloat(point.t);
+            const date = new Date(wallTime * 1000);
+            const key = `${date.toISOString().slice(0, 10)}:${date.getHours()}`;
+            const bucket = hourlyMap.get(key) || { rx: 0, tx: 0 };
+            bucket.rx += point.v;
+            hourlyMap.set(key, bucket);
+          }
+
+          for (const point of txData || []) {
+            const wallTime = bootEpoch + parseFloat(point.t);
+            const date = new Date(wallTime * 1000);
+            const key = `${date.toISOString().slice(0, 10)}:${date.getHours()}`;
+            const bucket = hourlyMap.get(key) || { rx: 0, tx: 0 };
+            bucket.tx += point.v;
+            hourlyMap.set(key, bucket);
+          }
+
+          const hourly: HourlyTraffic[] = [];
+          for (const [key, val] of hourlyMap) {
+            const [dateStr, hourStr] = key.split(':');
+            hourly.push({ date: dateStr, hour: parseInt(hourStr), rx: val.rx, tx: val.tx });
+          }
+          return hourly;
+        }
+
+        const traffic: Record<string, HourlyTraffic[]> = {};
+        for (let i = 0; i < macs.length; i++) {
+          const rxData = rrdResults[i * 2]?.show?.ip?.hotspot?.rrd?.data;
+          const txData = rrdResults[i * 2 + 1]?.show?.ip?.hotspot?.rrd?.data;
+          traffic[macs[i].toLowerCase()] = bucketByHour(rxData, txData);
+        }
+
+        return traffic;
+      } catch (error) {
+        logger.error('Error fetching traffic:', error);
+        return {};
       }
     },
 
