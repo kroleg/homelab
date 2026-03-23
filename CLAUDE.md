@@ -53,3 +53,5 @@ Refer to @typescript-architecture.md
 - When adding new services, update the Subfolders list in this file
 - don't mention claude in commits
 - use git without -C when possible
+- Use jq (not python) for JSON processing in shell commands
+- To test service APIs not exposed on host, temporarily add a port mapping in docker-compose rather than using docker exec or ephemeral containers
