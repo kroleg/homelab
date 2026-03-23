@@ -13,6 +13,7 @@ custom_components/
 home-assistant_v2.db
 home-assistant_v2.db-shm
 home-assistant_v2.db-wal
+automations.yaml
 
 # Zigbee2MQTT auto-generated
 zigbee2mqtt/devices.yaml
