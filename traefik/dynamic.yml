@@ -1,11 +1,5 @@
 http:
   routers:
-    claude-chat:
-      rule: "Host(`chat.internal`)"
-      entrypoints:
-        - web
-      service: claude-chat
-
     homeassistant:
       rule: "Host(`hass.internal`)"
       entrypoints:
@@ -19,11 +13,6 @@ http:
       service: zigbee2mqtt
 
   services:
-    claude-chat:
-      loadBalancer:
-        servers:
-          - url: "http://127.0.0.1:3005"
-
     homeassistant:
       loadBalancer:
         servers:
