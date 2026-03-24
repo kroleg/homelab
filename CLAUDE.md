@@ -54,3 +54,4 @@ Refer to @typescript-architecture.md
 - use git without -C when possible
 - Use jq (not python) for JSON processing in shell commands
 - To test service APIs not exposed on host, temporarily add a port mapping in docker-compose rather than using docker exec or ephemeral containers
+- use npm/pnpm typecheck script if available instead of `npx tsc --noEmit`
