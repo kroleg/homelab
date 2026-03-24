@@ -120,7 +120,7 @@ services:
       - PORT=3002
       - KEENETIC_API_URL=http://keenetic-api:3005/api
       - DEVICES_API_URL=http://devices:3009
-      - ADMIN_ONLY_POLICIES=kz
+      - ADMIN_ONLY_POLICIES=kz,low speed
     networks:
       - default
       - shared
