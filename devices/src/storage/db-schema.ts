@@ -11,11 +11,27 @@ export const DeviceType = {
 } as const;
 export type DeviceType = (typeof DeviceType)[keyof typeof DeviceType];
 
+export const UserRole = {
+  parent: 'parent',
+  child: 'child',
+  group: 'group',
+  guest: 'guest',
+} as const;
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];
+
+export const UserRoleLabel: Record<UserRole, string> = {
+  parent: 'Родитель',
+  child: 'Ребенок',
+  group: 'Группа',
+  guest: 'Гость',
+};
+
 export const usersTable = pgTable('users', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
   isAdmin: boolean('is_admin').notNull().default(false),
+  role: text('role').notNull().default('parent'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

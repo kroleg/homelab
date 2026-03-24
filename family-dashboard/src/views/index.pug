@@ -119,6 +119,17 @@ block content
               .link-name= service.name
               .link-desc= service.description
 
+      if parentServices && parentServices.length > 0
+        .links(style="margin-top: 0.5rem")
+          each service in parentServices
+            a.link(href=service.url)
+              .link-icon
+                svg(xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2")
+                  path(stroke-linecap="round" stroke-linejoin="round" d=service.icon)
+              .link-content
+                .link-name= service.name
+                .link-desc= service.description
+
       if adminServices && adminServices.length > 0
         .admin-section
           .admin-header Админ

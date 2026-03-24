@@ -116,14 +116,18 @@ block content
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .admin-badge {
+    .badge {
       font-size: 0.5rem;
       padding: 0.125rem 0.25rem;
       border-radius: 0.25rem;
-      background: var(--primary);
       color: white;
       flex-shrink: 0;
     }
+    .badge-admin { background: var(--primary); }
+    .badge-parent { background: #16a34a; }
+    .badge-child { background: #f59e0b; }
+    .badge-group { background: #94a3b8; }
+    .badge-guest { background: #a78bfa; }
     .group-actions {
       display: flex;
       gap: 0.25rem;
@@ -384,6 +388,11 @@ block content
             label.form-label Slug (латиницей)
             input.form-input(type="text" name="slug" value=user.slug pattern="[a-z0-9-]+" required)
           .form-group
+            label.form-label Роль
+            select.form-select(name="role")
+              each label, value in userRoles
+                option(value=value selected=(user.role === value))= label
+          .form-group
             label.form-checkbox
               input(type="checkbox" name="isAdmin" checked=user.isAdmin)
               span Администратор
@@ -408,8 +417,9 @@ block content
                 a.user-header(href=`#edit-user-${user.id}`)
                   .group-info
                     span.group-name= user.name
+                    span.badge(class=`badge-${user.role}`)= userRoles[user.role].toUpperCase()
                     if user.isAdmin
-                      span.admin-badge ADMIN
+                      span.badge.badge-admin ADMIN
                   .user-traffic-info
                     if user.totalTraffic > 0
                       span.user-traffic= formatBytes(user.totalTraffic)
@@ -451,6 +461,11 @@ block content
         .form-group
           label.form-label Slug (латиницей)
           input.form-input(type="text" name="slug" placeholder="vitaliy" pattern="[a-z0-9-]+" required)
+        .form-group
+          label.form-label Роль
+          select.form-select(name="role")
+            each label, value in userRoles
+              option(value=value)= label
         .form-group
           label.form-checkbox
             input(type="checkbox" name="isAdmin")

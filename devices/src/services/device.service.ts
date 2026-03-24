@@ -3,7 +3,7 @@ import type { KeeneticService, Device as KeeneticDevice, TrafficInfo } from './k
 import type { UserRepository } from '../storage/user.repository.ts';
 import type { DeviceRepository } from '../storage/device.repository.ts';
 import type { TrafficRepository } from '../storage/traffic.repository.ts';
-import type { User, Device, DeviceType } from '../storage/db-schema.ts';
+import type { User, Device, DeviceType, UserRole } from '../storage/db-schema.ts';
 
 export interface EnrichedDevice extends Device {
   keeneticName: string | null;
@@ -234,9 +234,14 @@ export function createDeviceService(
       return userRepo.findAll();
     },
 
-    async createUser(name: string, slug: string, isAdmin: boolean = false): Promise<User> {
-      logger.info(`Creating user ${name} (${slug})`);
-      return userRepo.create({ name, slug, isAdmin });
+    async createUser(data: { name: string; slug: string; isAdmin?: boolean; role?: UserRole }): Promise<User> {
+      logger.info(`Creating user ${data.name} (${data.slug})`);
+      return userRepo.create({
+        name: data.name,
+        slug: data.slug,
+        isAdmin: data.isAdmin ?? false,
+        role: data.role ?? 'parent',
+      });
     },
 
     async deleteUser(userId: number): Promise<void> {
@@ -253,7 +258,7 @@ export function createDeviceService(
 
     async updateUser(
       userId: number,
-      data: { name?: string; slug?: string; isAdmin?: boolean }
+      data: { name?: string; slug?: string; isAdmin?: boolean; role?: UserRole }
     ): Promise<User | undefined> {
       logger.info(`Updating user ${userId}`, data);
       return userRepo.update(userId, data);

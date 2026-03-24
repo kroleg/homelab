@@ -10,7 +10,7 @@ import { createUserRepository } from './storage/user.repository.ts';
 import { createDeviceRepository } from './storage/device.repository.ts';
 import { createTrafficRepository } from './storage/traffic.repository.ts';
 import { createTrafficPoller } from './services/traffic-poller.service.ts';
-import { DeviceType } from './storage/db-schema.ts';
+import { DeviceType, UserRole, UserRoleLabel } from './storage/db-schema.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -48,7 +48,7 @@ function isTailscaleIp(ip: string): boolean {
 async function lookupByIp(ip: string): Promise<{
   mac: string | null;
   device: { id: number; customName: string | null; deviceType: string } | null;
-  user: { id: number; name: string; slug: string; isAdmin: boolean } | null;
+  user: { id: number; name: string; slug: string; isAdmin: boolean; role: UserRole } | null;
   tailscale: boolean;
 }> {
   // Normalize IP (strip IPv6 prefix)
@@ -64,7 +64,7 @@ async function lookupByIp(ip: string): Promise<{
     return {
       mac: device?.mac ?? null,
       device: device ? { id: device.id, customName: device.customName, deviceType: device.deviceType } : null,
-      user: user ? { id: user.id, name: user.name, slug: user.slug, isAdmin: user.isAdmin } : null,
+      user: user ? { id: user.id, name: user.name, slug: user.slug, isAdmin: user.isAdmin, role: user.role as UserRole } : null,
       tailscale: true,
     };
   }
@@ -85,7 +85,7 @@ async function lookupByIp(ip: string): Promise<{
   return {
     mac,
     device: device ? { id: device.id, customName: device.customName, deviceType: device.deviceType } : null,
-    user: user ? { id: user.id, name: user.name, slug: user.slug, isAdmin: user.isAdmin } : null,
+    user: user ? { id: user.id, name: user.name, slug: user.slug, isAdmin: user.isAdmin, role: user.role as UserRole } : null,
     tailscale: false,
   };
 }
@@ -234,6 +234,7 @@ app.get('/', requireAdmin, async (_req, res) => {
       },
       allUsers,
       deviceTypes: Object.values(DeviceType),
+      userRoles: UserRoleLabel,
       formatBytes,
       homeUrl: config.homeUrl,
     });
@@ -250,7 +251,7 @@ app.get('/', requireAdmin, async (_req, res) => {
 // Create user
 app.post('/users', requireAdmin, async (req, res) => {
   try {
-    const { name, slug, isAdmin: isAdminStr } = req.body;
+    const { name, slug, isAdmin: isAdminStr, role } = req.body;
     if (!name || !slug) {
       return res.status(400).render('error', {
         title: 'Ошибка',
@@ -258,7 +259,8 @@ app.post('/users', requireAdmin, async (req, res) => {
         homeUrl: config.homeUrl,
       });
     }
-    await deviceService.createUser(name, slug.toLowerCase(), isAdminStr === 'on');
+    const validRole = Object.values(UserRole).includes(role) ? role : 'parent';
+    await deviceService.createUser({ name, slug: slug.toLowerCase(), isAdmin: isAdminStr === 'on', role: validRole });
     res.redirect('/');
   } catch (error) {
     logger.error('Error creating user:', error);
@@ -306,9 +308,9 @@ app.post('/users/:id/toggle-admin', requireAdmin, async (req, res) => {
 app.post('/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.id as string);
-    const { name, slug, isAdmin: isAdminStr } = req.body;
+    const { name, slug, isAdmin: isAdminStr, role } = req.body;
 
-    const updateData: { name?: string; slug?: string; isAdmin?: boolean } = {};
+    const updateData: { name?: string; slug?: string; isAdmin?: boolean; role?: UserRole } = {};
 
     if (name?.trim()) {
       updateData.name = name.trim();
@@ -317,6 +319,9 @@ app.post('/users/:id', requireAdmin, async (req, res) => {
       updateData.slug = slug.trim().toLowerCase();
     }
     updateData.isAdmin = isAdminStr === 'on';
+    if (Object.values(UserRole).includes(role)) {
+      updateData.role = role;
+    }
 
     await deviceService.updateUser(userId, updateData);
     res.redirect('/');
@@ -538,6 +543,7 @@ app.get('/api/users', async (_req, res) => {
       name: u.name,
       slug: u.slug,
       isAdmin: u.isAdmin,
+      role: u.role,
     })));
   } catch (error) {
     logger.error('API error in /api/users:', error);
