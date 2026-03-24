@@ -15,6 +15,6 @@ RUN pnpm run typecheck
 # Remove dev deps for smaller image
 RUN pnpm prune --prod
 
-EXPOSE 3002
+EXPOSE 3000
 
 CMD ["node", "src/server.ts"]

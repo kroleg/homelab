@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-KEENETIC_API="http://localhost:3005/api"
+KEENETIC_API="http://localhost:3000/api"
 TELEGRAM_API="http://localhost:3008/api"
 
 # Send Telegram notification

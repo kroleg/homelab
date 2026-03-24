@@ -36,7 +36,7 @@ docker compose up -d calendar
 | `CALENDAR_CONFIG_<ID>_URL` | ICS URL for calendar | required |
 | `CALENDAR_CONFIG_<ID>_NAME` | Display name | ID |
 | `CALENDAR_CONFIG_<ID>_COLOR` | Hex color | auto |
-| `PORT` | Server port | 3003 |
+| `PORT` | Server port | 3000 |
 | `CACHE_TTL_MINUTES` | Cache duration | 5 |
 | `TIMEZONE` | Timezone offset | +03:00 |
 

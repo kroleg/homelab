@@ -13,6 +13,6 @@ RUN pnpm run typecheck
 
 RUN pnpm prune --prod
 
-EXPOSE 3006
+EXPOSE 3000
 
 CMD ["node", "src/server.ts"]

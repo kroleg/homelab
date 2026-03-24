@@ -1,5 +1,5 @@
 export function loadConfig() {
-  const port = parseInt(process.env.PORT || '3008');
+  const port = parseInt(process.env.PORT || '3000');
   const logLevel = process.env.LOG_LEVEL || 'info';
 
   if (!process.env.TELEGRAM_BOT_TOKEN) {

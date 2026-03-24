@@ -16,7 +16,7 @@ export const defaultConfig = {
   blocklistFile: process.env.BLOCKLIST_FILE || '',
   slowDnsThresholdMs: envToInt(process.env.SLOW_DNS_THRESHOLD_MS, 1000),
   timeout: envToInt(process.env.DNS_TIMEOUT_MS, 5000),
-  apiPort: envToInt(process.env.API_PORT, 3001),
+  apiPort: envToInt(process.env.API_PORT, 3000),
   enableApi: process.env.ENABLE_API === 'true'
 };
 

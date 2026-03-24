@@ -10,7 +10,7 @@ export function loadConfig() {
   }
 
   return {
-    port: parseInt(process.env.PORT || '3004'),
+    port: parseInt(process.env.PORT || '3000'),
     postgres: {
       host: process.env.POSTGRES_HOST || 'localhost',
       port: parseInt(process.env.POSTGRES_PORT || '5432'),

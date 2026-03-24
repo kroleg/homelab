@@ -1,7 +1,7 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import type { KeeneticClient } from '../services/keenetic-client.ts';
 
-const DNS_API_URL = process.env.DNS_API_URL || 'http://dns-proxy:3001';
+const DNS_API_URL = process.env.DNS_API_URL || 'http://dns-proxy:3000';
 
 interface DnsLogEntry {
   id: number;

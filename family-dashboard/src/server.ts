@@ -6,8 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3006;
-const DEVICES_API_URL = process.env.DEVICES_API_URL || 'http://devices:3009';
+const PORT = process.env.PORT || 3000;
+const DEVICES_API_URL = process.env.DEVICES_API_URL || 'http://devices:3000';
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');

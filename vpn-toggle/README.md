@@ -13,14 +13,14 @@ Self-service web UI for users to toggle their device's VPN routing policy.
 
 | Port | Protocol | Description |
 |------|----------|-------------|
-| 3002 | HTTP | Web UI |
+| 3000 | HTTP | Web UI |
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MAIN_API_URL` | `http://main:3000` | Main service API endpoint |
-| `PORT` | `3002` | HTTP server port |
+| `PORT` | `3000` | HTTP server port |
 
 ## How It Works
 

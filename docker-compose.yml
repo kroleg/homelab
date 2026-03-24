@@ -59,8 +59,8 @@ services:
       - POSTGRES_DB=dns2vpn
       - POSTGRES_USER=dns2vpn
       - POSTGRES_PASSWORD=dns2vpn
-      - KEENETIC_API_URL=http://keenetic-api:3005
-      - DNS_API_URL=http://dns-proxy:3001
+      - KEENETIC_API_URL=http://keenetic-api:3000
+      - DNS_API_URL=http://dns-proxy:3000
       - DEFAULT_VPN_INTERFACE=lithuania
     networks:
       - default
@@ -84,7 +84,7 @@ services:
       - HOST_TO_IP_FILE=/config/host-to-ip.txt
       - BLOCKLIST_FILE=/config/blocklist.txt
       - ENABLE_API=true
-      - API_PORT=3001
+      - API_PORT=3000
       # Upstream DNS servers: Use DNS over TLS for privacy
       # Format: protocol://host:port#servername
       # Examples:
@@ -99,7 +99,7 @@ services:
     ports:
       - "53:53/tcp"
       - "53:53/udp"
-      - "3001:3001"
+      - "3001:3000"
     volumes:
       - ./shared-logs:/logs
       - ./dns-proxy/config:/config
@@ -117,9 +117,8 @@ services:
       context: ./vpn-toggle
       dockerfile: Dockerfile
     environment:
-      - PORT=3002
-      - KEENETIC_API_URL=http://keenetic-api:3005/api
-      - DEVICES_API_URL=http://devices:3009
+      - KEENETIC_API_URL=http://keenetic-api:3000/api
+      - DEVICES_API_URL=http://devices:3000
       - ADMIN_ONLY_POLICIES=kz,low speed
     networks:
       - default
@@ -129,7 +128,7 @@ services:
       # Main router on vpn.internal
       - "traefik.http.routers.vpn.rule=Host(`vpn.internal`)"
       - "traefik.http.routers.vpn.entrypoints=web"
-      - "traefik.http.services.vpn.loadbalancer.server.port=3002"
+      - "traefik.http.services.vpn.loadbalancer.server.port=3000"
       # Redirect from old domain
       - "traefik.http.routers.vpn-redirect.rule=Host(`vpn-toggle.internal`)"
       - "traefik.http.routers.vpn-redirect.entrypoints=web"
@@ -149,8 +148,7 @@ services:
     depends_on:
       - devices
     environment:
-      - PORT=3006
-      - DEVICES_API_URL=http://devices:3009
+      - DEVICES_API_URL=http://devices:3000
     networks:
       - default
       - shared
@@ -158,7 +156,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.family-dashboard.rule=Host(`dom.internal`)"
       - "traefik.http.routers.family-dashboard.entrypoints=web"
-      - "traefik.http.services.family-dashboard.loadbalancer.server.port=3006"
+      - "traefik.http.services.family-dashboard.loadbalancer.server.port=3000"
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
@@ -184,7 +182,6 @@ services:
       - KEENETIC_HOST=${KEENETIC_HOST}
       - KEENETIC_LOGIN=${KEENETIC_LOGIN}
       - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
-      - PORT=3005
       - DEFAULT_VPN_INTERFACE=lithuania
       - PING_INTERVAL_MINUTES=1
     restart: unless-stopped
@@ -197,7 +194,6 @@ services:
     env_file:
       - ./calendar/.env
     environment:
-      - PORT=3003
       - CACHE_TTL_MINUTES=5
       - CALENDAR_IDS=FAMILY
       - CALENDAR_CONFIG_FAMILY_NAME=Семья
@@ -212,7 +208,7 @@ services:
       - SUBCALENDAR_KIRILL_NAME=Кирилл
       - SUBCALENDAR_KIRILL_COLOR=#69B4FF
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3003/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -224,7 +220,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.calendar.rule=Host(`calendar.internal`)"
       - "traefik.http.routers.calendar.entrypoints=web"
-      - "traefik.http.services.calendar.loadbalancer.server.port=3003"
+      - "traefik.http.services.calendar.loadbalancer.server.port=3000"
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
@@ -253,7 +249,6 @@ services:
       context: ./page-watcher
       dockerfile: Dockerfile
     environment:
-      - PORT=3004
       - POSTGRES_HOST=postgres-pagewatcher
       - POSTGRES_PORT=5432
       - POSTGRES_DB=pagewatcher
@@ -268,7 +263,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.page-watcher.rule=Host(`page-watcher.internal`)"
       - "traefik.http.routers.page-watcher.entrypoints=web"
-      - "traefik.http.services.page-watcher.loadbalancer.server.port=3004"
+      - "traefik.http.services.page-watcher.loadbalancer.server.port=3000"
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
@@ -327,9 +322,8 @@ services:
     build:
       context: ./torrent-ui
     environment:
-      - PORT=3007
       - QBITTORRENT_URL=http://qbittorrent:8080
-      - DEVICES_API_URL=http://devices:3009
+      - DEVICES_API_URL=http://devices:3000
       - RUTRACKER_COOKIE=${RUTRACKER_COOKIE}
       - USER_DOWNLOAD_LIMIT_GB=100
     dns: [192.168.80.53]
@@ -343,7 +337,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.torrent-ui.rule=Host(`dl.internal`)"
       - "traefik.http.routers.torrent-ui.entrypoints=web"
-      - "traefik.http.services.torrent-ui.loadbalancer.server.port=3007"
+      - "traefik.http.services.torrent-ui.loadbalancer.server.port=3000"
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
@@ -369,9 +363,8 @@ services:
       context: ./devices
       dockerfile: Dockerfile
     environment:
-      - PORT=3009
       - LOG_LEVEL=info
-      - KEENETIC_API_URL=http://keenetic-api:3005
+      - KEENETIC_API_URL=http://keenetic-api:3000
       - POSTGRES_HOST=postgres-devices
       - POSTGRES_PORT=5432
       - POSTGRES_DB=devices
@@ -390,7 +383,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.devices.rule=Host(`devices.internal`)"
       - "traefik.http.routers.devices.entrypoints=web"
-      - "traefik.http.services.devices.loadbalancer.server.port=3009"
+      - "traefik.http.services.devices.loadbalancer.server.port=3000"
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
@@ -398,7 +391,6 @@ services:
     container_name: telegram-bot
     build: ./telegram-bot
     environment:
-      - PORT=3008
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - LOG_LEVEL=info
@@ -411,14 +403,14 @@ services:
       - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
-      - "3008:3008"
+      - "3008:3000"
     networks:
       - default
       - shared
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.telegram-bot.rule=Host(`telegram-bot.internal`)"
-      - "traefik.http.services.telegram-bot.loadbalancer.server.port=3008"
+      - "traefik.http.services.telegram-bot.loadbalancer.server.port=3000"
       - "traefik.docker.network=shared"
     restart: unless-stopped
 
@@ -432,8 +424,6 @@ services:
   docx-to-pdf:
     container_name: docx-to-pdf
     build: ./docx-to-pdf
-    environment:
-      - PORT=3010
     networks:
       - default
       - shared
@@ -441,7 +431,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.docx-to-pdf.rule=Host(`pdf.internal`)"
       - "traefik.http.routers.docx-to-pdf.entrypoints=web"
-      - "traefik.http.services.docx-to-pdf.loadbalancer.server.port=3010"
+      - "traefik.http.services.docx-to-pdf.loadbalancer.server.port=3000"
       - "traefik.docker.network=shared"
     restart: unless-stopped
 

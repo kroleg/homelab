@@ -9,7 +9,7 @@ import { optimizeRoutes, calculateOptimizationStats, filterIpsCoveredByOptimized
 
 const logger = createLogger(process.env.LOG_LEVEL || 'info');
 
-const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005';
+const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3000';
 logger.info(`Using Keenetic API at ${KEENETIC_API_URL}`);
 
 const api = createKeeneticClient(KEENETIC_API_URL, logger);

@@ -122,7 +122,7 @@ export function loadConfig(): AppConfig {
   }
 
   return {
-    port: parseInt(process.env.PORT || '3003', 10),
+    port: parseInt(process.env.PORT || '3000', 10),
     cacheTtlMinutes: parseInt(process.env.CACHE_TTL_MINUTES || '5', 10),
     timezone: process.env.TIMEZONE || '+03:00',
     calendars,

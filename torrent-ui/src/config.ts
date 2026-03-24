@@ -1,10 +1,10 @@
 export function loadConfig() {
-  const port = parseInt(process.env.PORT || '3007');
+  const port = parseInt(process.env.PORT || '3000');
   const logLevel = process.env.LOG_LEVEL || 'info';
   const qbittorrentUrl = process.env.QBITTORRENT_URL || 'http://localhost:8080';
   // URL that qBittorrent uses to reach torrent-ui (for completion hook)
   const selfUrl = process.env.SELF_URL || `http://torrent-ui:${port}`;
-  const devicesApiUrl = process.env.DEVICES_API_URL || 'http://devices:3009';
+  const devicesApiUrl = process.env.DEVICES_API_URL || 'http://devices:3000';
 
   const rutrackerCookie = process.env.RUTRACKER_COOKIE || '';
   // Download limit for non-admin users in bytes (default 1GB)

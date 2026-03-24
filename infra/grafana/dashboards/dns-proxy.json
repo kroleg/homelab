@@ -632,7 +632,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "### Recent Failed DNS Queries\n\nView failed domains via API: [dns-proxy:3001/dns-requests?status=failed](http://dns-proxy:3001/dns-requests?status=failed)\n\nFor recent requests in the admin UI: [admin.internal/logs](http://admin.internal/logs)",
+        "content": "### Recent Failed DNS Queries\n\nView failed domains via API: [dns-proxy:3000/dns-requests?status=failed](http://dns-proxy:3000/dns-requests?status=failed)\n\nFor recent requests in the admin UI: [admin.internal/logs](http://admin.internal/logs)",
         "mode": "markdown"
       },
       "pluginVersion": "11.3.0",

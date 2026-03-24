@@ -1,7 +1,7 @@
 export function loadConfig() {
-  const port = parseInt(process.env.PORT || '3009');
+  const port = parseInt(process.env.PORT || '3000');
   const logLevel = process.env.LOG_LEVEL || 'info';
-  const keeneticApiUrl = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005';
+  const keeneticApiUrl = process.env.KEENETIC_API_URL || 'http://keenetic-api:3000';
   const homeUrl = process.env.HOME_URL || 'http://dom.internal';
 
   // Bootstrap admin MACs - always treated as admin (comma-separated, uppercase)

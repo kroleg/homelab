@@ -6,9 +6,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3002;
-const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3005/api';
-const DEVICES_API_URL = process.env.DEVICES_API_URL || 'http://devices:3009';
+const PORT = process.env.PORT || 3000;
+const KEENETIC_API_URL = process.env.KEENETIC_API_URL || 'http://keenetic-api:3000/api';
+const DEVICES_API_URL = process.env.DEVICES_API_URL || 'http://devices:3000';
 const ADMIN_ONLY_POLICIES = (process.env.ADMIN_ONLY_POLICIES || '')
   .split(',')
   .map(s => s.trim().toLowerCase())

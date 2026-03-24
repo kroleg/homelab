@@ -1,5 +1,5 @@
 export function loadConfig() {
-  const port = parseInt(process.env.PORT || '3010');
+  const port = parseInt(process.env.PORT || '3000');
   const logLevel = process.env.LOG_LEVEL || 'info';
 
   return {

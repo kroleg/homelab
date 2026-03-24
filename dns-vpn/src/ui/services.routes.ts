@@ -4,7 +4,7 @@ import type { KeeneticClient } from '../services/keenetic-client.ts';
 import { matchDomainsAgainstPatterns } from '../utils/dns-log-processor.ts';
 import { filterIpsCoveredByOptimizedRoutes } from '../utils/route-optimizer.ts';
 
-const DNS_API_URL = process.env.DNS_API_URL || 'http://dns-proxy:3001';
+const DNS_API_URL = process.env.DNS_API_URL || 'http://dns-proxy:3000';
 const DEFAULT_VPN_INTERFACE = process.env.DEFAULT_VPN_INTERFACE;
 
 interface DnsLogEntry {
