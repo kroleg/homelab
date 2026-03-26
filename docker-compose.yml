@@ -182,6 +182,7 @@ services:
       - KEENETIC_HOST=${KEENETIC_HOST}
       - KEENETIC_LOGIN=${KEENETIC_LOGIN}
       - KEENETIC_PASSWORD=${KEENETIC_PASSWORD}
+      - TZ=${TZ}
       - DEFAULT_VPN_INTERFACE=lithuania
       - PING_INTERVAL_MINUTES=1
     restart: unless-stopped
@@ -273,7 +274,7 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Europe/Moscow
+      - TZ=${TZ}
       - WEBUI_PORT=8080
     volumes:
       - ./qbittorrent/config:/config
@@ -301,7 +302,7 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Europe/Moscow
+      - TZ=${TZ}
     volumes:
       - ./jellyfin/config:/config
       - ./jellyfin/cache:/cache
@@ -364,6 +365,7 @@ services:
       dockerfile: Dockerfile
     environment:
       - LOG_LEVEL=info
+      - TZ=${TZ}
       - KEENETIC_API_URL=http://keenetic-api:3000
       - POSTGRES_HOST=postgres-devices
       - POSTGRES_PORT=5432
@@ -443,7 +445,7 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Europe/Moscow
+      - TZ=${TZ}
       - COLLECTOR_CRON_SCHEDULE=0 * * * *
     volumes:
       - ./scrutiny/config:/opt/scrutiny/config
