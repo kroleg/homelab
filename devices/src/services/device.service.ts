@@ -230,6 +230,72 @@ export function createDeviceService(
       }).sort((a, b) => b.total - a.total);
     },
 
+    async getTodayHourlyByUser(): Promise<Array<{
+      user: User;
+      devices: Array<{ mac: string; name: string; hourly: number[] }>;
+      hourlyTotal: number[];
+    }>> {
+      const [users, dbDevices] = await Promise.all([
+        userRepo.findAll(),
+        deviceRepo.findAll(),
+      ]);
+
+      const allMacs = dbDevices.filter(d => d.userId).map(d => d.mac.toLowerCase());
+      const hourlyRows = await trafficRepo.getTodayHourly(allMacs);
+
+      const macToUserId = new Map<string, number>();
+      const macToName = new Map<string, string>();
+      for (const d of dbDevices) {
+        if (d.userId) {
+          macToUserId.set(d.mac.toLowerCase(), d.userId);
+          macToName.set(d.mac.toLowerCase(), d.customName || d.mac);
+        }
+      }
+
+      // Group: userId -> mac -> hour[] (24 slots)
+      const userDeviceHourly = new Map<number, Map<string, number[]>>();
+      for (const row of hourlyRows) {
+        const userId = macToUserId.get(row.mac);
+        if (!userId) continue;
+        let deviceMap = userDeviceHourly.get(userId);
+        if (!deviceMap) {
+          deviceMap = new Map();
+          userDeviceHourly.set(userId, deviceMap);
+        }
+        let hours = deviceMap.get(row.mac);
+        if (!hours) {
+          hours = new Array(24).fill(0);
+          deviceMap.set(row.mac, hours);
+        }
+        hours[row.hour] = row.rx;
+      }
+
+      return users
+        .map(user => {
+          const deviceMap = userDeviceHourly.get(user.id);
+          if (!deviceMap) return { user, devices: [], hourlyTotal: new Array(24).fill(0) };
+
+          const devices = Array.from(deviceMap.entries()).map(([mac, hourly]) => ({
+            mac,
+            name: macToName.get(mac) || mac,
+            hourly,
+          }));
+
+          const hourlyTotal = new Array(24).fill(0);
+          for (const d of devices) {
+            for (let h = 0; h < 24; h++) hourlyTotal[h] += d.hourly[h];
+          }
+
+          return { user, devices, hourlyTotal };
+        })
+        .filter(u => u.hourlyTotal.some(v => v > 0))
+        .sort((a, b) => {
+          const sumA = a.hourlyTotal.reduce((s, v) => s + v, 0);
+          const sumB = b.hourlyTotal.reduce((s, v) => s + v, 0);
+          return sumB - sumA;
+        });
+    },
+
     async getAllUsers(): Promise<User[]> {
       return userRepo.findAll();
     },

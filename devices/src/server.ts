@@ -177,7 +177,10 @@ function formatBytes(bytes: number): string {
 // Traffic page - 7 day table per user
 app.get('/traffic', requireAdmin, async (_req, res) => {
   try {
-    const data = await deviceService.getWeeklyTrafficByUser();
+    const [data, hourlyData] = await Promise.all([
+      deviceService.getWeeklyTrafficByUser(),
+      deviceService.getTodayHourlyByUser(),
+    ]);
 
     // Build last 7 days array (oldest first, today last)
     const days: string[] = [];
@@ -187,12 +190,16 @@ app.get('/traffic', requireAdmin, async (_req, res) => {
       days.push(d.toISOString().slice(0, 10));
     }
 
+    const currentHour = new Date().getHours();
+
     res.render('traffic', {
       title: 'Трафик',
       parentTitle: 'Устройства',
       parentUrl: '/',
       data,
+      hourlyData,
       days,
+      currentHour,
       formatBytes,
       homeUrl: config.homeUrl,
     });

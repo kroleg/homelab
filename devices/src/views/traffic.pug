@@ -12,6 +12,9 @@ block content
     .content {
       width: 100%;
       max-width: 48rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
     }
     table {
       width: 100%;
@@ -58,32 +61,137 @@ block content
       font-weight: 400;
       color: var(--muted);
     }
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+    .user-block {
+      margin-bottom: 1.5rem;
+    }
+    .user-name {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .device-chart {
+      margin-bottom: 0.75rem;
+    }
+    .device-chart-name {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 1px;
+      height: 4rem;
+    }
+    .bar-slot {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .bar {
+      width: 100%;
+      background: var(--primary);
+      border-radius: 2px 2px 0 0;
+      min-height: 0;
+      opacity: 0.7;
+    }
+    .bar.current {
+      opacity: 1;
+    }
+    .bar-labels {
+      display: flex;
+      gap: 1px;
+      margin-top: 2px;
+    }
+    .bar-label {
+      flex: 1;
+      text-align: center;
+      font-size: 0.5rem;
+      color: #d4d4d8;
+    }
+    .bar-label.active {
+      color: var(--muted);
+    }
+    .bar-value {
+      font-size: 0.5rem;
+      color: var(--muted);
+      margin-bottom: 1px;
+      white-space: nowrap;
+    }
 
   - const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+  -
+    function fmtBar(bytes) {
+      const gb = bytes / 1024 / 1024 / 1024;
+      if (gb >= 0.01) return gb.toFixed(2);
+      return '';
+    }
 
   .container
     .content
-      table
-        thead
-          tr
-            th Имя
-            each day in days
-              - const d = new Date(day + 'T12:00:00')
-              th
-                .day-header
-                  span.day-weekday= weekdays[d.getDay()]
-                  span.day-date= `${d.getDate()}.${(d.getMonth()+1).toString().padStart(2, '0')}`
-            th Всего
-        tbody
-          each row in data
-            - const hasTraffic = row.total > 0
-            if hasTraffic
-              tr
-                td.name= row.user.name
-                each day in days
-                  - const val = row.daily[day] || 0
-                  if val > 0
-                    td= formatBytes(val)
-                  else
-                    td.zero —
-                td.total= formatBytes(row.total)
+      //- Weekly table
+      .section
+        .section-title 7 дней
+        table
+          thead
+            tr
+              th Имя
+              each day in days
+                - const d = new Date(day + 'T12:00:00')
+                th
+                  .day-header
+                    span.day-weekday= weekdays[d.getDay()]
+                    span.day-date= `${d.getDate()}.${(d.getMonth()+1).toString().padStart(2, '0')}`
+              th Всего
+          tbody
+            each row in data
+              - const hasTraffic = row.total > 0
+              if hasTraffic
+                tr
+                  td.name= row.user.name
+                  each day in days
+                    - const val = row.daily[day] || 0
+                    if val > 0
+                      td= formatBytes(val)
+                    else
+                      td.zero —
+                  td.total= formatBytes(row.total)
+
+      //- Today hourly charts
+      .section
+        .section-title Сегодня по часам
+        each entry in hourlyData
+          - const maxVal = Math.max(...entry.hourlyTotal, 1)
+          .user-block
+            .user-name= entry.user.name
+            each device in entry.devices
+              - const devMax = Math.max(...device.hourly, 1)
+              - const hasData = device.hourly.some(v => v > 0)
+              if hasData
+                .device-chart
+                  .device-chart-name= device.name
+                  .bar-chart
+                    each val, h in device.hourly
+                      if h <= currentHour
+                        .bar-slot
+                          if val > 0
+                            .bar-value= fmtBar(val)
+                          .bar(
+                            class=(h === currentHour ? 'current' : '')
+                            style=`height: ${val > 0 ? Math.max(val / maxVal * 100, 3) : 0}%`
+                          )
+                  .bar-labels
+                    each val, h in device.hourly
+                      if h <= currentHour
+                        .bar-label(class=(h % 3 === 0 ? 'active' : ''))= h % 3 === 0 ? h : ''

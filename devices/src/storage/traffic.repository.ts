@@ -1,4 +1,4 @@
-import { and, sql, gte, inArray } from 'drizzle-orm';
+import { and, sql, gte, eq, inArray } from 'drizzle-orm';
 import type { Database } from './db.ts';
 import { hourlyTrafficTable } from './db-schema.ts';
 
@@ -55,6 +55,24 @@ export function createTrafficRepository(db: Database) {
         rx: Number(r.rx),
         tx: Number(r.tx),
       }));
+    },
+
+    async getTodayHourly(macs: string[]): Promise<Array<{ hour: number; mac: string; rx: number }>> {
+      if (macs.length === 0) return [];
+      const today = new Date().toISOString().slice(0, 10);
+
+      const rows = await db.select({
+        hour: hourlyTrafficTable.hour,
+        mac: hourlyTrafficTable.mac,
+        rx: hourlyTrafficTable.rx,
+      })
+        .from(hourlyTrafficTable)
+        .where(and(
+          eq(hourlyTrafficTable.date, today),
+          inArray(hourlyTrafficTable.mac, macs),
+        ));
+
+      return rows.map(r => ({ hour: r.hour, mac: r.mac, rx: Number(r.rx) }));
     },
   };
 }
