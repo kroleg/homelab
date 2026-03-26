@@ -57,6 +57,21 @@ export function createDeviceService(
     };
   }
 
+  const rolePriority: Record<string, number> = { parent: 1, child: 2, group: 3, guest: 4 };
+
+  function sortUsers<T extends { isAdmin: boolean; role: string; name: string }>(users: T[]): T[] {
+    return users.sort((a, b) => {
+      // Admins first
+      if (a.isAdmin !== b.isAdmin) return a.isAdmin ? -1 : 1;
+      // Then by role priority
+      const ra = rolePriority[a.role] ?? 99;
+      const rb = rolePriority[b.role] ?? 99;
+      if (ra !== rb) return ra - rb;
+      // Then by name
+      return a.name.localeCompare(b.name);
+    });
+  }
+
   function sortByOnlineThenName(devices: EnrichedDevice[]): EnrichedDevice[] {
     return devices.sort((a, b) => {
       if (a.online !== b.online) return a.online ? -1 : 1;
@@ -105,7 +120,7 @@ export function createDeviceService(
         }
       }
 
-      return users.map(user => {
+      return sortUsers(users).map(user => {
         const devices = sortByOnlineThenName(devicesByUserId.get(user.id) || []);
         const onlineCount = devices.filter(d => d.online).length;
         const totalTraffic = devices.reduce((sum, d) => sum + (d.traffic?.total ?? 0), 0);
@@ -223,11 +238,11 @@ export function createDeviceService(
         userDailyMap.set(userId, daily);
       }
 
-      return users.map(user => {
+      return sortUsers(users).map(user => {
         const daily = userDailyMap.get(user.id) || {};
         const total = Object.values(daily).reduce((s, v) => s + v, 0);
         return { user, daily, total };
-      }).sort((a, b) => b.total - a.total);
+      });
     },
 
     async getTodayHourlyByUser(): Promise<Array<{
@@ -270,7 +285,7 @@ export function createDeviceService(
         hours[row.hour] = row.rx;
       }
 
-      return users
+      return sortUsers(users)
         .map(user => {
           const deviceMap = userDeviceHourly.get(user.id);
           if (!deviceMap) return { user, devices: [], hourlyTotal: new Array(24).fill(0) };
@@ -288,12 +303,7 @@ export function createDeviceService(
 
           return { user, devices, hourlyTotal };
         })
-        .filter(u => u.hourlyTotal.some(v => v > 0))
-        .sort((a, b) => {
-          const sumA = a.hourlyTotal.reduce((s, v) => s + v, 0);
-          const sumB = b.hourlyTotal.reduce((s, v) => s + v, 0);
-          return sumB - sumA;
-        });
+        .filter(u => u.hourlyTotal.some(v => v > 0));
     },
 
     async getAllUsers(): Promise<User[]> {
