@@ -1,0 +1,121 @@
+extends layout
+
+block content
+  style.
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    .card {
+      width: 100%;
+      max-width: 32rem;
+    }
+    .back-link {
+      font-size: 0.875rem;
+      color: #fb7185;
+      text-decoration: none;
+      display: inline-block;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { color: var(--primary); }
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .header-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .totals {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 0.75rem;
+    }
+    .total-item {
+      text-align: center;
+    }
+    .total-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .total-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .devices-section {
+      margin-top: 1.5rem;
+    }
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .device-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .device-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--secondary);
+      border-radius: 0.5rem;
+    }
+    .device-name {
+      font-weight: 500;
+      font-size: 0.9375rem;
+    }
+    .device-traffic {
+      text-align: right;
+    }
+    .device-today {
+      font-weight: 600;
+      font-size: 0.9375rem;
+    }
+    .device-weekly {
+      font-size: 0.6875rem;
+      color: var(--muted);
+    }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 1rem;
+    }
+  .container
+    .card
+      a.back-link(href="/") ← Главная
+
+      .header
+        .header-name= user.name
+        .totals
+          .total-item
+            .total-value= formatBytes(traffic.today)
+            .total-label Сегодня
+          .total-item
+            .total-value= formatBytes(traffic.weekly)
+            .total-label 7 дней
+
+      .devices-section
+        .section-title Устройства
+        .device-list
+          if traffic.devices.length === 0
+            .empty Нет данных
+          else
+            each device in traffic.devices
+              - const hasTraffic = device.today > 0 || device.weekly > 0
+              if hasTraffic
+                .device-row
+                  .device-name= device.name
+                  .device-traffic
+                    .device-today= formatBytes(device.today)
+                    .device-weekly= `${formatBytes(device.weekly)} / 7д`

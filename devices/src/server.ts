@@ -563,6 +563,44 @@ app.get('/api/users/:id/devices', async (req, res) => {
   }
 });
 
+// Public API endpoint to get user's traffic (used by family-dashboard)
+app.get('/api/users/:id/traffic', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const devices = await deviceRepo.findByUserId(userId);
+    const macs = devices.map(d => d.mac.toLowerCase());
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = macs.length > 0 ? await trafficRepo.getDailyTotals(macs, 7) : [];
+
+    let todayTotal = 0;
+    let weeklyTotal = 0;
+    const todayByDevice: Record<string, number> = {};
+    const weeklyByDevice: Record<string, number> = {};
+    for (const row of rows) {
+      const mac = row.mac.toLowerCase();
+      weeklyByDevice[mac] = (weeklyByDevice[mac] || 0) + row.rx;
+      weeklyTotal += row.rx;
+      if (row.date === today) {
+        todayByDevice[mac] = (todayByDevice[mac] || 0) + row.rx;
+        todayTotal += row.rx;
+      }
+    }
+
+    // Include device names
+    const deviceList = devices.map(d => ({
+      mac: d.mac.toLowerCase(),
+      name: d.customName || d.mac,
+      today: todayByDevice[d.mac.toLowerCase()] || 0,
+      weekly: weeklyByDevice[d.mac.toLowerCase()] || 0,
+    }));
+
+    res.json({ today: todayTotal, weekly: weeklyTotal, devices: deviceList });
+  } catch (error) {
+    logger.error('API error in /api/users/:id/traffic:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Public API endpoint for admin status lookup (used by other services)
 app.get('/api/whoami', async (req, res) => {
   try {

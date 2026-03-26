@@ -28,6 +28,16 @@ block content
     .profile-name a:hover {
       color: var(--primary);
     }
+    .traffic-today {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .traffic-today:hover {
+      color: var(--primary);
+    }
     .section-header {
       font-size: 0.75rem;
       font-weight: 600;
@@ -107,6 +117,8 @@ block content
         .profile-section
           .profile-name
             a(href="/me")= currentUser.name
+          if traffic && traffic.today > 0
+            a.traffic-today(href="/my-traffic")= `${formatBytes(traffic.today)} сегодня`
 
       .section-header Сервисы
       .links

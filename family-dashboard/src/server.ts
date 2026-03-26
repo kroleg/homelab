@@ -131,11 +131,43 @@ const adminServices: ServiceLink[] = [
   },
 ];
 
+function formatBytes(bytes: number): string {
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+interface TrafficDevice {
+  mac: string;
+  name: string;
+  today: number;
+  weekly: number;
+}
+
+interface UserTraffic {
+  today: number;
+  weekly: number;
+  devices: TrafficDevice[];
+}
+
+async function getUserTraffic(userId: number): Promise<UserTraffic> {
+  try {
+    const response = await fetch(`${DEVICES_API_URL}/api/users/${userId}/traffic`);
+    if (response.ok) return await response.json();
+  } catch {
+    // ignore
+  }
+  return { today: 0, weekly: 0, devices: [] };
+}
+
 app.get('/', async (req, res) => {
   const clientIp = getClientIp(req);
   const whoami = await getWhoami(clientIp);
   const admin = whoami?.isAdmin ?? false;
   const isParent = whoami?.user?.role === 'parent';
+
+  let traffic: UserTraffic | null = null;
+  if (whoami?.user) {
+    traffic = await getUserTraffic(whoami.user.id);
+  }
 
   res.render('index', {
     title: 'Семейная панель',
@@ -144,6 +176,8 @@ app.get('/', async (req, res) => {
     adminServices: admin ? adminServices : [],
     isAdmin: admin,
     currentUser: whoami?.user ?? null,
+    traffic,
+    formatBytes,
   });
 });
 
@@ -174,6 +208,28 @@ app.get('/me', async (req, res) => {
     title: whoami.user.name,
     user: whoami.user,
     devices,
+  });
+});
+
+app.get('/my-traffic', async (req, res) => {
+  const clientIp = getClientIp(req);
+  const whoami = await getWhoami(clientIp);
+
+  if (!whoami?.user) {
+    res.render('error', {
+      title: 'Не найден',
+      message: 'Ваше устройство не привязано к пользователю',
+    });
+    return;
+  }
+
+  const traffic = await getUserTraffic(whoami.user.id);
+
+  res.render('my-traffic', {
+    title: 'Мой трафик',
+    user: whoami.user,
+    traffic,
+    formatBytes,
   });
 });
 

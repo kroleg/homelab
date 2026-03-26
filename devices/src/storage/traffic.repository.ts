@@ -16,11 +16,14 @@ export function createTrafficRepository(db: Database) {
           tx: r.tx,
           updatedAt: new Date(),
         })))
+        // Use GREATEST to never decrease stored values. The RRD detail:2 gives a sliding
+        // 3h window — hours at the edge may have partial data. Without GREATEST, a later
+        // poll could overwrite a complete hour's value with a partial one as the window slides.
         .onConflictDoUpdate({
           target: [hourlyTrafficTable.date, hourlyTrafficTable.hour, hourlyTrafficTable.mac],
           set: {
-            rx: sql`excluded.rx`,
-            tx: sql`excluded.tx`,
+            rx: sql`GREATEST(${hourlyTrafficTable.rx}, excluded.rx)`,
+            tx: sql`GREATEST(${hourlyTrafficTable.tx}, excluded.tx)`,
             updatedAt: new Date(),
           },
         });
