@@ -6,6 +6,7 @@
     "start": "node --env-file-if-exists=.env --watch src/server.ts",
     "start:prod": "node src/server.ts",
     "typecheck": "tsc --noEmit",
+    "check:views": "find views -name '*.pug' -exec node -e 'require(\"pug\").compileFile(process.argv[1])' {} \\;",
     "test": "vitest run",
     "test:watch": "vitest"
   },

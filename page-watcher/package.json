@@ -8,6 +8,7 @@
     "start": "node --env-file-if-exists=.env --watch src/index.ts",
     "start:prod": "node src/index.ts",
     "typecheck": "tsc --noEmit",
+    "check:views": "find src/ui/views -name '*.pug' -exec node -e 'require(\"pug\").compileFile(process.argv[1])' {} \\;",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
