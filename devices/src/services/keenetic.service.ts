@@ -1,11 +1,16 @@
 import type { Logger } from '../logger.ts';
 
+export interface PolicyInfo {
+  id: string;
+  displayName: string;
+}
+
 export interface Device {
   name: string;
   mac: string;
   ip: string | null;
   online: boolean;
-  policy: string | null;
+  policy: PolicyInfo | null;
 }
 
 export interface ClientInfo {
@@ -13,7 +18,7 @@ export interface ClientInfo {
   ip: string;
   mac: string;
   online: boolean;
-  policy: string | null;
+  policy: PolicyInfo | null;
 }
 
 export interface TrafficInfo {
@@ -54,8 +59,15 @@ export function createKeeneticService(apiUrl: string, logger: Logger) {
       return fetchJson<ClientInfo>(`/api/client?ip=${encodeURIComponent(ip)}`);
     },
 
-    async getPolicies(): Promise<Array<{ id: string; name: string }>> {
-      const policies = await fetchJson<Array<{ id: string; name: string }>>('/api/policies');
+    /** VPN policies only (prefix stripped in displayName) */
+    async getVpnPolicies(): Promise<PolicyInfo[]> {
+      const policies = await fetchJson<PolicyInfo[]>('/api/vpn-policies');
+      return policies || [];
+    },
+
+    /** Schedule policies only (prefix stripped in displayName) */
+    async getSchedulePolicies(): Promise<PolicyInfo[]> {
+      const policies = await fetchJson<PolicyInfo[]>('/api/schedule-policies');
       return policies || [];
     },
 

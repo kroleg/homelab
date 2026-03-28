@@ -1,5 +1,5 @@
 import type { Logger } from '../logger.ts';
-import type { KeeneticService, Device as KeeneticDevice, TrafficInfo } from './keenetic.service.ts';
+import type { KeeneticService, Device as KeeneticDevice, PolicyInfo, TrafficInfo } from './keenetic.service.ts';
 import type { UserRepository } from '../storage/user.repository.ts';
 import type { DeviceRepository } from '../storage/device.repository.ts';
 import type { TrafficRepository } from '../storage/traffic.repository.ts';
@@ -9,7 +9,7 @@ export interface EnrichedDevice extends Device {
   keeneticName: string | null;
   ip: string | null;
   online: boolean;
-  policy: string | null;
+  policy: PolicyInfo | null;
   traffic: TrafficInfo | null;
 }
 
@@ -18,7 +18,7 @@ export interface DiscoveredDevice {
   name: string;
   ip: string | null;
   online: boolean;
-  policy: string | null;
+  policy: PolicyInfo | null;
 }
 
 export interface UserWithDevices extends User {

@@ -192,13 +192,13 @@ app.get('/traffic', requireAdmin, async (_req, res) => {
 // Main page - users with devices + unassigned + unregistered
 app.get('/', requireAdmin, async (_req, res) => {
   try {
-    const [usersWithDevices, unassignedDevices, unregisteredDevices, allUsers, schedules, policies] = await Promise.all([
+    const [usersWithDevices, unassignedDevices, unregisteredDevices, allUsers, schedules, schedulePolicies] = await Promise.all([
       deviceService.getUsersWithDevices(true),
       deviceService.getUnassignedDevices(),
       deviceService.getUnregisteredDevices(),
       deviceService.getAllUsers(),
       scheduleRepo.findAll(),
-      keenetic.getPolicies(),
+      keenetic.getSchedulePolicies(),
     ]);
 
     const unassignedOnlineCount = unassignedDevices.filter(d => d.online).length;
@@ -227,7 +227,7 @@ app.get('/', requireAdmin, async (_req, res) => {
       title: 'Устройства',
       users: usersWithDevices,
       scheduleMap,
-      policies,
+      policies: schedulePolicies,
       unassigned: {
         name: 'Без владельца',
         devices: unassignedDevices,
@@ -417,7 +417,7 @@ app.get('/devices/:id', requireAdmin, async (req, res) => {
     const [device, allUsers, vpnPolicies] = await Promise.all([
       deviceRepo.findById(deviceId),
       userRepo.findAll(),
-      keenetic.getPolicies(),
+      keenetic.getVpnPolicies(),
     ]);
 
     if (!device) {

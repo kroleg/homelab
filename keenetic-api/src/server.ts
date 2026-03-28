@@ -12,6 +12,7 @@ const keenetic = createKeeneticService({
   login: config.keeneticLogin,
   password: config.keeneticPassword,
   logger,
+  displayPrefixes: Object.values(config.policyPrefixes),
 });
 
 const app = express();
@@ -21,7 +22,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use('/api', createApiRoutes(logger, keenetic, config.defaultVpnInterface));
+app.use('/api', createApiRoutes(logger, keenetic, config.defaultVpnInterface, config.policyPrefixes));
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error('Server error:', err);

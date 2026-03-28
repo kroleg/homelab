@@ -101,13 +101,13 @@ block content
           ) Off
 
           each policy in policies
-            - const isActive = device.policy === policy.name
+            - const isActive = device.policy && device.policy.id === policy.id
             button.btn(
               type="button"
               class=(isActive ? 'active' : '')
               onclick=`selectPolicy('${policy.id}')`
               disabled=isActive
-            )= policy.name
+            )= policy.displayName
 
         form#form(method="POST" action="/set-policy")
           input#policy(type="hidden" name="policyId")

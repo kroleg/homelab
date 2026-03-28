@@ -392,7 +392,7 @@ block content
           if device.traffic && device.traffic.total > 0
             span.device-traffic= formatBytes(device.traffic.total)
           if device.policy
-            span.device-policy= device.policy
+            span.device-policy= device.policy.displayName
 
   mixin unregisteredDeviceList(devices)
     if devices.length === 0
@@ -409,7 +409,7 @@ block content
               if device.ip
                 span= ` • ${device.ip}`
           if device.policy
-            span.device-policy= device.policy
+            span.device-policy= device.policy.displayName
 
 
   mixin editUserModal(user)
@@ -615,7 +615,7 @@ block content
             label.form-label Политика
             select.form-select(name="policyId")
               each policy in policies
-                option(value=policy.id selected=(sched && sched.schedule.policyId === policy.id))= policy.name
+                option(value=policy.id selected=(sched && sched.schedule.policyId === policy.id))= policy.displayName
           .form-group
             label.form-checkbox
               input(type="checkbox" name="enabled" checked=(sched ? sched.schedule.enabled : true))
@@ -682,7 +682,7 @@ block content
         // VPN policies dropdown
         const vpnSelect = document.getElementById('edit-device-vpn');
         vpnSelect.innerHTML = '<option value="">Выкл</option>' +
-          vpnPolicies.map(p => `<option value="${p.id}" ${device.policy === p.name ? 'selected' : ''}>${p.name}</option>`).join('');
+          vpnPolicies.map(p => `<option value="${p.id}" ${device.policy && device.policy.id === p.id ? 'selected' : ''}>${p.displayName}</option>`).join('');
 
         // Tailscale IP
         document.getElementById('edit-device-tailscale-ip').value = device.tailscaleIp || '';

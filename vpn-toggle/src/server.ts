@@ -89,14 +89,14 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
 
     const device = await deviceResponse.json();
 
-    // Fetch available policies from main API
-    const policiesResponse = await fetch(`${KEENETIC_API_URL}/policies`);
+    // Fetch VPN policies from keenetic-api
+    const policiesResponse = await fetch(`${KEENETIC_API_URL}/vpn-policies`);
 
     if (!policiesResponse.ok) {
       throw new Error(`Failed to fetch policies: ${policiesResponse.status}`);
     }
 
-    const allPolicies = await policiesResponse.json();
+    const allPolicies = await policiesResponse.json() as Array<{ id: string; displayName: string }>;
 
     // Get user/device info from devices service
     const whoami = await getWhoami(clientIp);
@@ -123,8 +123,8 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
     // Filter admin-only policies for non-admins
     const policies = admin
       ? allPolicies
-      : allPolicies.filter((p: { name?: string }) =>
-          !ADMIN_ONLY_POLICIES.includes((p.name || '').toLowerCase())
+      : allPolicies.filter(p =>
+          !ADMIN_ONLY_POLICIES.includes(p.displayName.toLowerCase())
         );
 
     res.render('index', {

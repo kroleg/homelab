@@ -46,14 +46,10 @@ export function createScheduleEnforcer(
 
       // Get current device policies from router (one call for all devices)
       const clients = await keenetic.getClients();
-      const policyByMac = new Map<string, string | null>();
+      const policyIdByMac = new Map<string, string | null>();
       for (const c of clients) {
-        policyByMac.set(c.mac.toUpperCase(), c.policy);
+        policyIdByMac.set(c.mac.toUpperCase(), c.policy?.id ?? null);
       }
-
-      // Resolve policy IDs to names (router returns names, we set by ID)
-      const policies = await keenetic.getPolicies();
-      const policyIdToName = new Map(policies.map(p => [p.id, p.name]));
 
       for (const schedule of schedules) {
         const shouldEnforce = schedule.enabled
@@ -61,11 +57,10 @@ export function createScheduleEnforcer(
           && !isOverridden(schedule, now);
 
         const devices = await deviceRepo.findByUserId(schedule.userId);
-        const policyName = policyIdToName.get(schedule.policyId) ?? null;
 
         for (const device of devices) {
-          const currentPolicy = policyByMac.get(device.mac.toUpperCase()) ?? null;
-          const hasSchedulePolicy = currentPolicy != null && policyName != null && currentPolicy === policyName;
+          const currentPolicyId = policyIdByMac.get(device.mac.toUpperCase()) ?? null;
+          const hasSchedulePolicy = currentPolicyId === schedule.policyId;
 
           if (shouldEnforce && !hasSchedulePolicy) {
             const success = await keenetic.setDevicePolicy(device.mac, schedule.policyId);

@@ -22,6 +22,10 @@ export function loadConfig() {
     keeneticPassword: process.env.KEENETIC_PASSWORD,
     defaultVpnInterface: process.env.DEFAULT_VPN_INTERFACE,
     pingIntervalMs,
+    policyPrefixes: {
+      vpn: 'vpn: ',
+      schedule: 'schedule: ',
+    },
   };
 }
 

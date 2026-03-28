@@ -18,18 +18,22 @@ export interface InterfaceInfo {
   connected: boolean;
 }
 
+export interface ClientPolicyInfo {
+  id: string;
+  displayName: string;
+}
+
 export interface ClientInfo {
   name: string;
   ip: string;
   mac: string;
-  policy?: string;
+  policy?: ClientPolicyInfo | null;
   registered?: boolean;
 }
 
 export interface PolicyInfo {
   id: string;
-  name: string;
-  description?: string;
+  displayName: string;
 }
 
 export function createKeeneticClient(apiUrl: string, logger: Logger) {

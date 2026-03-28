@@ -1,12 +1,17 @@
 import crypto from 'crypto';
 import type { Logger } from '../logger.ts';
 
+export interface PolicyInfo {
+  id: string;
+  displayName: string;
+}
+
 export interface ClientInfo {
   name: string;
   ip: string | null;
   mac: string;
   online: boolean;
-  policy: string | null;
+  policy: PolicyInfo | null;
 }
 
 export interface HourlyTraffic {
@@ -39,6 +44,7 @@ export function createKeeneticService(config: {
   login: string;
   password: string;
   logger: Logger;
+  displayPrefixes?: string[];
 }) {
   const { host, login, password, logger } = config;
   let cookies = '';
@@ -184,10 +190,10 @@ export function createKeeneticService(config: {
     return postRequest(path, body);
   }
 
-  // Fetches policy assignment (MAC -> policyId) and policy names (policyId -> name)
+  // Fetches policy assignment (MAC -> policyId) and display names (policyId -> displayName)
   async function fetchPolicyMaps(): Promise<{
     policyMap: Map<string, string>;
-    policyNames: Map<string, string>;
+    policyDisplayNames: Map<string, string>;
   }> {
     const [policyResponse, policyNamesResponse] = await Promise.all([
       getWithAuth('/rci/show/rc/ip/hotspot/host'),
@@ -203,21 +209,25 @@ export function createKeeneticService(config: {
       }
     }
 
-    const policyNames = new Map<string, string>();
+    const displayPrefixes = config.displayPrefixes ?? [];
+    const policyDisplayNames = new Map<string, string>();
     if (policyNamesResponse.status === 200 && policyNamesResponse.data && typeof policyNamesResponse.data === 'object') {
       for (const [id, policy] of Object.entries(policyNamesResponse.data as Record<string, { description?: string }>)) {
         const name = policy.description?.replace(/^!/, '') || id;
-        policyNames.set(id, name);
+        // Strip known prefixes for display in client responses
+        const prefix = displayPrefixes.find(p => name.toLowerCase().startsWith(p));
+        const displayName = prefix ? name.slice(prefix.length) : name;
+        policyDisplayNames.set(id, displayName);
       }
     }
 
-    return { policyMap, policyNames };
+    return { policyMap, policyDisplayNames };
   }
 
   return {
     async getClientByIp(ip: string): Promise<ClientInfo | null> {
       try {
-        const [response, { policyMap, policyNames }] = await Promise.all([
+        const [response, { policyMap, policyDisplayNames }] = await Promise.all([
           getWithAuth('/rci/show/ip/hotspot/host'),
           fetchPolicyMaps(),
         ]);
@@ -241,7 +251,7 @@ export function createKeeneticService(config: {
           ip: client.ip || null,
           mac: client.mac || '',
           online: client.active === true,
-          policy: policyId ? (policyNames.get(policyId) || policyId) : null,
+          policy: policyId ? { id: policyId, displayName: policyDisplayNames.get(policyId) || policyId } : null,
         };
       } catch (error) {
         logger.error('Error fetching client by IP:', error);
@@ -251,7 +261,7 @@ export function createKeeneticService(config: {
 
     async getClients(): Promise<ClientInfo[]> {
       try {
-        const [response, { policyMap, policyNames }] = await Promise.all([
+        const [response, { policyMap, policyDisplayNames }] = await Promise.all([
           getWithAuth('/rci/show/ip/hotspot'),
           fetchPolicyMaps(),
         ]);
@@ -273,7 +283,7 @@ export function createKeeneticService(config: {
               ip: client.ip && client.ip !== '0.0.0.0' ? client.ip : null,
               mac,
               online: client.active === true,
-              policy: policyId ? (policyNames.get(policyId) || policyId) : null,
+              policy: policyId ? { id: policyId, displayName: policyDisplayNames.get(policyId) || policyId } : null,
             };
           });
       } catch (error) {
@@ -282,7 +292,7 @@ export function createKeeneticService(config: {
       }
     },
 
-    async getPolicies(): Promise<{ id: string; name: string }[]> {
+    async getRawPolicies(): Promise<Array<{ id: string; name: string }>> {
       try {
         const response = await getWithAuth('/rci/show/rc/ip/policy');
         if (response.status === 200 && response.data && typeof response.data === 'object') {

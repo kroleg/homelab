@@ -17,17 +17,11 @@ export function createApiRouter(api: KeeneticClient): express.Router {
         return;
       }
 
-      const policies = await api.getConnectionPolicies();
-      const currentPolicy = client.policy
-        ? policies.find(p => p.id === client.policy)
-        : null;
-
       res.json({
         name: client.name,
         ip: client.ip,
         mac: client.mac,
         policy: client.policy || null,
-        policyName: currentPolicy?.name || currentPolicy?.description || client.policy || null,
         registered: client.registered,
       });
     } catch (error) {

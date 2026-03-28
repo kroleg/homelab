@@ -2,7 +2,12 @@ import { Router } from 'express';
 import type { Logger } from '../logger.ts';
 import type { KeeneticService } from '../services/keenetic.service.ts';
 
-export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defaultInterface?: string): Router {
+interface PolicyPrefixes {
+  vpn: string;
+  schedule: string;
+}
+
+export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defaultInterface?: string, policyPrefixes?: PolicyPrefixes): Router {
   const router = Router();
 
   // Routes endpoints
@@ -103,10 +108,35 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
     res.json(clients);
   });
 
+  const allPrefixes = Object.values(policyPrefixes ?? {});
+  const vpnPrefix = policyPrefixes?.vpn ?? 'vpn: ';
+  const schedulePrefix = policyPrefixes?.schedule ?? 'schedule: ';
+
+  function stripPrefix(name: string, prefixes: string[]): string {
+    const prefix = prefixes.find(p => name.toLowerCase().startsWith(p));
+    return prefix ? name.slice(prefix.length) : name;
+  }
+
+  function filterByPrefix(policies: Array<{ id: string; name: string }>, prefix: string) {
+    return policies
+      .filter(p => p.name.toLowerCase().startsWith(prefix))
+      .map(p => ({ id: p.id, displayName: p.name.slice(prefix.length) }));
+  }
+
   router.get('/policies', async (_req, res) => {
     logger.debug('Listing all policies');
-    const policies = await keenetic.getPolicies();
-    res.json(policies);
+    const policies = await keenetic.getRawPolicies();
+    res.json(policies.map(p => ({ id: p.id, displayName: stripPrefix(p.name, allPrefixes) })));
+  });
+
+  router.get('/vpn-policies', async (_req, res) => {
+    logger.debug('Listing VPN policies');
+    res.json(filterByPrefix(await keenetic.getRawPolicies(), vpnPrefix));
+  });
+
+  router.get('/schedule-policies', async (_req, res) => {
+    logger.debug('Listing schedule policies');
+    res.json(filterByPrefix(await keenetic.getRawPolicies(), schedulePrefix));
   });
 
   router.post('/clients/:mac/policy', async (req, res) => {
