@@ -4,7 +4,6 @@ import type { KeeneticService } from '../services/keenetic.service.ts';
 
 interface PolicyPrefixes {
   vpn: string;
-  schedule: string;
 }
 
 export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defaultInterface?: string, policyPrefixes?: PolicyPrefixes): Router {
@@ -110,7 +109,6 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
 
   const allPrefixes = Object.values(policyPrefixes ?? {});
   const vpnPrefix = policyPrefixes?.vpn ?? 'vpn: ';
-  const schedulePrefix = policyPrefixes?.schedule ?? 'schedule: ';
 
   function stripPrefix(name: string, prefixes: string[]): string {
     const prefix = prefixes.find(p => name.toLowerCase().startsWith(p));
@@ -134,11 +132,6 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
     res.json(filterByPrefix(await keenetic.getRawPolicies(), vpnPrefix));
   });
 
-  router.get('/schedule-policies', async (_req, res) => {
-    logger.debug('Listing schedule policies');
-    res.json(filterByPrefix(await keenetic.getRawPolicies(), schedulePrefix));
-  });
-
   router.post('/clients/:mac/policy', async (req, res) => {
     const { mac } = req.params;
     const { policyId } = req.body;
@@ -155,6 +148,32 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
       res.json({ success: true });
     } else {
       res.status(500).json({ error: 'Failed to set policy' });
+    }
+  });
+
+  router.get('/speed-limits', async (_req, res) => {
+    logger.debug('Listing speed limits');
+    const limits = await keenetic.getSpeedLimits();
+    res.json(limits);
+  });
+
+  router.post('/clients/:mac/speed-limit', async (req, res) => {
+    const { mac } = req.params;
+    const { rate } = req.body;
+
+    if (!mac) {
+      res.status(400).json({ error: 'MAC address is required' });
+      return;
+    }
+
+    if (rate === null || rate === 0) {
+      logger.debug(`Removing speed limit for MAC: ${mac}`);
+      const success = await keenetic.removeSpeedLimit(mac);
+      res.json({ success });
+    } else {
+      logger.debug(`Setting speed limit ${rate} kbps for MAC: ${mac}`);
+      const success = await keenetic.setSpeedLimit(mac, rate);
+      res.json({ success });
     }
   });
 

@@ -4,6 +4,7 @@ import type { DeviceRepository } from '../storage/device.repository.ts';
 import type { ScheduleRepository } from '../storage/schedule.repository.ts';
 import type { Schedule } from '../storage/db-schema.ts';
 
+
 export function isScheduleActive(schedule: Schedule, now: Date): boolean {
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const fromMinutes = schedule.fromHour * 60 + schedule.fromMinute;
@@ -34,6 +35,7 @@ export function createScheduleEnforcer(
   scheduleRepo: ScheduleRepository,
   logger: Logger,
   intervalMs: number,
+  speedLimitKbps: number,
 ) {
   let timer: ReturnType<typeof setInterval> | null = null;
 
@@ -44,12 +46,8 @@ export function createScheduleEnforcer(
 
       const now = new Date();
 
-      // Get current device policies from router (one call for all devices)
-      const clients = await keenetic.getClients();
-      const policyIdByMac = new Map<string, string | null>();
-      for (const c of clients) {
-        policyIdByMac.set(c.mac.toUpperCase(), c.policy?.id ?? null);
-      }
+      // Get current speed limits from router
+      const currentLimits = await keenetic.getSpeedLimits();
 
       for (const schedule of schedules) {
         const shouldEnforce = schedule.enabled
@@ -59,19 +57,17 @@ export function createScheduleEnforcer(
         const devices = await deviceRepo.findByUserId(schedule.userId);
 
         for (const device of devices) {
-          const currentPolicyId = policyIdByMac.get(device.mac.toUpperCase()) ?? null;
-          const hasSchedulePolicy = currentPolicyId === schedule.policyId;
+          const hasLimit = currentLimits[device.mac.toLowerCase()] != null;
 
-          if (shouldEnforce && !hasSchedulePolicy) {
-            const success = await keenetic.setDevicePolicy(device.mac, schedule.policyId);
+          if (shouldEnforce && !hasLimit) {
+            const success = await keenetic.setSpeedLimit(device.mac, speedLimitKbps);
             if (success) {
-              logger.info(`Schedule: applied policy ${schedule.policyId} to ${device.customName || device.mac} (user ${schedule.userId})`);
+              logger.info(`Schedule: set ${speedLimitKbps} kbps limit on ${device.customName || device.mac} (user ${schedule.userId})`);
             }
-          } else if (!shouldEnforce && hasSchedulePolicy) {
-            // Remove the schedule policy (set to no policy)
-            const success = await keenetic.setDevicePolicy(device.mac, null);
+          } else if (!shouldEnforce && hasLimit) {
+            const success = await keenetic.removeSpeedLimit(device.mac);
             if (success) {
-              logger.info(`Schedule: removed policy from ${device.customName || device.mac} (user ${schedule.userId})`);
+              logger.info(`Schedule: removed speed limit from ${device.customName || device.mac} (user ${schedule.userId})`);
             }
           }
         }

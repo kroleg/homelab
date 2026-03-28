@@ -37,7 +37,6 @@ export function createScheduleRepository(db: Database) {
       fromMinute: number;
       toHour: number;
       toMinute: number;
-      policyId: string;
       enabled: boolean;
     }): Promise<Schedule> {
       const rows = await db.insert(schedulesTable)
@@ -49,7 +48,6 @@ export function createScheduleRepository(db: Database) {
             fromMinute: sql`excluded.from_minute`,
             toHour: sql`excluded.to_hour`,
             toMinute: sql`excluded.to_minute`,
-            policyId: sql`excluded.policy_id`,
             enabled: sql`excluded.enabled`,
           },
         })

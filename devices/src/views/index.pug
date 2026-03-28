@@ -612,11 +612,6 @@ block content
             label.form-label До
             input.form-input(type="time" name="toTime" value=(sched ? `${String(sched.schedule.toHour).padStart(2,'0')}:${String(sched.schedule.toMinute).padStart(2,'0')}` : '05:00') required)
           .form-group
-            label.form-label Политика
-            select.form-select(name="policyId")
-              each policy in policies
-                option(value=policy.id selected=(sched && sched.schedule.policyId === policy.id))= policy.displayName
-          .form-group
             label.form-checkbox
               input(type="checkbox" name="enabled" checked=(sched ? sched.schedule.enabled : true))
               span Включено

@@ -152,7 +152,6 @@ interface ScheduleStatus {
   hasSchedule: boolean;
   active?: boolean;
   overridden?: boolean;
-  policyId?: string;
   from?: string;
   to?: string;
   nextChange?: string;

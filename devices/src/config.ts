@@ -18,12 +18,15 @@ export function loadConfig() {
     password: process.env.POSTGRES_PASSWORD || 'devices',
   };
 
+  const speedLimitKbps = parseInt(process.env.SPEED_LIMIT_KBPS || '2000');
+
   return {
     port,
     logLevel,
     keeneticApiUrl,
     homeUrl,
     adminMacs,
+    speedLimitKbps,
     postgres,
   };
 }

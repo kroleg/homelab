@@ -489,6 +489,67 @@ export function createKeeneticService(config: {
       }
     },
 
+    async setSpeedLimit(mac: string, rateKbps: number): Promise<boolean> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { ip: { 'traffic-shape': { host: { mac, rate: rateKbps } } } },
+          { system: { configuration: { save: {} } } },
+        ]);
+        if (response.status === 200) {
+          logger.info(`Speed limit ${rateKbps} kbps set for MAC: ${mac}`);
+          return true;
+        }
+        logger.error(`Failed to set speed limit. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error setting speed limit:', error);
+        return false;
+      }
+    },
+
+    async removeSpeedLimit(mac: string): Promise<boolean> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { ip: { 'traffic-shape': { host: { mac, no: true } } } },
+          { system: { configuration: { save: {} } } },
+        ]);
+        if (response.status === 200) {
+          logger.info(`Speed limit removed for MAC: ${mac}`);
+          return true;
+        }
+        logger.error(`Failed to remove speed limit. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error removing speed limit:', error);
+        return false;
+      }
+    },
+
+    async getSpeedLimits(): Promise<Record<string, number>> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { show: { rc: { ip: { 'traffic-shape': {} } } } },
+        ]);
+        if (response.status === 200 && Array.isArray(response.data)) {
+          const shapeData = (response.data as Array<{ show?: { rc?: { ip?: { 'traffic-shape'?: { host?: Array<{ mac?: string; rate?: number }> } } } } }>)[0]
+            ?.show?.rc?.ip?.['traffic-shape']?.host;
+          if (shapeData && Array.isArray(shapeData)) {
+            const limits: Record<string, number> = {};
+            for (const entry of shapeData) {
+              if (entry.mac && entry.rate) {
+                limits[entry.mac.toLowerCase()] = entry.rate;
+              }
+            }
+            return limits;
+          }
+        }
+        return {};
+      } catch (error) {
+        logger.error('Error fetching speed limits:', error);
+        return {};
+      }
+    },
+
     async reboot(): Promise<boolean> {
       try {
         const response = await postWithAuth('/rci/', [

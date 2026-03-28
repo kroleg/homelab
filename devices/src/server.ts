@@ -35,7 +35,7 @@ const scheduleRepo = createScheduleRepository(db);
 const trafficPoller = createTrafficPoller(keenetic, deviceRepo, trafficRepo, logger, 10 * 60 * 1000);
 trafficPoller.start();
 
-const scheduleEnforcer = createScheduleEnforcer(keenetic, deviceRepo, scheduleRepo, logger, 60 * 1000);
+const scheduleEnforcer = createScheduleEnforcer(keenetic, deviceRepo, scheduleRepo, logger, 60 * 1000, config.speedLimitKbps);
 scheduleEnforcer.start();
 
 const app = express();
@@ -192,13 +192,12 @@ app.get('/traffic', requireAdmin, async (_req, res) => {
 // Main page - users with devices + unassigned + unregistered
 app.get('/', requireAdmin, async (_req, res) => {
   try {
-    const [usersWithDevices, unassignedDevices, unregisteredDevices, allUsers, schedules, schedulePolicies] = await Promise.all([
+    const [usersWithDevices, unassignedDevices, unregisteredDevices, allUsers, schedules] = await Promise.all([
       deviceService.getUsersWithDevices(true),
       deviceService.getUnassignedDevices(),
       deviceService.getUnregisteredDevices(),
       deviceService.getAllUsers(),
       scheduleRepo.findAll(),
-      keenetic.getSchedulePolicies(),
     ]);
 
     const unassignedOnlineCount = unassignedDevices.filter(d => d.online).length;
@@ -227,7 +226,6 @@ app.get('/', requireAdmin, async (_req, res) => {
       title: 'Устройства',
       users: usersWithDevices,
       scheduleMap,
-      policies: schedulePolicies,
       unassigned: {
         name: 'Без владельца',
         devices: unassignedDevices,
@@ -629,7 +627,6 @@ app.get('/api/users/:id/schedule-status', async (req, res) => {
       hasSchedule: true,
       active,
       overridden,
-      policyId: schedule.policyId,
       from,
       to,
       nextChange,
@@ -655,14 +652,13 @@ app.get('/api/schedules', requireAdmin, async (_req, res) => {
 app.post('/api/schedules/:userId', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.userId as string);
-    const { fromHour, fromMinute, toHour, toMinute, policyId, enabled } = req.body;
+    const { fromHour, fromMinute, toHour, toMinute, enabled } = req.body;
 
     const schedule = await scheduleRepo.upsert(userId, {
       fromHour: parseInt(fromHour),
       fromMinute: parseInt(fromMinute || '0'),
       toHour: parseInt(toHour),
       toMinute: parseInt(toMinute || '0'),
-      policyId,
       enabled: enabled !== false && enabled !== 'false',
     });
 
@@ -703,13 +699,12 @@ app.delete('/api/schedules/:userId', requireAdmin, async (req, res) => {
 app.post('/schedules/:userId', requireAdmin, async (req, res) => {
   try {
     const userId = parseInt(req.params.userId as string);
-    const { fromTime, toTime, policyId, enabled } = req.body;
+    const { fromTime, toTime, enabled } = req.body;
     const [fromHour, fromMinute] = (fromTime || '21:00').split(':').map(Number);
     const [toHour, toMinute] = (toTime || '05:00').split(':').map(Number);
 
     await scheduleRepo.upsert(userId, {
       fromHour, fromMinute, toHour, toMinute,
-      policyId,
       enabled: enabled === 'on',
     });
     await scheduleEnforcer.refresh();

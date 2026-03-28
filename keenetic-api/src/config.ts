@@ -24,7 +24,6 @@ export function loadConfig() {
     pingIntervalMs,
     policyPrefixes: {
       vpn: 'vpn: ',
-      schedule: 'schedule: ',
     },
   };
 }

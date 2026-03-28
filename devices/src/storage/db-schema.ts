@@ -64,7 +64,6 @@ export const schedulesTable = pgTable('schedules', {
   fromMinute: integer('from_minute').notNull().default(0),
   toHour: integer('to_hour').notNull(),
   toMinute: integer('to_minute').notNull().default(0),
-  policyId: text('policy_id').notNull(),
   enabled: boolean('enabled').notNull().default(true),
   overrideUntil: timestamp('override_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

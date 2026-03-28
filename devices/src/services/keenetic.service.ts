@@ -65,12 +65,6 @@ export function createKeeneticService(apiUrl: string, logger: Logger) {
       return policies || [];
     },
 
-    /** Schedule policies only (prefix stripped in displayName) */
-    async getSchedulePolicies(): Promise<PolicyInfo[]> {
-      const policies = await fetchJson<PolicyInfo[]>('/api/schedule-policies');
-      return policies || [];
-    },
-
     async setDevicePolicy(mac: string, policyId: string | null): Promise<boolean> {
       try {
         const response = await fetch(`${apiUrl}/api/clients/${encodeURIComponent(mac)}/policy`, {
@@ -83,6 +77,39 @@ export function createKeeneticService(apiUrl: string, logger: Logger) {
         logger.error(`Failed to set device policy: ${error}`);
         return false;
       }
+    },
+
+    async setSpeedLimit(mac: string, rateKbps: number): Promise<boolean> {
+      try {
+        const response = await fetch(`${apiUrl}/api/clients/${encodeURIComponent(mac)}/speed-limit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rate: rateKbps }),
+        });
+        return response.ok;
+      } catch (error) {
+        logger.error(`Failed to set speed limit: ${error}`);
+        return false;
+      }
+    },
+
+    async removeSpeedLimit(mac: string): Promise<boolean> {
+      try {
+        const response = await fetch(`${apiUrl}/api/clients/${encodeURIComponent(mac)}/speed-limit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rate: null }),
+        });
+        return response.ok;
+      } catch (error) {
+        logger.error(`Failed to remove speed limit: ${error}`);
+        return false;
+      }
+    },
+
+    async getSpeedLimits(): Promise<Record<string, number>> {
+      const limits = await fetchJson<Record<string, number>>('/api/speed-limits');
+      return limits || {};
     },
 
     async getTrafficBulk(macs: string[]): Promise<Record<string, HourlyTraffic[]>> {
