@@ -65,6 +65,15 @@ block content
       color: var(--primary-fg);
       box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
     }
+    .blocked-message {
+      text-align: center;
+      padding: 1.5rem 1rem;
+      background: #fee2e2;
+      border-radius: 0.75rem;
+      color: #dc2626;
+      font-size: 1rem;
+      font-weight: 500;
+    }
 
   - const vpnOn = !!device.policy
   - const displayDeviceName = deviceName || device.name
@@ -74,31 +83,35 @@ block content
         if userName
           .user-name= userName
         .device-name= displayDeviceName
-        .status(class=vpnOn ? 'on' : 'off')= vpnOn ? 'ON' : 'OFF'
+        if !scheduleBlocked
+          .status(class=vpnOn ? 'on' : 'off')= vpnOn ? 'ON' : 'OFF'
 
       if error
         .error= error
 
-      .buttons
-        button.btn(
-          type="button"
-          class=(!vpnOn ? 'active' : '')
-          onclick="selectPolicy('')"
-          disabled=!vpnOn
-        ) Off
-
-        each policy in policies
-          - const isActive = device.policy === policy.name
+      if scheduleBlocked
+        .blocked-message= scheduleMessage
+      else
+        .buttons
           button.btn(
             type="button"
-            class=(isActive ? 'active' : '')
-            onclick=`selectPolicy('${policy.id}')`
-            disabled=isActive
-          )= policy.name
+            class=(!vpnOn ? 'active' : '')
+            onclick="selectPolicy('')"
+            disabled=!vpnOn
+          ) Off
 
-      form#form(method="POST" action="/set-policy")
-        input#policy(type="hidden" name="policyId")
-        input(type="hidden" name="mac" value=device.mac)
+          each policy in policies
+            - const isActive = device.policy === policy.name
+            button.btn(
+              type="button"
+              class=(isActive ? 'active' : '')
+              onclick=`selectPolicy('${policy.id}')`
+              disabled=isActive
+            )= policy.name
+
+        form#form(method="POST" action="/set-policy")
+          input#policy(type="hidden" name="policyId")
+          input(type="hidden" name="mac" value=device.mac)
 
   script.
     function selectPolicy(id) {

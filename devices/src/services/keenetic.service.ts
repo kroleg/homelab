@@ -54,6 +54,25 @@ export function createKeeneticService(apiUrl: string, logger: Logger) {
       return fetchJson<ClientInfo>(`/api/client?ip=${encodeURIComponent(ip)}`);
     },
 
+    async getPolicies(): Promise<Array<{ id: string; name: string }>> {
+      const policies = await fetchJson<Array<{ id: string; name: string }>>('/api/policies');
+      return policies || [];
+    },
+
+    async setDevicePolicy(mac: string, policyId: string | null): Promise<boolean> {
+      try {
+        const response = await fetch(`${apiUrl}/api/clients/${encodeURIComponent(mac)}/policy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ policyId }),
+        });
+        return response.ok;
+      } catch (error) {
+        logger.error(`Failed to set device policy: ${error}`);
+        return false;
+      }
+    },
+
     async getTrafficBulk(macs: string[]): Promise<Record<string, HourlyTraffic[]>> {
       if (macs.length === 0) return {};
       try {

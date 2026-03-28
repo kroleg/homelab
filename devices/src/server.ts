@@ -9,7 +9,10 @@ import { initDatabase, runMigrations, closeDatabase } from './storage/db.ts';
 import { createUserRepository } from './storage/user.repository.ts';
 import { createDeviceRepository } from './storage/device.repository.ts';
 import { createTrafficRepository } from './storage/traffic.repository.ts';
+import { createScheduleRepository } from './storage/schedule.repository.ts';
 import { createTrafficPoller } from './services/traffic-poller.service.ts';
+import { createScheduleEnforcer } from './services/schedule-enforcer.service.ts';
+import { isScheduleActive, isOverridden, getNextChangeTime } from './services/schedule-enforcer.service.ts';
 import { DeviceType, UserRole, UserRoleLabel } from './storage/db-schema.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,8 +30,13 @@ const deviceRepo = createDeviceRepository(db);
 const trafficRepo = createTrafficRepository(db);
 const deviceService = createDeviceService(keenetic, userRepo, deviceRepo, trafficRepo, logger);
 
+const scheduleRepo = createScheduleRepository(db);
+
 const trafficPoller = createTrafficPoller(keenetic, deviceRepo, trafficRepo, logger, 10 * 60 * 1000);
 trafficPoller.start();
+
+const scheduleEnforcer = createScheduleEnforcer(keenetic, deviceRepo, scheduleRepo, logger, 60 * 1000);
+scheduleEnforcer.start();
 
 const app = express();
 app.set('views', path.join(__dirname, 'views'));
@@ -133,38 +141,6 @@ async function requireAdmin(
   }
 }
 
-// VPN policy helpers (via keenetic-api)
-interface VpnPolicy {
-  id: string;
-  name: string;
-}
-
-async function getVpnPolicies(): Promise<VpnPolicy[]> {
-  try {
-    const response = await fetch(`${config.keeneticApiUrl}/api/policies`);
-    if (response.ok) {
-      return await response.json() as VpnPolicy[];
-    }
-  } catch (error) {
-    logger.error('Failed to fetch VPN policies:', error);
-  }
-  return [];
-}
-
-async function setDevicePolicy(mac: string, policyId: string | null): Promise<boolean> {
-  try {
-    const response = await fetch(`${config.keeneticApiUrl}/api/clients/${encodeURIComponent(mac)}/policy`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ policyId }),
-    });
-    return response.ok;
-  } catch (error) {
-    logger.error('Failed to set device policy:', error);
-    return false;
-  }
-}
-
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -216,19 +192,42 @@ app.get('/traffic', requireAdmin, async (_req, res) => {
 // Main page - users with devices + unassigned + unregistered
 app.get('/', requireAdmin, async (_req, res) => {
   try {
-    const [usersWithDevices, unassignedDevices, unregisteredDevices, allUsers] = await Promise.all([
+    const [usersWithDevices, unassignedDevices, unregisteredDevices, allUsers, schedules, policies] = await Promise.all([
       deviceService.getUsersWithDevices(true),
       deviceService.getUnassignedDevices(),
       deviceService.getUnregisteredDevices(),
       deviceService.getAllUsers(),
+      scheduleRepo.findAll(),
+      keenetic.getPolicies(),
     ]);
 
     const unassignedOnlineCount = unassignedDevices.filter(d => d.online).length;
     const unregisteredOnlineCount = unregisteredDevices.filter(d => d.online).length;
 
+    // Build schedule map by userId
+    const now = new Date();
+    const scheduleMap: Record<number, {
+      schedule: typeof schedules[0];
+      active: boolean;
+      overridden: boolean;
+      from: string;
+      to: string;
+    }> = {};
+    for (const s of schedules) {
+      scheduleMap[s.userId] = {
+        schedule: s,
+        active: isScheduleActive(s, now),
+        overridden: isOverridden(s, now),
+        from: `${String(s.fromHour).padStart(2, '0')}:${String(s.fromMinute).padStart(2, '0')}`,
+        to: `${String(s.toHour).padStart(2, '0')}:${String(s.toMinute).padStart(2, '0')}`,
+      };
+    }
+
     res.render('index', {
       title: 'Устройства',
       users: usersWithDevices,
+      scheduleMap,
+      policies,
       unassigned: {
         name: 'Без владельца',
         devices: unassignedDevices,
@@ -418,7 +417,7 @@ app.get('/devices/:id', requireAdmin, async (req, res) => {
     const [device, allUsers, vpnPolicies] = await Promise.all([
       deviceRepo.findById(deviceId),
       userRepo.findAll(),
-      getVpnPolicies(),
+      keenetic.getPolicies(),
     ]);
 
     if (!device) {
@@ -489,7 +488,7 @@ app.post('/devices/:id', requireAdmin, async (req, res) => {
     // Set VPN policy if provided
     if (vpnPolicy !== undefined) {
       const policyId = vpnPolicy || null;
-      const success = await setDevicePolicy(device.mac, policyId);
+      const success = await keenetic.setDevicePolicy(device.mac, policyId);
       if (!success) {
         res.status(500).json({ error: 'Не удалось изменить VPN политику' });
         return;
@@ -608,6 +607,170 @@ app.get('/api/users/:id/traffic', async (req, res) => {
   }
 });
 
+// Public API endpoint to get user's schedule status (used by family-dashboard)
+app.get('/api/users/:id/schedule-status', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const schedule = await scheduleRepo.findByUserId(userId);
+
+    if (!schedule || !schedule.enabled) {
+      res.json({ hasSchedule: false });
+      return;
+    }
+
+    const now = new Date();
+    const active = isScheduleActive(schedule, now);
+    const overridden = isOverridden(schedule, now);
+    const nextChange = getNextChangeTime(schedule, now);
+    const from = `${String(schedule.fromHour).padStart(2, '0')}:${String(schedule.fromMinute).padStart(2, '0')}`;
+    const to = `${String(schedule.toHour).padStart(2, '0')}:${String(schedule.toMinute).padStart(2, '0')}`;
+
+    res.json({
+      hasSchedule: true,
+      active,
+      overridden,
+      policyId: schedule.policyId,
+      from,
+      to,
+      nextChange,
+      overrideUntil: overridden ? schedule.overrideUntil : null,
+    });
+  } catch (error) {
+    logger.error('API error in /api/users/:id/schedule-status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Schedule management (admin only)
+app.get('/api/schedules', requireAdmin, async (_req, res) => {
+  try {
+    const schedules = await scheduleRepo.findAll();
+    res.json(schedules);
+  } catch (error) {
+    logger.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/schedules/:userId', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId as string);
+    const { fromHour, fromMinute, toHour, toMinute, policyId, enabled } = req.body;
+
+    const schedule = await scheduleRepo.upsert(userId, {
+      fromHour: parseInt(fromHour),
+      fromMinute: parseInt(fromMinute || '0'),
+      toHour: parseInt(toHour),
+      toMinute: parseInt(toMinute || '0'),
+      policyId,
+      enabled: enabled !== false && enabled !== 'false',
+    });
+
+    await scheduleEnforcer.refresh();
+    res.json(schedule);
+  } catch (error) {
+    logger.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/schedules/:userId/override', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId as string);
+    const { until } = req.body;
+    await scheduleRepo.setOverride(userId, until ? new Date(until) : null);
+    await scheduleEnforcer.refresh();
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/schedules/:userId', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId as string);
+    await scheduleRepo.delete(userId);
+    await scheduleEnforcer.refresh();
+    res.json({ success: true });
+  } catch (error) {
+    logger.error('API error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Form handlers for schedule UI
+app.post('/schedules/:userId', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId as string);
+    const { fromTime, toTime, policyId, enabled } = req.body;
+    const [fromHour, fromMinute] = (fromTime || '21:00').split(':').map(Number);
+    const [toHour, toMinute] = (toTime || '05:00').split(':').map(Number);
+
+    await scheduleRepo.upsert(userId, {
+      fromHour, fromMinute, toHour, toMinute,
+      policyId,
+      enabled: enabled === 'on',
+    });
+    await scheduleEnforcer.refresh();
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error saving schedule:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось сохранить расписание',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+app.post('/schedules/:userId/unlock', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId as string);
+    const schedule = await scheduleRepo.findByUserId(userId);
+    if (!schedule) {
+      res.redirect('/');
+      return;
+    }
+
+    // Unlock until the end of current schedule window (the "to" time)
+    const now = new Date();
+    const unlockUntil = new Date(now);
+    unlockUntil.setHours(schedule.toHour, schedule.toMinute, 0, 0);
+    // If to time is earlier than now, it means tomorrow
+    if (unlockUntil <= now) {
+      unlockUntil.setDate(unlockUntil.getDate() + 1);
+    }
+
+    await scheduleRepo.setOverride(userId, unlockUntil);
+    await scheduleEnforcer.refresh();
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error unlocking schedule:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось разблокировать',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+app.post('/schedules/:userId/delete', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId as string);
+    await scheduleRepo.delete(userId);
+    await scheduleEnforcer.refresh();
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error deleting schedule:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось удалить расписание',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
 // Public API endpoint for admin status lookup (used by other services)
 app.get('/api/whoami', async (req, res) => {
   try {
@@ -649,6 +812,7 @@ const server = app.listen(config.port, () => {
 async function shutdown() {
   logger.info('Shutting down...');
   trafficPoller.stop();
+  scheduleEnforcer.stop();
   server.close(async () => {
     await closeDatabase(logger);
     process.exit(0);

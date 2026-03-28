@@ -57,8 +57,22 @@ export const hourlyTrafficTable = pgTable('hourly_traffic', {
   unique().on(table.date, table.hour, table.mac),
 ]);
 
+export const schedulesTable = pgTable('schedules', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => usersTable.id, { onDelete: 'cascade' }).notNull().unique(),
+  fromHour: integer('from_hour').notNull(),
+  fromMinute: integer('from_minute').notNull().default(0),
+  toHour: integer('to_hour').notNull(),
+  toMinute: integer('to_minute').notNull().default(0),
+  policyId: text('policy_id').notNull(),
+  enabled: boolean('enabled').notNull().default(true),
+  overrideUntil: timestamp('override_until', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type User = typeof usersTable.$inferSelect;
 export type NewUser = typeof usersTable.$inferInsert;
 export type Device = typeof devicesTable.$inferSelect;
 export type NewDevice = typeof devicesTable.$inferInsert;
 export type HourlyTraffic = typeof hourlyTrafficTable.$inferSelect;
+export type Schedule = typeof schedulesTable.$inferSelect;

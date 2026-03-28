@@ -111,6 +111,25 @@ block content
     .admin-link:hover {
       background: #fde68a;
     }
+    .schedule-indicator {
+      display: block;
+      font-size: 0.8125rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 1rem;
+      margin-top: 0.5rem;
+    }
+    .schedule-active {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .schedule-upcoming {
+      background: #f4f4f5;
+      color: var(--muted);
+    }
+    .schedule-unlocked {
+      background: #dcfce7;
+      color: #16a34a;
+    }
   .container
     .card
       if currentUser
@@ -119,6 +138,13 @@ block content
             a(href="/me")= currentUser.name
           if traffic && traffic.today > 0
             a.traffic-today(href="/my-traffic")= `${formatBytes(traffic.today)} сегодня`
+          if scheduleStatus && scheduleStatus.hasSchedule
+            if scheduleStatus.active && !scheduleStatus.overridden
+              span.schedule-indicator.schedule-active= `Скорость ограничена до ${scheduleStatus.to}`
+            else if scheduleStatus.overridden
+              span.schedule-indicator.schedule-unlocked Разблокировано
+            else
+              span.schedule-indicator.schedule-upcoming= `Без ограничений до ${scheduleStatus.from}`
 
       .section-header Сервисы
       .links

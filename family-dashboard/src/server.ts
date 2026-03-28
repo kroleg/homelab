@@ -148,6 +148,27 @@ interface UserTraffic {
   devices: TrafficDevice[];
 }
 
+interface ScheduleStatus {
+  hasSchedule: boolean;
+  active?: boolean;
+  overridden?: boolean;
+  policyId?: string;
+  from?: string;
+  to?: string;
+  nextChange?: string;
+  overrideUntil?: string | null;
+}
+
+async function getScheduleStatus(userId: number): Promise<ScheduleStatus> {
+  try {
+    const response = await fetch(`${DEVICES_API_URL}/api/users/${userId}/schedule-status`);
+    if (response.ok) return await response.json();
+  } catch {
+    // ignore
+  }
+  return { hasSchedule: false };
+}
+
 async function getUserTraffic(userId: number): Promise<UserTraffic> {
   try {
     const response = await fetch(`${DEVICES_API_URL}/api/users/${userId}/traffic`);
@@ -165,8 +186,12 @@ app.get('/', async (req, res) => {
   const isParent = whoami?.user?.role === 'parent';
 
   let traffic: UserTraffic | null = null;
+  let scheduleStatus: ScheduleStatus | null = null;
   if (whoami?.user) {
-    traffic = await getUserTraffic(whoami.user.id);
+    [traffic, scheduleStatus] = await Promise.all([
+      getUserTraffic(whoami.user.id),
+      getScheduleStatus(whoami.user.id),
+    ]);
   }
 
   res.render('index', {
@@ -177,6 +202,7 @@ app.get('/', async (req, res) => {
     isAdmin: admin,
     currentUser: whoami?.user ?? null,
     traffic,
+    scheduleStatus,
     formatBytes,
   });
 });
@@ -204,10 +230,13 @@ app.get('/me', async (req, res) => {
     // ignore
   }
 
+  const scheduleStatus = await getScheduleStatus(whoami.user.id);
+
   res.render('me', {
     title: whoami.user.name,
     user: whoami.user,
     devices,
+    scheduleStatus,
   });
 });
 

@@ -102,6 +102,24 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
     const whoami = await getWhoami(clientIp);
     const admin = whoami?.isAdmin ?? false;
 
+    // Check if user has an active schedule enforcement
+    let scheduleBlocked = false;
+    let scheduleMessage = '';
+    if (whoami?.user && !admin) {
+      try {
+        const schedRes = await fetch(`${DEVICES_API_URL}/api/users/${whoami.user.id}/schedule-status`);
+        if (schedRes.ok) {
+          const status = await schedRes.json();
+          if (status.hasSchedule && status.active && !status.overridden) {
+            scheduleBlocked = true;
+            scheduleMessage = `Скорость интернета ограничена и VPN выключен до ${status.to}`;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     // Filter admin-only policies for non-admins
     const policies = admin
       ? allPolicies
@@ -115,6 +133,8 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
       policies,
       userName: whoami?.user?.name ?? null,
       deviceName: whoami?.device?.customName ?? null,
+      scheduleBlocked,
+      scheduleMessage,
       error: null
     });
   } catch (error) {
@@ -137,6 +157,24 @@ app.post('/set-policy', async (req: Request, res: Response, _next: NextFunction)
         message: 'Device MAC address is required'
       });
       return;
+    }
+
+    // Block policy change if schedule is active
+    const clientIp = normalizeIp(getClientIp(req));
+    const whoami = await getWhoami(clientIp);
+    if (whoami?.user && !whoami.isAdmin) {
+      try {
+        const schedRes = await fetch(`${DEVICES_API_URL}/api/users/${whoami.user.id}/schedule-status`);
+        if (schedRes.ok) {
+          const status = await schedRes.json();
+          if (status.hasSchedule && status.active && !status.overridden) {
+            res.redirect('/');
+            return;
+          }
+        }
+      } catch {
+        // ignore, allow through
+      }
     }
 
     // Call keenetic-api to set policy

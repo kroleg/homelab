@@ -372,7 +372,7 @@ services:
       - POSTGRES_DB=devices
       - POSTGRES_USER=devices
       - POSTGRES_PASSWORD=${DEVICES_DB_PASSWORD:-devices}
-      - ADMIN_MACS=AC:B4:80:F2:51:1C,84:2F:57:7A:02:8E
+      # - ADMIN_MACS=AC:B4:80:F2:51:1C,84:2F:57:7A:02:8E
     depends_on:
       postgres-devices:
         condition: service_healthy
