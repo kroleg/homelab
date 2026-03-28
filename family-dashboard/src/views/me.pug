@@ -115,6 +115,14 @@ block content
       color: var(--muted);
       margin-top: 0.125rem;
     }
+    .device-speed-limit {
+      font-size: 0.625rem;
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      background: #fee2e2;
+      color: #dc2626;
+      flex-shrink: 0;
+    }
     .empty-message {
       padding: 1rem;
       text-align: center;
@@ -157,3 +165,5 @@ block content
                 .device-info
                   .device-name= device.customName || device.keeneticName || device.mac
                   .device-details= device.mac
+                if device.speedLimit
+                  span.device-speed-limit= `${device.speedLimit / 1000} Мбит/с`

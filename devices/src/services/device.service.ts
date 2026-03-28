@@ -10,6 +10,7 @@ export interface EnrichedDevice extends Device {
   ip: string | null;
   online: boolean;
   policy: PolicyInfo | null;
+  speedLimit: number | null;
   traffic: TrafficInfo | null;
 }
 
@@ -44,6 +45,7 @@ export function createDeviceService(
     device: Device,
     keeneticByMac: Map<string, KeeneticDevice>,
     todayByMac?: Record<string, TrafficInfo>,
+    speedLimits?: Record<string, number>,
   ): EnrichedDevice {
     const live = keeneticByMac.get(device.mac.toUpperCase());
     const traffic = todayByMac?.[device.mac.toLowerCase()] ?? null;
@@ -53,6 +55,7 @@ export function createDeviceService(
       ip: live?.ip ?? null,
       online: live?.online ?? false,
       policy: live?.policy ?? null,
+      speedLimit: speedLimits?.[device.mac.toLowerCase()] ?? null,
       traffic,
     };
   }
@@ -92,11 +95,16 @@ export function createDeviceService(
       const allMacs = dbDevices.filter(d => d.userId).map(d => d.mac.toLowerCase());
       let todayByMac: Record<string, TrafficInfo> | undefined;
       let weeklyByMac: Map<string, number> | undefined;
+      let speedLimits: Record<string, number> | undefined;
 
       if (includeTraffic && allMacs.length > 0) {
         const today = new Date().toISOString().slice(0, 10);
-        const weeklyRows = await trafficRepo.getDailyTotals(allMacs, 7);
+        const [weeklyRows, limits] = await Promise.all([
+          trafficRepo.getDailyTotals(allMacs, 7),
+          keenetic.getSpeedLimits(),
+        ]);
 
+        speedLimits = limits;
         todayByMac = {};
         weeklyByMac = new Map<string, number>();
         for (const row of weeklyRows) {
@@ -113,7 +121,7 @@ export function createDeviceService(
       const devicesByUserId = new Map<number, EnrichedDevice[]>();
       for (const device of dbDevices) {
         if (device.userId) {
-          const enriched = enrichDevice(device, keeneticByMac, todayByMac);
+          const enriched = enrichDevice(device, keeneticByMac, todayByMac, speedLimits);
           const list = devicesByUserId.get(device.userId) || [];
           list.push(enriched);
           devicesByUserId.set(device.userId, list);
@@ -142,12 +150,13 @@ export function createDeviceService(
     },
 
     async getUserDevices(userId: number): Promise<EnrichedDevice[]> {
-      const [dbDevices, keeneticByMac] = await Promise.all([
+      const [dbDevices, keeneticByMac, speedLimits] = await Promise.all([
         deviceRepo.findByUserId(userId),
         getKeeneticDevicesMap(),
+        keenetic.getSpeedLimits(),
       ]);
 
-      const enriched = dbDevices.map(d => enrichDevice(d, keeneticByMac));
+      const enriched = dbDevices.map(d => enrichDevice(d, keeneticByMac, undefined, speedLimits));
       return sortByOnlineThenName(enriched);
     },
 
