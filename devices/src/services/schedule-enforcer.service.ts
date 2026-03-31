@@ -41,34 +41,44 @@ export function createScheduleEnforcer(
 
   async function enforce() {
     try {
-      const schedules = await scheduleRepo.findAll();
-      if (schedules.length === 0) return;
-
       const now = new Date();
+      const [schedules, currentLimits] = await Promise.all([
+        scheduleRepo.findAll(),
+        keenetic.getSpeedLimits(),
+      ]);
 
-      // Get current speed limits from router
-      const currentLimits = await keenetic.getSpeedLimits();
+      // Build set of MACs that should have speed limits right now
+      const shouldBeLimited = new Set<string>();
 
       for (const schedule of schedules) {
         const shouldEnforce = schedule.enabled
           && isScheduleActive(schedule, now)
           && !isOverridden(schedule, now);
 
+        if (!shouldEnforce) continue;
+
         const devices = await deviceRepo.findByUserId(schedule.userId);
-
         for (const device of devices) {
-          const hasLimit = currentLimits[device.mac.toLowerCase()] != null;
+          shouldBeLimited.add(device.mac.toLowerCase());
+        }
+      }
 
-          if (shouldEnforce && !hasLimit) {
-            const success = await keenetic.setSpeedLimit(device.mac, speedLimitKbps);
-            if (success) {
-              logger.info(`Schedule: set ${speedLimitKbps} kbps limit on ${device.customName || device.mac} (user ${schedule.userId})`);
-            }
-          } else if (!shouldEnforce && hasLimit) {
-            const success = await keenetic.removeSpeedLimit(device.mac);
-            if (success) {
-              logger.info(`Schedule: removed speed limit from ${device.customName || device.mac} (user ${schedule.userId})`);
-            }
+      // Apply limits to devices that should be limited but aren't (or have wrong rate)
+      for (const mac of shouldBeLimited) {
+        if (currentLimits[mac] !== speedLimitKbps) {
+          const success = await keenetic.setSpeedLimit(mac, speedLimitKbps);
+          if (success) {
+            logger.info(`Schedule: set ${speedLimitKbps} kbps limit on ${mac}`);
+          }
+        }
+      }
+
+      // Remove limits from devices that are limited but shouldn't be
+      for (const mac of Object.keys(currentLimits)) {
+        if (!shouldBeLimited.has(mac)) {
+          const success = await keenetic.removeSpeedLimit(mac);
+          if (success) {
+            logger.info(`Schedule: removed speed limit from ${mac}`);
           }
         }
       }

@@ -18,7 +18,7 @@ export function loadConfig() {
     password: process.env.POSTGRES_PASSWORD || 'devices',
   };
 
-  const speedLimitKbps = parseInt(process.env.SPEED_LIMIT_KBPS || '2000');
+  const speedLimitKbps = parseInt(process.env.SPEED_LIMIT_KBPS || '1000');
 
   return {
     port,
