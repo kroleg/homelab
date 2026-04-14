@@ -60,6 +60,14 @@ async function getWhoami(ip: string): Promise<WhoamiResponse | null> {
   }
 }
 
+// Fetch device info from keenetic-api by IP, returns null if not found, throws on other errors
+async function getDeviceByIp(ip: string): Promise<Record<string, unknown> | null> {
+  const response = await fetch(`${KEENETIC_API_URL}/client?ip=${encodeURIComponent(ip)}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`keenetic-api returned ${response.status}`);
+  return await response.json() as Record<string, unknown>;
+}
+
 // Main page - shows current device status and policy options
 app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
   try {
@@ -74,20 +82,15 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
     }
 
     // Fetch device info from keenetic-api
-    const deviceResponse = await fetch(`${KEENETIC_API_URL}/client?ip=${encodeURIComponent(clientIp)}`);
+    const device = await getDeviceByIp(clientIp);
 
-    if (!deviceResponse.ok) {
-      if (deviceResponse.status === 404) {
-        res.render('error', {
-          title: 'Device Not Found',
-          message: `Your device (${clientIp}) is not registered on the network. Please connect to the network first.`
-        });
-        return;
-      }
-      throw new Error(`API returned ${deviceResponse.status}`);
+    if (!device) {
+      res.render('error', {
+        title: 'Device Not Found',
+        message: `Your device (${clientIp}) is not registered on the network. Please connect to the network first.`
+      });
+      return;
     }
-
-    const device = await deviceResponse.json();
 
     // Fetch VPN policies from keenetic-api
     const policiesResponse = await fetch(`${KEENETIC_API_URL}/vpn-policies`);
@@ -123,6 +126,71 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
       title: 'Error',
       message: 'Failed to load device information. Please try again later.'
     });
+  }
+});
+
+// JSON API: get available policies and current policy for the caller's device
+app.get('/api/me/policy', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const clientIp = normalizeIp(getClientIp(req));
+    if (!clientIp) {
+      res.status(400).json({ error: 'Could not determine client IP' });
+      return;
+    }
+
+    const [device, policiesResponse] = await Promise.all([
+      getDeviceByIp(clientIp),
+      fetch(`${KEENETIC_API_URL}/vpn-policies`),
+    ]);
+
+    if (!device) {
+      res.status(404).json({ error: 'Device not found' });
+      return;
+    }
+
+    const policies = policiesResponse.ok ? await policiesResponse.json() : [];
+    res.json({ device, policies });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// JSON API: set policy for the caller's device
+app.post('/api/me/policy', express.json(), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { policyId } = req.body as { policyId?: unknown };
+    if (policyId !== undefined && policyId !== null && typeof policyId !== 'string') {
+      res.status(400).json({ error: 'policyId must be a string or null' });
+      return;
+    }
+
+    const clientIp = normalizeIp(getClientIp(req));
+    if (!clientIp) {
+      res.status(400).json({ error: 'Could not determine client IP' });
+      return;
+    }
+
+    const device = await getDeviceByIp(clientIp);
+    if (!device) {
+      res.status(404).json({ error: 'Device not found' });
+      return;
+    }
+
+    const response = await fetch(`${KEENETIC_API_URL}/clients/${encodeURIComponent(String(device.mac))}/policy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ policyId: policyId || null }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+      res.status(500).json({ error: (err as { error?: string }).error || 'Failed to set policy' });
+      return;
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
   }
 });
 
@@ -165,12 +233,13 @@ app.post('/set-policy', async (req: Request, res: Response, _next: NextFunction)
 });
 
 // Error handler
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error('Server error:', err);
-  res.status(500).render('error', {
-    title: 'Error',
-    message: 'An unexpected error occurred'
-  });
+  if (req.path.startsWith('/api/')) {
+    res.status(500).json({ error: 'Internal server error' });
+  } else {
+    res.status(500).render('error', { title: 'Error', message: 'An unexpected error occurred' });
+  }
 });
 
 // Start the server
