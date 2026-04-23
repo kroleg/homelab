@@ -1,4 +1,4 @@
-import { and, sql, gte, eq, inArray } from 'drizzle-orm';
+import { and, sql, gte, lt, eq, inArray } from 'drizzle-orm';
 import type { Database } from './db.ts';
 import { hourlyTrafficTable } from './db-schema.ts';
 
@@ -55,6 +55,23 @@ export function createTrafficRepository(db: Database) {
         rx: Number(r.rx),
         tx: Number(r.tx),
       }));
+    },
+
+    async getWindowTotal(macs: string[], date: string, fromHour: number, toHour: number): Promise<number> {
+      if (macs.length === 0) return 0;
+
+      const rows = await db.select({
+        total: sql<number>`coalesce(sum(${hourlyTrafficTable.rx}), 0)`,
+      })
+        .from(hourlyTrafficTable)
+        .where(and(
+          eq(hourlyTrafficTable.date, date),
+          inArray(hourlyTrafficTable.mac, macs),
+          gte(hourlyTrafficTable.hour, fromHour),
+          lt(hourlyTrafficTable.hour, toHour),
+        ));
+
+      return Number(rows[0]?.total ?? 0);
     },
 
     async getTodayHourly(macs: string[]): Promise<Array<{ hour: number; mac: string; rx: number }>> {

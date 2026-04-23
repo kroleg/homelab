@@ -12,7 +12,7 @@ import { createTrafficRepository } from './storage/traffic.repository.ts';
 import { createScheduleRepository } from './storage/schedule.repository.ts';
 import { createTrafficPoller } from './services/traffic-poller.service.ts';
 import { createScheduleEnforcer } from './services/schedule-enforcer.service.ts';
-import { isScheduleActive, isOverridden, getNextChangeTime } from './services/schedule-enforcer.service.ts';
+import { isScheduleActive, isOverridden, getNextChangeTime, getCurrentWindow } from './services/schedule-enforcer.service.ts';
 import { DeviceType, UserRole, UserRoleLabel } from './storage/db-schema.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -35,7 +35,7 @@ const scheduleRepo = createScheduleRepository(db);
 const trafficPoller = createTrafficPoller(keenetic, deviceRepo, trafficRepo, logger, 10 * 60 * 1000);
 trafficPoller.start();
 
-const scheduleEnforcer = createScheduleEnforcer(keenetic, deviceRepo, scheduleRepo, logger, 60 * 1000, config.speedLimitKbps);
+const scheduleEnforcer = createScheduleEnforcer(keenetic, deviceRepo, scheduleRepo, userRepo, trafficRepo, logger, 60 * 1000, config.speedLimitKbps);
 scheduleEnforcer.start();
 
 const app = express();
@@ -222,10 +222,43 @@ app.get('/', requireAdmin, async (_req, res) => {
       };
     }
 
+    // Build quota map by userId
+    const quotaMap: Record<number, {
+      enabled: boolean;
+      limitMb: number;
+      windowHours: number;
+      usedBytes: number;
+      limitBytes: number;
+      remainingBytes: number;
+      exceeded: boolean;
+      windowEnd: string;
+    }> = {};
+
+    for (const user of usersWithDevices) {
+      if (!user.quotaEnabled) continue;
+      const window = getCurrentWindow(now, user.quotaWindowHours);
+      const macs = user.devices.map(d => d.mac.toLowerCase());
+      const usedBytes = macs.length > 0
+        ? await trafficRepo.getWindowTotal(macs, window.date, window.fromHour, window.toHour)
+        : 0;
+      const limitBytes = user.quotaLimitMb * 1024 * 1024;
+      quotaMap[user.id] = {
+        enabled: true,
+        limitMb: user.quotaLimitMb,
+        windowHours: user.quotaWindowHours,
+        usedBytes,
+        limitBytes,
+        remainingBytes: Math.max(0, limitBytes - usedBytes),
+        exceeded: usedBytes >= limitBytes,
+        windowEnd: `${String(window.toHour).padStart(2, '0')}:00`,
+      };
+    }
+
     res.render('index', {
       title: 'Устройства',
       users: usersWithDevices,
       scheduleMap,
+      quotaMap,
       unassigned: {
         name: 'Без владельца',
         devices: unassignedDevices,
@@ -638,6 +671,50 @@ app.get('/api/users/:id/schedule-status', async (req, res) => {
   }
 });
 
+// Public API endpoint to get user's quota status (used by family-dashboard)
+app.get('/api/users/:id/quota-status', async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (isNaN(userId)) {
+      res.status(400).json({ error: 'Invalid user ID' });
+      return;
+    }
+    const user = await userRepo.findById(userId);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (!user.quotaEnabled) {
+      res.json({ enabled: false });
+      return;
+    }
+
+    const now = new Date();
+    const window = getCurrentWindow(now, user.quotaWindowHours);
+    const devices = await deviceRepo.findByUserId(userId);
+    const macs = devices.map(d => d.mac.toLowerCase());
+    const usedBytes = macs.length > 0
+      ? await trafficRepo.getWindowTotal(macs, window.date, window.fromHour, window.toHour)
+      : 0;
+    const limitBytes = user.quotaLimitMb * 1024 * 1024;
+
+    res.json({
+      enabled: true,
+      limitMb: user.quotaLimitMb,
+      windowHours: user.quotaWindowHours,
+      currentWindow: { fromHour: window.fromHour, toHour: window.toHour },
+      usedBytes,
+      limitBytes,
+      remainingBytes: Math.max(0, limitBytes - usedBytes),
+      exceeded: usedBytes >= limitBytes,
+    });
+  } catch (error) {
+    logger.error('API error in /api/users/:id/quota-status:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Schedule management (admin only)
 app.get('/api/schedules', requireAdmin, async (_req, res) => {
   try {
@@ -761,6 +838,44 @@ app.post('/schedules/:userId/delete', requireAdmin, async (req, res) => {
     res.status(500).render('error', {
       title: 'Ошибка',
       message: 'Не удалось удалить расписание',
+      homeUrl: config.homeUrl,
+    });
+  }
+});
+
+// Quota form handler (admin only)
+const VALID_WINDOW_HOURS = [1, 2, 3, 4, 6, 8, 12, 24];
+
+app.post('/quotas/:userId', requireAdmin, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.userId as string);
+    if (isNaN(userId)) { res.redirect('/'); return; }
+    const { quotaEnabled, quotaLimitMb, quotaWindowHours } = req.body;
+
+    const limitMb = parseInt(quotaLimitMb || '1000');
+    const windowHours = parseInt(quotaWindowHours || '3');
+
+    if (!VALID_WINDOW_HOURS.includes(windowHours)) {
+      res.status(400).render('error', {
+        title: 'Ошибка',
+        message: 'Недопустимый размер окна',
+        homeUrl: config.homeUrl,
+      });
+      return;
+    }
+
+    await userRepo.update(userId, {
+      quotaEnabled: quotaEnabled === 'on',
+      quotaLimitMb: limitMb,
+      quotaWindowHours: windowHours,
+    });
+    await scheduleEnforcer.refresh();
+    res.redirect('/');
+  } catch (error) {
+    logger.error('Error saving quota:', error);
+    res.status(500).render('error', {
+      title: 'Ошибка',
+      message: 'Не удалось сохранить лимит трафика',
       homeUrl: config.homeUrl,
     });
   }

@@ -158,6 +158,29 @@ interface ScheduleStatus {
   overrideUntil?: string | null;
 }
 
+type QuotaStatus = {
+  enabled: false;
+} | {
+  enabled: true;
+  limitMb: number;
+  windowHours: number;
+  currentWindow: { fromHour: number; toHour: number };
+  usedBytes: number;
+  limitBytes: number;
+  remainingBytes: number;
+  exceeded: boolean;
+};
+
+async function getQuotaStatus(userId: number): Promise<QuotaStatus> {
+  try {
+    const response = await fetch(`${DEVICES_API_URL}/api/users/${userId}/quota-status`);
+    if (response.ok) return await response.json();
+  } catch {
+    // ignore
+  }
+  return { enabled: false };
+}
+
 async function getScheduleStatus(userId: number): Promise<ScheduleStatus> {
   try {
     const response = await fetch(`${DEVICES_API_URL}/api/users/${userId}/schedule-status`);
@@ -229,13 +252,18 @@ app.get('/me', async (req, res) => {
     // ignore
   }
 
-  const scheduleStatus = await getScheduleStatus(whoami.user.id);
+  const [scheduleStatus, quotaStatus] = await Promise.all([
+    getScheduleStatus(whoami.user.id),
+    getQuotaStatus(whoami.user.id),
+  ]);
 
   res.render('me', {
     title: whoami.user.name,
     user: whoami.user,
     devices,
     scheduleStatus,
+    quotaStatus,
+    formatBytes,
   });
 });
 

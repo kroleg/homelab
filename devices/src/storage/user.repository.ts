@@ -13,6 +13,10 @@ export function createUserRepository(db: Database) {
       return results[0];
     },
 
+    async findWithQuotaEnabled(): Promise<User[]> {
+      return db.select().from(usersTable).where(eq(usersTable.quotaEnabled, true));
+    },
+
     async findBySlug(slug: string): Promise<User | undefined> {
       const results = await db.select().from(usersTable).where(eq(usersTable.slug, slug));
       return results[0];

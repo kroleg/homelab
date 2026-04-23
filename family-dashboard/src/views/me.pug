@@ -64,6 +64,7 @@ block content
     .status-ok { color: var(--success); }
     .status-limited { color: #dc2626; }
     .status-unlocked { color: #16a34a; }
+    .status-row + .status-row { margin-top: 0.5rem; }
     .devices-list {
       background: var(--secondary);
       border-radius: 0.5rem;
@@ -148,6 +149,13 @@ block content
               span.status-value.status-unlocked Разблокирован
             else
               span.status-value.status-ok Без ограничений
+          if quotaStatus && quotaStatus.enabled
+            .status-row
+              span.status-label Трафик
+              if quotaStatus.exceeded
+                span.status-value.status-limited= `Исчерпан до ${String(quotaStatus.currentWindow.toHour).padStart(2, '0')}:00`
+              else
+                span.status-value= `${formatBytes(quotaStatus.remainingBytes)} из ${formatBytes(quotaStatus.limitBytes)}`
 
       .section
         .section-header Мои устройства

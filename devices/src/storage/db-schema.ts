@@ -32,6 +32,9 @@ export const usersTable = pgTable('users', {
   slug: text('slug').notNull().unique(),
   isAdmin: boolean('is_admin').notNull().default(false),
   role: text('role').notNull().default('parent'),
+  quotaEnabled: boolean('quota_enabled').notNull().default(false),
+  quotaLimitMb: integer('quota_limit_mb').notNull().default(1000),
+  quotaWindowHours: integer('quota_window_hours').notNull().default(3),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
