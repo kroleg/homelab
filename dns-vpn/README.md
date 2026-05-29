@@ -10,6 +10,14 @@ Core routing engine that watches DNS resolutions and manages static routes on Ke
 - **Route Optimization** - Combines /32 host routes into network blocks (e.g., /24)
 - **Admin Dashboard** - Web UI for managing services and devices
 - **Per-Device Policies** - Enable/disable VPN routing per device
+- **DNS Request Log** - List of DNS requests by client IP (helps discover unexpected domains, e.g. game traffic)
+
+## Requirements and Tech Stack
+
+- Node.js v22 and pnpm 10 (see `.tool-versions`)
+- ESM
+- TypeScript, run natively by Node (no transpile step)
+- PostgreSQL for data storage
 
 ## Environment Variables
 
