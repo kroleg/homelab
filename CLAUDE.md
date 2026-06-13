@@ -42,7 +42,7 @@ No AI mention in commits.
 
 Docker Compose, Node.js/TypeScript, Prometheus/Grafana
 
-Refer to @typescript-architecture.md
+Refer to ./typescript-architecture.md
 
 ## Development
 
