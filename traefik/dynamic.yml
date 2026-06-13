@@ -12,6 +12,12 @@ http:
         - web
       service: zigbee2mqtt
 
+    esphome:
+      rule: "Host(`esphome.internal`)"
+      entrypoints:
+        - web
+      service: esphome
+
   services:
     homeassistant:
       loadBalancer:
@@ -22,3 +28,8 @@ http:
       loadBalancer:
         servers:
           - url: "http://127.0.0.1:8099"
+
+    esphome:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:6052"

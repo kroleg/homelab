@@ -8,6 +8,7 @@ Home automation platform with Zigbee support via Zigbee2MQTT.
 |---------|-------|---------|--------|
 | Home Assistant | `ghcr.io/home-assistant/home-assistant:2026.3` | host (port 8123) | `hass.internal` via traefik |
 | Zigbee2MQTT | `koenkk/zigbee2mqtt` | host (port 8099) | `http://<host-ip>:8099` |
+| ESPHome | `ghcr.io/esphome/esphome:2026.5` | host (port 6052) | `esphome.internal` via traefik |
 | Mosquitto | `eclipse-mosquitto:2` | bridge (port 1883) | internal MQTT broker |
 
 ## Hardware

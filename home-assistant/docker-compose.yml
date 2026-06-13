@@ -37,3 +37,20 @@ services:
     network_mode: host
     depends_on:
       - mosquitto
+
+  esphome:
+    container_name: esphome
+    image: ghcr.io/esphome/esphome:2026.5
+    volumes:
+      - ./esphome:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /dev:/dev
+      - /run/udev:/run/udev:ro
+    device_cgroup_rules:
+      - 'c 188:* rmw'  # /dev/ttyUSB*
+      - 'c 166:* rmw'  # /dev/ttyACM*
+    environment:
+      - TZ=Europe/Moscow
+      - ESPHOME_DASHBOARD_USE_PING=true
+    restart: unless-stopped
+    network_mode: host
