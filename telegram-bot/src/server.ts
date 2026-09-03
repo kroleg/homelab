@@ -7,6 +7,7 @@ import { createHardwareService } from './services/hardware.service.ts';
 import { createDockerService } from './services/docker.service.ts';
 import { createCommandHandler } from './services/command-handler.ts';
 import { createPollerService } from './services/poller.service.ts';
+import { createEventsService } from './services/events.service.ts';
 
 const config = loadConfig();
 const logger = createLogger(config.logLevel);
@@ -34,6 +35,7 @@ const commandHandler = createCommandHandler(
   logger
 );
 const poller = createPollerService(telegram, commandHandler, logger);
+const events = createEventsService(config.dockerSocketPath, telegram, logger);
 
 const app = express();
 app.use(express.json());
@@ -52,11 +54,13 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 const server = app.listen(config.port, () => {
   logger.info(`Server running on port ${config.port}`);
   poller.start();
+  events.start();
 });
 
 function shutdown() {
   logger.info('Shutting down...');
   poller.stop();
+  events.stop();
   server.close(() => process.exit(0));
 }
 
