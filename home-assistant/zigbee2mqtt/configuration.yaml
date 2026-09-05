@@ -7,5 +7,7 @@ frontend:
   port: 8099
 homeassistant:
   enabled: true
+advanced:
+  last_seen: ISO_8601
 version: 5
 devices: devices.yaml
