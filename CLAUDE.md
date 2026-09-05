@@ -9,7 +9,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - docx-to-pdf (pdf.internal) - DOCX to PDF converter using LibreOffice headless
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
 - family-dashboard (dom.internal) - Family dashboard with quick links to homelab services
-- home-assistant (hass.internal) - Home Assistant with Zigbee2MQTT and Mosquitto MQTT broker (separate compose via include)
+- home-assistant (hass.internal) - Home Assistant with Zigbee2MQTT and Mosquitto MQTT broker, plus rethink for local (no-cloud) LG ThinQ appliance integration (separate compose via include)
 - infra - Observability stack (separate compose via include): grafana, prometheus, loki, promtail, otel-collector, node-exporter
 - jellyfin (media.internal) - Media server for streaming movies and TV shows
 - keenetic-api - REST API for Keenetic router

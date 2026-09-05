@@ -7,3 +7,6 @@ jellyfin/
 qbittorrent/
 scrutiny/*
 !scrutiny/README.md
+home-assistant/rethink/repo/
+home-assistant/rethink/certs/
+home-assistant/rethink/state/

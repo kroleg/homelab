@@ -38,6 +38,20 @@ services:
     depends_on:
       - mosquitto
 
+  rethink:
+    container_name: rethink
+    # built from local source (not the published ghcr.io image) to carry a one-line
+    # patch adding a device-type alias for our washer model - see rethink/README.md
+    build:
+      context: ./rethink/repo
+    volumes:
+      - ./rethink:/app/data
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - mosquitto
+
   esphome:
     container_name: esphome
     image: ghcr.io/esphome/esphome:2026.5

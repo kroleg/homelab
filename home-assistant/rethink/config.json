@@ -1,0 +1,28 @@
+{
+  "hostname": "rethink.internal",
+
+  "homeassistant": {
+    "mqtt_url": "mqtt://localhost:1883",
+    "discovery_prefix": "homeassistant",
+    "rethink_prefix": "rethink",
+    "mqtt_user": "",
+    "mqtt_pass": ""
+  },
+
+  "ca_key_file": "certs/ca.key",
+  "ca_cert_file": "certs/ca.cert",
+
+  "https_port": 443,
+  "mqtts_port": 8883,
+  "mqtt_port": 1884,
+  "thinq1_https_port": 46030,
+  "thinq1_port": 47878,
+
+  "management_port": { "bind": 44401, "address": "127.0.0.1" },
+
+  "bridge": {
+    "storage_path": "./state"
+  },
+
+  "log": ["status", "incoming", "HTTPS", "publish", "MGMT"]
+}
