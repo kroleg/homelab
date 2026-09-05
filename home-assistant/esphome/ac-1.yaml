@@ -1,0 +1,15 @@
+substitutions:
+  name: ac-1
+  friendly_name: "ac 1"
+  ap_name: "Ac-1"
+  climate_name: "Bedroom AC"
+
+packages:
+  ac_common: !include ac-common.yaml
+
+api:
+  encryption:
+    key: !secret ac_1_encryption_key
+
+wifi:
+  use_address: 192.168.10.7

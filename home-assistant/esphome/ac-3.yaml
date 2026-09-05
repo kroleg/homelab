@@ -1,0 +1,15 @@
+substitutions:
+  name: ac-3
+  friendly_name: "ac 3"
+  ap_name: "Ac-3"
+  climate_name: "Childern room AC"
+
+packages:
+  ac_common: !include ac-common.yaml
+
+api:
+  encryption:
+    key: !secret ac_3_encryption_key
+
+wifi:
+  use_address: 192.168.10.11

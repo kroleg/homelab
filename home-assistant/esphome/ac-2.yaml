@@ -1,0 +1,12 @@
+substitutions:
+  name: ac-2
+  friendly_name: "ac 2"
+  ap_name: "Ac-2"
+  climate_name: "AC"
+
+packages:
+  ac_common: !include ac-common.yaml
+
+api:
+  encryption:
+    key: !secret ac_2_encryption_key
