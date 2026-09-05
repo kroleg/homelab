@@ -5,3 +5,5 @@ recorder:
   commit_interval: 5
 
 automation: !include automations.yaml
+
+mobile_app:
