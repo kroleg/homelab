@@ -41,7 +41,7 @@ No AI mention in commits.
 
 ## Tech Stack
 
-Docker Compose, Node.js/TypeScript, Prometheus/Grafana
+Docker Compose, Node.js/TypeScript with pnpm, Prometheus/Grafana
 
 Refer to ./typescript-architecture.md
 

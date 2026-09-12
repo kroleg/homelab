@@ -4,20 +4,10 @@ Instructions for Claude to replicate the homelab TypeScript architecture in new 
 
 ## Quick Start Template
 
-**npm:**
-```bash
-mkdir my-service && cd my-service
-npm init -y
-npm pkg set type=module
-npm i express@5 winston
-npm i -D typescript @types/express @types/node
-```
-
-**pnpm:**
 ```bash
 mkdir my-service && cd my-service
 pnpm init
-npm pkg set type=module
+pnpm pkg set type=module
 pnpm add express@5 winston
 pnpm add -D typescript @types/express @types/node
 ```
@@ -263,8 +253,8 @@ export function createApiRoutes(logger: Logger): Router {
 ### Dependencies
 
 ```bash
-npm i drizzle-orm pg
-npm i -D drizzle-kit @types/pg
+pnpm add drizzle-orm pg
+pnpm add -D drizzle-kit @types/pg
 ```
 
 ### drizzle.config.ts
@@ -367,7 +357,7 @@ export type ItemRepository = ReturnType<typeof createItemRepository>;
 ### Dependencies
 
 ```bash
-npm i pug
+pnpm add pug
 ```
 
 ### Server setup
@@ -408,40 +398,18 @@ html(lang="en")
 
 ## Dockerfile
 
-**npm:**
 ```dockerfile
 FROM node:24-alpine
 WORKDIR /app
 
-COPY package.json package-lock.json tsconfig.json ./
-RUN npm ci
-
-COPY src ./src
-
-RUN npm run typecheck
-RUN npm prune --omit=dev
-
-EXPOSE 3000
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
-
-CMD ["node", "src/server.ts"]
-```
-
-**pnpm:**
-```dockerfile
-FROM node:24-alpine
-WORKDIR /app
-
-RUN npm install -g pnpm@10
+RUN npm install -g pnpm@11
 
 COPY package.json pnpm-lock.yaml tsconfig.json ./
 RUN pnpm install --frozen-lockfile
 
 COPY src ./src
 
-RUN pnpm typecheck
+RUN pnpm run typecheck
 RUN pnpm prune --prod
 
 EXPOSE 3000
@@ -462,7 +430,7 @@ COPY migrations ./migrations
 ### Dependencies
 
 ```bash
-npm i prom-client
+pnpm add prom-client
 ```
 
 ### src/metrics.ts
@@ -539,7 +507,7 @@ POSTGRES_PASSWORD=pass
 ### Dependencies
 
 ```bash
-npm i -D vitest
+pnpm add -D vitest
 ```
 
 ### src/example.test.ts
