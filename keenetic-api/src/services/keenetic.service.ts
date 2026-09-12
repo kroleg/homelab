@@ -39,6 +39,21 @@ export interface InterfaceInfo {
   connected: boolean;
 }
 
+export interface DnsDomainListInfo {
+  id: string;
+  description: string;
+  addresses: string[];
+}
+
+export interface DnsRouteInfo {
+  index: string;
+  group: string;
+  interface: string;
+  auto: boolean;
+  comment: string;
+  enabled: boolean;
+}
+
 export function createKeeneticService(config: {
   host: string;
   login: string;
@@ -681,6 +696,160 @@ export function createKeeneticService(config: {
       }
 
       return found.id;
+    },
+
+    async getDnsDomainLists(): Promise<DnsDomainListInfo[]> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { show: { sc: { 'object-group': { fqdn: {} } } } },
+        ]);
+        if (response.status === 200 && Array.isArray(response.data)) {
+          const listData = (response.data as Array<{
+            show?: { sc?: { 'object-group'?: { fqdn?: Record<string, { description?: string; include?: Array<{ address: string }> }> } } };
+          }>)[0]?.show?.sc?.['object-group']?.fqdn;
+          if (listData) {
+            return Object.entries(listData).map(([id, list]) => ({
+              id,
+              description: list.description || '',
+              addresses: (list.include || []).map(entry => entry.address),
+            }));
+          }
+        }
+        logger.error(`Failed to get DNS domain lists. Status: ${response.status}`);
+        return [];
+      } catch (error) {
+        logger.error('Error fetching DNS domain lists:', error);
+        return [];
+      }
+    },
+
+    async getDnsRoutes(): Promise<DnsRouteInfo[]> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { show: { sc: { 'dns-proxy': { route: {} } } } },
+        ]);
+        if (response.status === 200 && Array.isArray(response.data)) {
+          const routeData = (response.data as Array<{
+            show?: { sc?: { 'dns-proxy'?: { route?: Array<{ group: string; interface: string; auto?: boolean; index: string; comment?: string; disable?: boolean }> } } };
+          }>)[0]?.show?.sc?.['dns-proxy']?.route;
+          if (routeData) {
+            return routeData.map(route => ({
+              index: route.index,
+              group: route.group,
+              interface: route.interface,
+              auto: route.auto ?? false,
+              comment: route.comment || '',
+              enabled: route.disable !== true,
+            }));
+          }
+        }
+        logger.error(`Failed to get DNS routes. Status: ${response.status}`);
+        return [];
+      } catch (error) {
+        logger.error('Error fetching DNS routes:', error);
+        return [];
+      }
+    },
+
+    async nextDnsDomainListId(): Promise<string> {
+      const lists = await this.getDnsDomainLists();
+      const maxIndex = lists.reduce((max, list) => {
+        const match = list.id.match(/^domain-list(\d+)$/);
+        return match ? Math.max(max, parseInt(match[1], 10)) : max;
+      }, -1);
+      return `domain-list${maxIndex + 1}`;
+    },
+
+    async setDnsDomainList(id: string, description: string, addresses: string[]): Promise<boolean> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { 'object-group': { fqdn: { [id]: { include: { no: true } } } } },
+          { 'object-group': { fqdn: { [id]: { description, include: addresses.map(address => ({ address })) } } } },
+          { system: { configuration: { save: {} } } },
+        ]);
+        if (response.status === 200) {
+          logger.info(`DNS domain list ${id} updated with ${addresses.length} addresses`);
+          return true;
+        }
+        logger.error(`Failed to set DNS domain list. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error setting DNS domain list:', error);
+        return false;
+      }
+    },
+
+    async deleteDnsDomainList(id: string): Promise<boolean> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { 'object-group': { fqdn: { [id]: { no: true } } } },
+          { system: { configuration: { save: {} } } },
+        ]);
+        if (response.status === 200) {
+          logger.info(`DNS domain list ${id} deleted`);
+          return true;
+        }
+        logger.error(`Failed to delete DNS domain list. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error deleting DNS domain list:', error);
+        return false;
+      }
+    },
+
+    async createDnsRoute(group: string, interfaceId: string, enabled = true): Promise<boolean> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { 'dns-proxy': { route: { group, gateway: '', auto: true, reject: false, interface: interfaceId, disable: !enabled } } },
+          { system: { configuration: { save: {} } } },
+        ]);
+        if (response.status === 200) {
+          logger.info(`DNS route created for group ${group} -> ${interfaceId} (enabled: ${enabled})`);
+          return true;
+        }
+        logger.error(`Failed to create DNS route. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error creating DNS route:', error);
+        return false;
+      }
+    },
+
+    async updateDnsRoute(index: string, group: string, interfaceId: string, auto = true, enabled = true): Promise<boolean> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { 'dns-proxy': { route: { disable: { index, no: true } } } },
+          { 'dns-proxy': { route: { group, gateway: '', auto, reject: false, interface: interfaceId, index, disable: !enabled } } },
+          { system: { configuration: { save: {} } } },
+        ]);
+        if (response.status === 200) {
+          logger.info(`DNS route ${index} updated -> group ${group}, interface ${interfaceId} (enabled: ${enabled})`);
+          return true;
+        }
+        logger.error(`Failed to update DNS route. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error updating DNS route:', error);
+        return false;
+      }
+    },
+
+    async deleteDnsRoute(index: string): Promise<boolean> {
+      try {
+        const response = await postWithAuth('/rci/', [
+          { 'dns-proxy': { route: { index, no: true } } },
+          { system: { configuration: { save: {} } } },
+        ]);
+        if (response.status === 200) {
+          logger.info(`DNS route ${index} deleted`);
+          return true;
+        }
+        logger.error(`Failed to delete DNS route. Status: ${response.status}`);
+        return false;
+      } catch (error) {
+        logger.error('Error deleting DNS route:', error);
+        return false;
+      }
     },
   };
 }

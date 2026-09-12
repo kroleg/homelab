@@ -190,6 +190,124 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
     res.json(traffic);
   });
 
+  // DNS-Based Routes endpoints (native Keenetic domain-routing feature: FQDN
+  // object-groups bound to interfaces via dns-proxy routes)
+  router.get('/dns-domain-lists', async (_req, res) => {
+    logger.debug('Listing all DNS domain lists');
+    const lists = await keenetic.getDnsDomainLists();
+    res.json(lists);
+  });
+
+  router.get('/dns-routes', async (_req, res) => {
+    logger.debug('Listing all DNS routes');
+    const routes = await keenetic.getDnsRoutes();
+    res.json(routes);
+  });
+
+  router.post('/dns-rules', async (req, res) => {
+    const { name, addresses, interface: interfaceNameOrId, enabled } = req.body;
+
+    if (!name || typeof name !== 'string') {
+      res.status(400).json({ error: 'name is required' });
+      return;
+    }
+    if (!addresses || !Array.isArray(addresses) || addresses.length === 0) {
+      res.status(400).json({ error: 'addresses array is required' });
+      return;
+    }
+    if (!interfaceNameOrId || typeof interfaceNameOrId !== 'string') {
+      res.status(400).json({ error: 'interface is required' });
+      return;
+    }
+
+    const listId = await keenetic.nextDnsDomainListId();
+    const resolvedInterface = await keenetic.resolveInterfaceId(interfaceNameOrId, defaultInterface);
+    const isEnabled = enabled !== false;
+
+    logger.debug(`Creating DNS rule ${listId} (${name}) -> ${resolvedInterface} (enabled: ${isEnabled})`);
+
+    const listOk = await keenetic.setDnsDomainList(listId, name, addresses);
+    if (!listOk) {
+      res.status(500).json({ error: 'Failed to create DNS domain list' });
+      return;
+    }
+
+    const routeOk = await keenetic.createDnsRoute(listId, resolvedInterface, isEnabled);
+    if (!routeOk) {
+      res.status(500).json({ error: 'Failed to create DNS route' });
+      return;
+    }
+
+    res.json({ success: true, id: listId });
+  });
+
+  router.put('/dns-rules/:listId', async (req, res) => {
+    const { listId } = req.params;
+    const { name, addresses, interface: interfaceNameOrId, enabled } = req.body;
+
+    if (!name || typeof name !== 'string') {
+      res.status(400).json({ error: 'name is required' });
+      return;
+    }
+    if (!addresses || !Array.isArray(addresses) || addresses.length === 0) {
+      res.status(400).json({ error: 'addresses array is required' });
+      return;
+    }
+    if (!interfaceNameOrId || typeof interfaceNameOrId !== 'string') {
+      res.status(400).json({ error: 'interface is required' });
+      return;
+    }
+
+    const isEnabled = enabled !== false;
+    logger.debug(`Updating DNS rule ${listId} (enabled: ${isEnabled})`);
+
+    const listOk = await keenetic.setDnsDomainList(listId, name, addresses);
+    if (!listOk) {
+      res.status(500).json({ error: 'Failed to update DNS domain list' });
+      return;
+    }
+
+    const resolvedInterface = await keenetic.resolveInterfaceId(interfaceNameOrId, defaultInterface);
+    const routes = await keenetic.getDnsRoutes();
+    const existingRoute = routes.find(r => r.group === listId);
+
+    const routeOk = existingRoute
+      ? await keenetic.updateDnsRoute(existingRoute.index, listId, resolvedInterface, true, isEnabled)
+      : await keenetic.createDnsRoute(listId, resolvedInterface, isEnabled);
+
+    if (!routeOk) {
+      res.status(500).json({ error: 'Failed to update DNS route' });
+      return;
+    }
+
+    res.json({ success: true });
+  });
+
+  router.delete('/dns-rules/:listId', async (req, res) => {
+    const { listId } = req.params;
+
+    logger.debug(`Deleting DNS rule ${listId}`);
+
+    const routes = await keenetic.getDnsRoutes();
+    const existingRoute = routes.find(r => r.group === listId);
+
+    if (existingRoute) {
+      const routeOk = await keenetic.deleteDnsRoute(existingRoute.index);
+      if (!routeOk) {
+        res.status(500).json({ error: 'Failed to delete DNS route' });
+        return;
+      }
+    }
+
+    const listOk = await keenetic.deleteDnsDomainList(listId);
+    if (!listOk) {
+      res.status(500).json({ error: 'Failed to delete DNS domain list' });
+      return;
+    }
+
+    res.json({ success: true });
+  });
+
   router.post('/reboot', async (_req, res) => {
     logger.info('Router reboot requested');
     const success = await keenetic.reboot();

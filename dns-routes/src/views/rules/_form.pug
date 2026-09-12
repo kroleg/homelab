@@ -1,0 +1,38 @@
+if error
+  .alert.alert-danger= error
+
+.form-group
+  label.form-label Rule Name
+  input.form-input(type='text' name='name' value=rule.name required)
+
+.form-group
+  label.form-label Interface
+  select.form-select(name='interfaceId' required)
+    - const isDefaultSelected = !rule.interfaceId || rule.interfaceId === 'default'
+    option(value='default' selected=isDefaultSelected)
+      if defaultVpnInterface
+        = `default (${defaultVpnInterface})`
+      else
+        = 'default (not configured)'
+    each iface in interfaces
+      - const isSelected = !isDefaultSelected && (rule.interfaceId === iface.name || rule.interfaceId === iface.id)
+      option(value=iface.name selected=isSelected)
+        if !iface.connected
+          = `⚠️ ${iface.name} (NOT CONNECTED)`
+        else
+          = iface.name
+
+.form-group
+  label.form-label Domains / IPs (one per line)
+  textarea.form-textarea(name='addresses' rows='8')= Array.isArray(rule.addresses) ? rule.addresses.join('\n') : rule.addresses
+  .form-text Domains, IPv4/IPv6 addresses, and CIDR ranges are all supported.
+
+.form-group
+  label.form-checkbox
+    input(type='checkbox' name='enabled' checked=rule.enabled !== false)
+    span Enabled
+  .form-text Matches the on/off switch on this rule in Keenetic's own UI. Unchecked rules stay configured but stop routing.
+
+.form-actions
+  a.btn.btn-secondary(href='/rules') Cancel
+  button.btn.btn-primary(type='submit')= rule.id ? 'Save Changes' : 'Create Rule'

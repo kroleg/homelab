@@ -8,6 +8,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - devices (devices.internal) - Admin UI for managing users and devices with PostgreSQL storage
 - docx-to-pdf (pdf.internal) - DOCX to PDF converter using LibreOffice headless
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics
+- dns-routes (dns-routes.internal) - UI for Keenetic's native DNS-based routing (domain lists + interface bindings); intended replacement for dns-vpn's domain routing
 - family-dashboard (dom.internal) - Family dashboard with quick links to homelab services
 - home-assistant (hass.internal) - Home Assistant with Zigbee2MQTT and Mosquitto MQTT broker, plus rethink for local (no-cloud) LG ThinQ appliance integration (separate compose via include)
 - infra - Observability stack (separate compose via include): grafana, prometheus, loki, promtail, otel-collector, node-exporter

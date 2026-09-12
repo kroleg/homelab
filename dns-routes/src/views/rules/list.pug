@@ -1,0 +1,21 @@
+extends ../layout.pug
+
+block content
+  .section-header
+    a.add-btn(href='/rules/create') + New Rule
+
+  if sections.length === 0
+    .card
+      .empty-message No rules found.
+  else
+    each section in sections
+      .group-title(class=section.isNoInterface ? 'group-title-danger' : '')= section.name
+      .card
+        each rule in section.rules
+          a.rule-row(href=`/rules/${rule.id}/edit`)
+            if rule.enabled === false
+              span.badge.badge-off Off
+            else if rule.enabled === true
+              span.badge.badge-on On
+            .rule-info
+              .rule-name= rule.name

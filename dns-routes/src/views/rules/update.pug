@@ -1,0 +1,8 @@
+extends ../layout.pug
+
+block content
+  form(method='POST' action=`/rules/${rule.id}/edit`)
+    include _form.pug
+
+  form.delete-form(method='POST' action=`/rules/${rule.id}/delete` onsubmit="return confirm('Delete this rule?');")
+    button.btn.btn-danger(type='submit') Delete Rule

@@ -187,6 +187,26 @@ services:
       - PING_INTERVAL_MINUTES=1
     restart: unless-stopped
 
+  dns-routes:
+    container_name: dns-routes
+    depends_on:
+      - keenetic-api
+    build:
+      context: ./dns-routes
+    environment:
+      - KEENETIC_API_URL=http://keenetic-api:3000/api
+      - DEFAULT_VPN_INTERFACE=lithuania
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dns-routes.rule=Host(`dns-routes.internal`)"
+      - "traefik.http.routers.dns-routes.entrypoints=web"
+      - "traefik.http.services.dns-routes.loadbalancer.server.port=3000"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+
   calendar:
     container_name: calendar
     build:
