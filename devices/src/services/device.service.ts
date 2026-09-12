@@ -12,6 +12,7 @@ export interface EnrichedDevice extends Device {
   policy: PolicyInfo | null;
   speedLimit: number | null;
   traffic: TrafficInfo | null;
+  isIot: boolean;
 }
 
 export interface DiscoveredDevice {
@@ -20,6 +21,7 @@ export interface DiscoveredDevice {
   ip: string | null;
   online: boolean;
   policy: PolicyInfo | null;
+  isIot: boolean;
 }
 
 export interface UserWithDevices extends User {
@@ -34,7 +36,8 @@ export function createDeviceService(
   userRepo: UserRepository,
   deviceRepo: DeviceRepository,
   trafficRepo: TrafficRepository,
-  logger: Logger
+  logger: Logger,
+  iotInterfaceId: string
 ) {
   async function getKeeneticDevicesMap(): Promise<Map<string, KeeneticDevice>> {
     const keeneticDevices = await keenetic.getClients();
@@ -57,6 +60,7 @@ export function createDeviceService(
       policy: live?.policy ?? null,
       speedLimit: speedLimits?.[device.mac.toLowerCase()] ?? null,
       traffic,
+      isIot: live?.interfaceId === iotInterfaceId,
     };
   }
 
@@ -180,6 +184,7 @@ export function createDeviceService(
           ip: d.ip,
           online: d.online,
           policy: d.policy,
+          isIot: d.interfaceId === iotInterfaceId,
         }));
     },
 

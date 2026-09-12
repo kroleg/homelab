@@ -19,6 +19,7 @@ export function loadConfig() {
   };
 
   const speedLimitKbps = parseInt(process.env.SPEED_LIMIT_KBPS || '1000');
+  const iotInterfaceId = process.env.IOT_INTERFACE_ID || 'Bridge2';
 
   return {
     port,
@@ -27,6 +28,7 @@ export function loadConfig() {
     homeUrl,
     adminMacs,
     speedLimitKbps,
+    iotInterfaceId,
     postgres,
   };
 }

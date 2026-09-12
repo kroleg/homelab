@@ -11,6 +11,7 @@ export interface Device {
   ip: string | null;
   online: boolean;
   policy: PolicyInfo | null;
+  interfaceId: string | null;
 }
 
 export interface ClientInfo {

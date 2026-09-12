@@ -12,6 +12,7 @@ export interface ClientInfo {
   mac: string;
   online: boolean;
   policy: PolicyInfo | null;
+  interfaceId: string | null;
 }
 
 export interface HourlyTraffic {
@@ -252,7 +253,9 @@ export function createKeeneticService(config: {
           return null;
         }
 
-        const client = response.data.find((c: { ip: string }) => c.ip === ip);
+        const client = response.data.find((c: { ip: string }) => c.ip === ip) as
+          | { ip: string; mac?: string; name?: string; active?: boolean; interface?: { id: string } }
+          | undefined;
         if (!client) {
           logger.debug(`Client not found for IP: ${ip}`);
           return null;
@@ -267,6 +270,7 @@ export function createKeeneticService(config: {
           mac: client.mac || '',
           online: client.active === true,
           policy: policyId ? { id: policyId, displayName: policyDisplayNames.get(policyId) || policyId } : null,
+          interfaceId: client.interface?.id ?? null,
         };
       } catch (error) {
         logger.error('Error fetching client by IP:', error);
@@ -286,7 +290,7 @@ export function createKeeneticService(config: {
           return [];
         }
 
-        const data = response.data as { host?: Array<{ name?: string; ip?: string; mac?: string; active?: boolean; registered?: boolean }> };
+        const data = response.data as { host?: Array<{ name?: string; ip?: string; mac?: string; active?: boolean; registered?: boolean; interface?: { id: string } }> };
         const hosts = data.host || [];
         return hosts
           .filter(client => client.registered)
@@ -299,6 +303,7 @@ export function createKeeneticService(config: {
               mac,
               online: client.active === true,
               policy: policyId ? { id: policyId, displayName: policyDisplayNames.get(policyId) || policyId } : null,
+              interfaceId: client.interface?.id ?? null,
             };
           });
       } catch (error) {

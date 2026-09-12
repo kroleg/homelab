@@ -205,6 +205,14 @@ block content
       color: #dc2626;
       flex-shrink: 0;
     }
+    .device-iot {
+      font-size: 0.625rem;
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      background: #ede9fe;
+      color: #6d28d9;
+      flex-shrink: 0;
+    }
     .device-traffic {
       font-size: 0.75rem;
       font-weight: 500;
@@ -434,6 +442,8 @@ block content
               span= device.mac
               if device.ip
                 span= ` • ${device.ip}`
+          if device.isIot
+            span.device-iot IOT
           if device.speedLimit
             span.device-speed-limit= `${device.speedLimit / 1000} Мбит/с`
           if device.traffic && device.traffic.total > 0
@@ -455,6 +465,8 @@ block content
               span= device.mac
               if device.ip
                 span= ` • ${device.ip}`
+          if device.isIot
+            span.device-iot IOT
           if device.policy
             span.device-policy= device.policy.displayName
 

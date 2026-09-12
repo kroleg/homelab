@@ -28,7 +28,7 @@ await runMigrations(db, logger);
 const userRepo = createUserRepository(db);
 const deviceRepo = createDeviceRepository(db);
 const trafficRepo = createTrafficRepository(db);
-const deviceService = createDeviceService(keenetic, userRepo, deviceRepo, trafficRepo, logger);
+const deviceService = createDeviceService(keenetic, userRepo, deviceRepo, trafficRepo, logger, config.iotInterfaceId);
 
 const scheduleRepo = createScheduleRepository(db);
 
