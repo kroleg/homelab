@@ -24,7 +24,7 @@ if error
 
 .form-group
   label.form-label Domains / IPs (one per line)
-  textarea.form-textarea(name='addresses' rows='8')= Array.isArray(rule.addresses) ? rule.addresses.join('\n') : rule.addresses
+  textarea.form-textarea(name='addresses' rows='16')= Array.isArray(rule.addresses) ? rule.addresses.join('\n') : rule.addresses
   .form-text Domains, IPv4/IPv6 addresses, and CIDR ranges are all supported.
 
 .form-group
@@ -34,5 +34,4 @@ if error
   .form-text Matches the on/off switch on this rule in Keenetic's own UI. Unchecked rules stay configured but stop routing.
 
 .form-actions
-  a.btn.btn-secondary(href='/rules') Cancel
   button.btn.btn-primary(type='submit')= rule.id ? 'Save Changes' : 'Create Rule'
