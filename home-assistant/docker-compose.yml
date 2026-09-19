@@ -40,10 +40,7 @@ services:
 
   rethink:
     container_name: rethink
-    # built from local source (not the published ghcr.io image) to carry a one-line
-    # patch adding a device-type alias for our washer model - see rethink/README.md
-    build:
-      context: ./rethink/repo
+    image: ghcr.io/anszom/rethink:dev
     volumes:
       - ./rethink:/app/data
       - /etc/localtime:/etc/localtime:ro

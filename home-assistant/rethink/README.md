@@ -12,21 +12,11 @@ rethink/
   config.json   - tracked, no secrets
   certs/        - gitignored (CA key/cert, auto-regenerated on hostname mismatch)
   state/        - gitignored (bridge runtime state)
-  repo/         - gitignored (upstream clone + patches/ applied, used as docker build context)
-  patches/      - tracked (patches applied on top of upstream)
 ```
 
 ## Setup (new machine / after clone)
 
-### 1. Get the source and apply patches
-
-```bash
-git clone https://github.com/anszom/rethink home-assistant/rethink/repo
-cd home-assistant/rethink/repo
-git apply ../patches/*.patch
-```
-
-### 2. Router: static DNS overrides
+### 1. Router: static DNS overrides
 
 On the Keenetic (CLI, config mode) - redirects the appliance's cloud calls and
 rethink's own hostname to this host's LAN IP:
@@ -48,13 +38,13 @@ Settings > Network Rules > Firewall > Permit
 Source: <washer's static IP>   Destination: 192.168.1.100   Protocol: TCP (any port)
 ```
 
-### 3. Build and start
+### 2. Start
 
 ```bash
-docker compose up -d --build rethink
+docker compose up -d rethink
 ```
 
-### 4. Provision the washer
+### 3. Provision the washer
 
 Requires a laptop/phone with Wi-Fi (the docker host has no Wi-Fi hardware).
 
@@ -70,13 +60,15 @@ Requires a laptop/phone with Wi-Fi (the docker host has no Wi-Fi hardware).
    once a wash cycle is active (the washer only sends full 80-byte status frames while running,
    not while idle)
 
-## Adding/patching device support
+## Adding device support
 
 If `rethink` logs `thinq2 device type <id> unknown`, the model isn't in
 `cloud/ha_bridge.ts`'s device table. Check if a close sibling model already has a
 decoder (LG's ThinQ model IDs use `_` as positional wildcards, so near-identical
-variants often share a compatible frame layout) - if so, add a one-line alias and
-verify against real data before trusting it. See `patches/` for the pattern used here.
+variants often share a compatible frame layout) - if so, an alias may work. Verify
+against real data before trusting it (see the F2V5PS0W alias upstreamed in
+[PR #168](https://github.com/anszom/rethink/pull/168) for the pattern), then send
+it upstream rather than patching locally.
 
 ## Known gaps
 
