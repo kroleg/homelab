@@ -2,6 +2,7 @@ extends ../layout.pug
 
 block content
   .section-header
+    include _view-switch.pug
     a.add-btn(href='/rules/create') + New Rule
 
   if sections.length === 0

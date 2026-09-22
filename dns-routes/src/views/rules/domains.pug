@@ -1,0 +1,23 @@
+extends ../layout.pug
+
+block content
+  .section-header
+    include _view-switch.pug
+
+  if error
+    .alert.alert-danger= error
+
+  form.quick-add(method='POST' action='/rules/domains/quick-add')
+    input.form-input(type='text' name='domain' placeholder='example.com' required autofocus)
+    button.btn.btn-primary(type='submit') Add
+
+  if sections.length === 0
+    .card
+      .empty-message No domains found.
+  else
+    .domains-view
+      each section in sections
+        .group-title= section.name
+        .card
+          each address in section.addresses
+            a.domain-row(href=`/rules/${section.id}/edit`)= address

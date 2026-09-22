@@ -2,56 +2,117 @@ import express from 'express';
 import type { Logger } from '../logger.ts';
 import type { KeeneticClient } from '../services/keenetic-client.ts';
 
+const NO_INTERFACE = 'No interface';
+const DEFAULT_GROUP_NAME = '_default';
+
+interface EnrichedList {
+  id: string;
+  name: string;
+  addresses: string[];
+  interfaceName: string | null;
+  enabled: boolean | null;
+}
+
+async function loadEnrichedLists(api: KeeneticClient): Promise<EnrichedList[]> {
+  const [lists, routes, interfaces] = await Promise.all([
+    api.getDnsDomainLists(),
+    api.getDnsRoutes(),
+    api.getInterfaces(),
+  ]);
+
+  const interfaceNameById = new Map(interfaces.map(i => [i.id, i.name]));
+  const routeByGroup = new Map(routes.map(r => [r.group, r]));
+
+  return lists.map(list => {
+    const route = routeByGroup.get(list.id);
+    return {
+      id: list.id,
+      name: list.description,
+      addresses: list.addresses,
+      interfaceName: route ? (interfaceNameById.get(route.interface) ?? route.interface) : null,
+      enabled: route ? route.enabled : null,
+    };
+  });
+}
+
+function groupByInterface<T extends { interfaceName: string | null }>(items: T[]): { name: string; isNoInterface: boolean; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const key = item.interfaceName ?? NO_INTERFACE;
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key)!.push(item);
+  }
+
+  const groupNames = [...groups.keys()].sort((a, b) => {
+    if (a === NO_INTERFACE) return -1;
+    if (b === NO_INTERFACE) return 1;
+    return a.localeCompare(b);
+  });
+
+  return groupNames.map(name => ({ name, isNoInterface: name === NO_INTERFACE, items: groups.get(name)! }));
+}
+
 export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVpnInterface?: string): express.Router {
   const router = express.Router();
   router.use(express.urlencoded({ extended: true }));
 
   router.get('/', async (_req, res) => {
-    const [lists, routes, interfaces] = await Promise.all([
-      api.getDnsDomainLists(),
-      api.getDnsRoutes(),
-      api.getInterfaces(),
-    ]);
+    const lists = await loadEnrichedLists(api);
+    const rules = [...lists].sort((a, b) => a.name.localeCompare(b.name));
+    const sections = groupByInterface(rules).map(g => ({ name: g.name, isNoInterface: g.isNoInterface, rules: g.items }));
 
-    const interfaceNameById = new Map(interfaces.map(i => [i.id, i.name]));
-    const routeByGroup = new Map(routes.map(r => [r.group, r]));
+    res.render('rules/list', { title: 'DNS Routes', sections, active: 'rules' });
+  });
 
-    const rules = lists.map(list => {
-      const route = routeByGroup.get(list.id);
-      return {
+  router.get('/domains', async (req, res) => {
+    const lists = await loadEnrichedLists(api);
+    const sections = [...lists]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(list => ({
         id: list.id,
-        name: list.description,
-        addresses: list.addresses,
-        interfaceName: route ? (interfaceNameById.get(route.interface) ?? route.interface) : null,
-        enabled: route ? route.enabled : null,
-      };
+        name: list.name,
+        addresses: [...list.addresses].sort((a, b) => a.localeCompare(b)),
+      }));
+
+    res.render('rules/domains', {
+      title: 'DNS Routes',
+      sections,
+      active: 'domains',
+      error: typeof req.query.error === 'string' ? req.query.error : null,
     });
+  });
 
-    rules.sort((a, b) => a.name.localeCompare(b.name));
-
-    const NO_INTERFACE = 'No interface';
-    const groups = new Map<string, typeof rules>();
-    for (const rule of rules) {
-      const key = rule.interfaceName ?? NO_INTERFACE;
-      if (!groups.has(key)) {
-        groups.set(key, []);
-      }
-      groups.get(key)!.push(rule);
+  router.post('/domains/quick-add', async (req, res) => {
+    const domain = String(req.body.domain ?? '').trim();
+    if (!domain) {
+      res.redirect('/rules/domains');
+      return;
     }
 
-    const groupNames = [...groups.keys()].sort((a, b) => {
-      if (a === NO_INTERFACE) return -1;
-      if (b === NO_INTERFACE) return 1;
-      return a.localeCompare(b);
-    });
+    try {
+      const [lists, routes] = await Promise.all([api.getDnsDomainLists(), api.getDnsRoutes()]);
+      const defaultList = lists.find(l => l.description === DEFAULT_GROUP_NAME);
 
-    const sections = groupNames.map(name => ({
-      name,
-      isNoInterface: name === NO_INTERFACE,
-      rules: groups.get(name)!,
-    }));
-
-    res.render('rules/list', { title: 'DNS Routes', sections });
+      if (defaultList) {
+        if (!defaultList.addresses.includes(domain)) {
+          const route = routes.find(r => r.group === defaultList.id);
+          await api.updateRule(defaultList.id, {
+            name: DEFAULT_GROUP_NAME,
+            addresses: [...defaultList.addresses, domain],
+            interface: route?.interface ?? 'default',
+            enabled: route ? route.enabled : true,
+          });
+        }
+      } else {
+        await api.createRule({ name: DEFAULT_GROUP_NAME, addresses: [domain], interface: 'default', enabled: true });
+      }
+      res.redirect('/rules/domains');
+    } catch (error) {
+      logger.error('Error quick-adding domain:', error);
+      res.redirect(`/rules/domains?error=${encodeURIComponent((error as Error).message)}`);
+    }
   });
 
   router.get('/create', async (_req, res) => {
