@@ -7,7 +7,7 @@ block content
   if error
     .alert.alert-danger= error
 
-  form.quick-add(method='POST' action='/rules/domains/quick-add')
+  form.quick-add(method='POST' action='/rules/quick-add')
     input.form-input(type='text' name='domain' placeholder='example.com' required autofocus)
     button.btn.btn-primary(type='submit') Add
 

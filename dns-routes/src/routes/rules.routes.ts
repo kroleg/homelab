@@ -58,15 +58,7 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
   const router = express.Router();
   router.use(express.urlencoded({ extended: true }));
 
-  router.get('/', async (_req, res) => {
-    const lists = await loadEnrichedLists(api);
-    const rules = [...lists].sort((a, b) => a.name.localeCompare(b.name));
-    const sections = groupByInterface(rules).map(g => ({ name: g.name, isNoInterface: g.isNoInterface, rules: g.items }));
-
-    res.render('rules/list', { title: 'DNS Routes', sections, active: 'rules' });
-  });
-
-  router.get('/domains', async (req, res) => {
+  router.get('/', async (req, res) => {
     const lists = await loadEnrichedLists(api);
     const sections = [...lists]
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -84,10 +76,18 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
     });
   });
 
-  router.post('/domains/quick-add', async (req, res) => {
+  router.get('/list', async (_req, res) => {
+    const lists = await loadEnrichedLists(api);
+    const rules = [...lists].sort((a, b) => a.name.localeCompare(b.name));
+    const sections = groupByInterface(rules).map(g => ({ name: g.name, isNoInterface: g.isNoInterface, rules: g.items }));
+
+    res.render('rules/list', { title: 'DNS Routes', sections, active: 'rules' });
+  });
+
+  router.post('/quick-add', async (req, res) => {
     const domain = String(req.body.domain ?? '').trim();
     if (!domain) {
-      res.redirect('/rules/domains');
+      res.redirect('/rules');
       return;
     }
 
@@ -108,10 +108,10 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
       } else {
         await api.createRule({ name: DEFAULT_GROUP_NAME, addresses: [domain], interface: 'default', enabled: true });
       }
-      res.redirect('/rules/domains');
+      res.redirect('/rules');
     } catch (error) {
       logger.error('Error quick-adding domain:', error);
-      res.redirect(`/rules/domains?error=${encodeURIComponent((error as Error).message)}`);
+      res.redirect(`/rules?error=${encodeURIComponent((error as Error).message)}`);
     }
   });
 
