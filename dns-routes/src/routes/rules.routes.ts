@@ -85,8 +85,13 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
   });
 
   router.post('/quick-add', async (req, res) => {
+    const wantsJson = req.accepts(['html', 'json']) === 'json';
     const domain = String(req.body.domain ?? '').trim();
     if (!domain) {
+      if (wantsJson) {
+        res.status(400).json({ error: 'domain is required' });
+        return;
+      }
       res.redirect('/rules');
       return;
     }
@@ -108,9 +113,18 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
       } else {
         await api.createRule({ name: DEFAULT_GROUP_NAME, addresses: [domain], interface: 'default', enabled: true });
       }
+
+      if (wantsJson) {
+        res.json({ success: true, domain });
+        return;
+      }
       res.redirect('/rules');
     } catch (error) {
       logger.error('Error quick-adding domain:', error);
+      if (wantsJson) {
+        res.status(500).json({ error: (error as Error).message });
+        return;
+      }
       res.redirect(`/rules?error=${encodeURIComponent((error as Error).message)}`);
     }
   });
