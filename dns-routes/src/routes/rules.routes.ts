@@ -76,12 +76,46 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
     });
   });
 
-  router.get('/list', async (_req, res) => {
-    const lists = await loadEnrichedLists(api);
+  router.get('/list', async (req, res) => {
+    const [lists, interfaces] = await Promise.all([loadEnrichedLists(api), api.getInterfaces()]);
     const rules = [...lists].sort((a, b) => a.name.localeCompare(b.name));
     const sections = groupByInterface(rules).map(g => ({ name: g.name, isNoInterface: g.isNoInterface, rules: g.items }));
 
-    res.render('rules/list', { title: 'DNS Routes', sections, active: 'rules' });
+    res.render('rules/list', {
+      title: 'DNS Routes',
+      sections,
+      interfaces,
+      active: 'rules',
+      error: typeof req.query.error === 'string' ? req.query.error : null,
+    });
+  });
+
+  router.post('/group/switch', async (req, res) => {
+    const currentInterface = String(req.body.currentInterface ?? '');
+    const newInterface = String(req.body.newInterface ?? '').trim();
+    if (!newInterface) {
+      res.redirect('/rules/list');
+      return;
+    }
+
+    try {
+      const lists = await loadEnrichedLists(api);
+      const targets = lists.filter(l => (l.interfaceName ?? NO_INTERFACE) === currentInterface);
+
+      for (const list of targets) {
+        await api.updateRule(list.id, {
+          name: list.name,
+          addresses: list.addresses,
+          interface: newInterface,
+          enabled: list.enabled ?? true,
+        });
+      }
+
+      res.redirect('/rules/list');
+    } catch (error) {
+      logger.error('Error switching group interface:', error);
+      res.redirect(`/rules/list?error=${encodeURIComponent((error as Error).message)}`);
+    }
   });
 
   router.post('/quick-add', async (req, res) => {

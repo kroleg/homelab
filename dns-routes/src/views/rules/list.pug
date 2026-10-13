@@ -5,12 +5,27 @@ block content
     include _view-switch.pug
     a.add-btn(href='/rules/create') + New Rule
 
+  if error
+    .alert.alert-danger= error
+
   if sections.length === 0
     .card
       .empty-message No rules found.
   else
     each section in sections
-      .group-title(class=section.isNoInterface ? 'group-title-danger' : '')= section.name
+      .group-header
+        .group-title(class=section.isNoInterface ? 'group-title-danger' : '')= section.name
+        form.group-switch(method='POST' action='/rules/group/switch')
+          input(type='hidden' name='currentInterface' value=section.name)
+          select(name='newInterface' onchange='this.form.submit()')
+            option(value='' disabled selected) Switch VPN…
+            each iface in interfaces
+              if iface.name !== section.name
+                option(value=iface.name)
+                  if !iface.connected
+                    = `⚠️ ${iface.name} (NOT CONNECTED)`
+                  else
+                    = iface.name
       .card
         each rule in section.rules
           a.rule-row(href=`/rules/${rule.id}/edit`)
