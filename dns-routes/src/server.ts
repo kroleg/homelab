@@ -18,6 +18,10 @@ const app = express();
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
+app.get('/openapi.json', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'openapi.json'));
+});
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });

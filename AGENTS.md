@@ -38,6 +38,18 @@ Key service responsibilities and dependencies:
 - **dns-vpn** - DNS routing and VPN domain management. Uses keenetic-api internally. Should NOT be called by other services for Keenetic data.
 - **vpn-toggle, family-dashboard, torrent-ui** - UI services that use devices for user/admin info.
 
+## API discovery
+
+Before calling these services as an API client, fetch their current OpenAPI JSON:
+
+- DNS Routes: `http://dns-routes.internal/openapi.json`
+- Devices: `http://devices.internal/openapi.json`
+- VPN Toggle: `http://vpn.internal/openapi.json`
+
+Specs are maintained in each service's `src/openapi.json`. Consult them for methods, inputs, defaults, response formats, access requirements, and mutation side effects. When changing code in these services, update the relevant spec in the same change/commit for every added, removed, or changed API endpoint, parameter, request/response schema, default, status code, access requirement, or side effect. Document new API routes; do not leave discovery to source inspection. Run `./scripts/check-openapi.sh` to validate all three specs and check route coverage. Route coverage does not verify parameter or response semantics; review those against the handlers.
+
+Keenetic API is Docker-internal; consult its source in this monorepo rather than adding a public discovery endpoint. Do not impersonate another IP to bypass caller-based access controls.
+
 ## Git
 
 No AI mention in commits.

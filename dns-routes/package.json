@@ -4,6 +4,7 @@
   "description": "UI for Keenetic's native DNS-based routing",
   "type": "module",
   "scripts": {
+    "test": "node --test test/*.test.ts",
     "start": "node --env-file-if-exists=.env --watch src/server.ts",
     "start:prod": "node src/server.ts",
     "typecheck": "tsc --noEmit",

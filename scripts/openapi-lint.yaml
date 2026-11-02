@@ -1,0 +1,5 @@
+extends:
+  - minimal
+rules:
+  # Existing HTML form actions correctly return 302 on success.
+  operation-2xx-response: off

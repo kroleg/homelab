@@ -1,0 +1,5 @@
+form.quick-add(method='POST' action='/rules/quick-add')
+  input(type='hidden' name='returnTo' value=active === 'domains' ? '/rules/domains' : '/rules')
+  input.form-input(type='text' name='domain' placeholder='example.com' aria-label='Domain to add' required)
+  button.btn.btn-primary(type='submit' name='group' value='_default') Add to _default
+  button.btn.btn-secondary(type='submit' name='group' value='zapret_default') Add to zapret_default

@@ -1,0 +1,575 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "DNS Routes API",
+    "version": "1.0.0",
+    "description": "LAN service for Keenetic DNS domain groups and connection bindings. No application authentication. Only quick-add negotiates JSON responses: explicitly send Accept: application/json. Other rule actions return HTML or redirects even when the request body is JSON. IDs and connection IDs can be discovered from the HTML lists/forms. Mutations update live router configuration."
+  },
+  "servers": [
+    {
+      "url": "http://dns-routes.internal"
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "summary": "Read this API specification",
+        "responses": {
+          "200": {
+            "description": "OpenAPI JSON document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Check service health",
+        "responses": {
+          "200": {
+            "description": "Service is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rules": {
+      "get": {
+        "operationId": "listRules",
+        "summary": "Read Rules page grouped by connection",
+        "description": "Returns HTML, including group names, edit links containing group IDs, connection options, and domains used by live search. /rules/list is an alias.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Error"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Html"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/rules/list": {
+      "get": {
+        "operationId": "listRulesAlias",
+        "summary": "Alias for Rules page",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Error"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Html"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/rules/domains": {
+      "get": {
+        "operationId": "listDomains",
+        "summary": "Read Domains page",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Error"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Html"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/rules/quick-add": {
+      "post": {
+        "operationId": "quickAddDomain",
+        "summary": "Add a domain to a default group, or explicitly move it",
+        "description": "Send Accept: application/json for JSON responses. Domain comparison ignores case and one trailing dot; subdomains are distinct. A duplicate in ANY group, including the target, returns 409 unless move=true. Move saves the destination first, then removes all matching copies from other groups, retaining unrelated domains, group connections and enabled status. A 502 can mean the move partially completed; inspect the error and retry explicitly. Operations are serialized within this service, not across other router clients. A missing _default is created using the configured default connection; a missing zapret_default is an error so its connection is never guessed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickAdd"
+              },
+              "example": {
+                "domain": "example.com",
+                "group": "zapret_default",
+                "move": false
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickAddForm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Domain saved (JSON mode)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "success",
+                    "domain",
+                    "group",
+                    "movedFrom"
+                  ],
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "domain": {
+                      "type": "string"
+                    },
+                    "group": {
+                      "type": "string",
+                      "enum": [
+                        "_default",
+                        "zapret_default"
+                      ]
+                    },
+                    "movedFrom": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Source group names from which matching copies were removed."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "400": {
+            "$ref": "#/components/responses/QuickAddError"
+          },
+          "409": {
+            "description": "Domain already exists. groups lists the containing group names; no writes performed. HTML mode offers a Move form.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickAddError"
+                },
+                "example": {
+                  "error": "Domain example.com already exists in: streaming",
+                  "groups": [
+                    "streaming"
+                  ]
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/QuickAddError"
+          },
+          "502": {
+            "description": "Destination saved but at least one source removal failed. Domain may remain in multiple groups. Response error identifies the failed group; retry with move=true.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickAddError"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rules/group/switch": {
+      "post": {
+        "operationId": "switchGroupConnection",
+        "summary": "Switch every rule currently using a connection",
+        "description": "Updates matching rules sequentially; a failure may leave some switched. Preserves domains and existing enabled status (unbound rules become enabled). Errors redirect with an error query parameter.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "currentInterface",
+                  "newInterface"
+                ],
+                "properties": {
+                  "currentInterface": {
+                    "type": "string",
+                    "description": "Current connection display name, or No interface."
+                  },
+                  "newInterface": {
+                    "type": "string",
+                    "description": "Destination connection ID from the Rules page selector."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          }
+        }
+      }
+    },
+    "/rules/create": {
+      "get": {
+        "operationId": "getCreateRuleForm",
+        "summary": "Read new-rule form and available connections",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Html"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createRule",
+        "summary": "Create a domain group and connection binding",
+        "description": "Returns a redirect on success, or HTML containing the error on failure (usually HTTP 200). This general editor does not enforce quick-add duplicate checks.",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Rule"
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "200": {
+            "$ref": "#/components/responses/Html"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/rules/{id}/edit": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getEditRuleForm",
+        "summary": "Read a rule and connection choices as HTML",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Html"
+          },
+          "404": {
+            "description": "Rule not found",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "updateRule",
+        "summary": "Replace a rule's domains and connection settings",
+        "description": "Full replacement, not a patch. Missing enabled disables the rule. This editor does not enforce quick-add duplicate checks. Returns HTML with an error on failure (usually HTTP 200).",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Rule"
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "200": {
+            "$ref": "#/components/responses/Html"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/rules/{id}/delete": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "post": {
+        "operationId": "deleteRule",
+        "summary": "Delete the group and its connection binding",
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Domain list ID from a rule edit link.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Error": {
+        "name": "error",
+        "in": "query",
+        "description": "Optional error message displayed on the page.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "QuickAdd": {
+        "type": "object",
+        "required": [
+          "domain"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Domain without a URL scheme, path, colon or whitespace.",
+            "example": "example.com"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "_default",
+              "zapret_default"
+            ],
+            "default": "_default"
+          },
+          "move": {
+            "type": "boolean",
+            "default": false,
+            "description": "Explicitly remove existing copies from other groups and place the domain in group."
+          },
+          "returnTo": {
+            "type": "string",
+            "enum": [
+              "/rules",
+              "/rules/domains"
+            ],
+            "default": "/rules",
+            "description": "HTML-mode success redirect only."
+          }
+        }
+      },
+      "QuickAddForm": {
+        "type": "object",
+        "required": [
+          "domain"
+        ],
+        "properties": {
+          "domain": {
+            "type": "string",
+            "example": "example.com"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "_default",
+              "zapret_default"
+            ],
+            "default": "_default"
+          },
+          "move": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ],
+            "default": "false"
+          },
+          "returnTo": {
+            "type": "string",
+            "enum": [
+              "/rules",
+              "/rules/domains"
+            ],
+            "default": "/rules"
+          }
+        }
+      },
+      "QuickAddError": {
+        "type": "object",
+        "required": [
+          "error",
+          "groups"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Groups containing duplicates for a 409; otherwise empty."
+          }
+        }
+      },
+      "RuleForm": {
+        "type": "object",
+        "required": [
+          "name",
+          "addresses",
+          "interfaceId"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Group name."
+          },
+          "addresses": {
+            "type": "string",
+            "description": "Newline-separated domains; replaces the entire domain list.",
+            "example": "example.com\nexample.org"
+          },
+          "interfaceId": {
+            "type": "string",
+            "description": "Connection ID from create/edit form options, e.g. Proxy0."
+          },
+          "enabled": {
+            "type": "string",
+            "enum": [
+              "on"
+            ],
+            "description": "Send on to enable; omit to disable. A JSON boolean true does not enable the rule."
+          }
+        }
+      }
+    },
+    "requestBodies": {
+      "Rule": {
+        "required": true,
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "$ref": "#/components/schemas/RuleForm"
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Html": {
+        "description": "HTML page",
+        "content": {
+          "text/html": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Redirect": {
+        "description": "Redirect to the Rules view or selected returnTo page; bulk-switch failures include an error query parameter.",
+        "headers": {
+          "Location": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "HTML/text server error",
+        "content": {
+          "text/html": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "QuickAddError": {
+        "description": "Invalid input or upstream failure; error describes the cause. HTML mode renders the error page.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/QuickAddError"
+            }
+          },
+          "text/html": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

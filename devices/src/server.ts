@@ -45,6 +45,10 @@ app.set('trust proxy', 1);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+app.get('/openapi.json', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'openapi.json'));
+});
+
 // Helper to check if IP is in Tailscale CGNAT range (100.64.0.0/10)
 function isTailscaleIp(ip: string): boolean {
   if (!ip.startsWith('100.')) return false;

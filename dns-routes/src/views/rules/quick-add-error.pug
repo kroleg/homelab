@@ -1,0 +1,15 @@
+extends ../layout.pug
+
+block content
+  .alert.alert-danger(role='alert')= error
+  if canMove
+    p.form-text Moving removes the domain from other groups and keeps their connections.
+    form(method='POST' action='/rules/quick-add')
+      input(type='hidden' name='domain' value=domain)
+      input(type='hidden' name='group' value=group)
+      input(type='hidden' name='returnTo' value=returnTo)
+      input(type='hidden' name='move' value='true')
+      .form-actions
+        button.btn.btn-primary(type='submit')= `Move to ${group}`
+  .form-actions
+    a.btn.btn-secondary(href=returnTo) Back to rules

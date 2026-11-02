@@ -1,0 +1,303 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "VPN Toggle API",
+    "version": "1.0.0",
+    "description": "Read and change the calling device's connection policy. Identity is resolved from the first X-Forwarded-For address when present, otherwise the connection IP. Through Traefik this normally identifies the actual caller. There is no token/login flow, and no MAC or target-IP input for choosing another device. Do not spoof identity headers. Admin-only policies are filtered and checked using the devices service. This specification covers the JSON API and the legacy form mutation, not UI pages."
+  },
+  "servers": [
+    {
+      "url": "http://vpn.internal"
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "summary": "Read this API specification",
+        "responses": {
+          "200": {
+            "description": "OpenAPI JSON document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/policy": {
+      "get": {
+        "operationId": "getMyPolicy",
+        "summary": "Read the caller's device and available policies",
+        "description": "Returns the current device from keenetic-api and visible policies. Non-admin callers do not see admin-only policies. A failed policy-list HTTP response is currently represented by an empty policies array.",
+        "responses": {
+          "200": {
+            "description": "Caller device and policy choices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "device",
+                    "policies"
+                  ],
+                  "properties": {
+                    "device": {
+                      "$ref": "#/components/schemas/Device"
+                    },
+                    "policies": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Policy"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "description": "Caller device not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Device not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "setMyPolicy",
+        "summary": "Change the caller's device policy",
+        "description": "Updates live router configuration for the caller's own MAC. Use a policy ID returned by GET, not its display name. null, an empty string, or an omitted policyId clears the explicit policy. Unknown policy IDs are forwarded upstream; do not assume this endpoint validates membership in the policy list.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policyId": {
+                    "type": "string",
+                    "nullable": true,
+                    "default": null,
+                    "description": "Policy ID from GET, or null to clear the explicit policy."
+                  }
+                }
+              },
+              "examples": {
+                "select": {
+                  "value": {
+                    "policyId": "Policy1"
+                  }
+                },
+                "clear": {
+                  "value": {
+                    "policyId": null
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "description": "Chosen policy is admin-only",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "This policy is admin-only"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/set-policy": {
+      "post": {
+        "operationId": "setMyPolicyForm",
+        "summary": "Legacy form action to change the caller's policy",
+        "description": "Prefer POST /api/me/policy for machine clients. This action has the same caller identity and admin-only checks but returns a redirect or HTML error (some errors use HTTP 200). Omitting policyId or sending an empty string clears the explicit policy.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policyId": {
+                    "type": "string",
+                    "default": ""
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "description": "Policy changed; redirects to /",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "HTML error page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin-only policy denied (HTML)",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Policy": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName",
+          "adminOnly"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "adminOnly": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Device": {
+        "type": "object",
+        "description": "Device object returned by keenetic-api. Additional upstream fields may be present.",
+        "properties": {
+          "mac": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string",
+            "nullable": true
+          },
+          "online": {
+            "type": "boolean"
+          },
+          "policy": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Invalid input, unidentified device, or upstream failure; see error for the cause.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Success": {
+        "description": "Policy changed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "enum": [
+                    true
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

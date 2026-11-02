@@ -21,6 +21,10 @@ app.set('view engine', 'pug');
 // Parse URL-encoded bodies (for form submissions)
 app.use(express.urlencoded({ extended: true }));
 
+app.get('/openapi.json', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'openapi.json'));
+});
+
 // Helper function to get client IP from request
 function getClientIp(req: Request): string {
   // Check for X-Forwarded-For header (when behind proxy)

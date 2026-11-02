@@ -249,7 +249,7 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
       res.status(400).json({ error: 'name is required' });
       return;
     }
-    if (!addresses || !Array.isArray(addresses) || addresses.length === 0) {
+    if (!Array.isArray(addresses)) {
       res.status(400).json({ error: 'addresses array is required' });
       return;
     }

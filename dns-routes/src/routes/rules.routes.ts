@@ -1,9 +1,9 @@
 import express from 'express';
 import type { Logger } from '../logger.ts';
 import type { KeeneticClient } from '../services/keenetic-client.ts';
+import { createQuickAdd, QuickAddError } from '../services/quick-add.ts';
 
 const NO_INTERFACE = 'No interface';
-const DEFAULT_GROUP_NAME = '_default';
 
 interface EnrichedList {
   id: string;
@@ -56,6 +56,8 @@ function groupByInterface<T extends { interfaceName: string | null }>(items: T[]
 
 export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVpnInterface?: string): express.Router {
   const router = express.Router();
+  const quickAdd = createQuickAdd(api);
+  router.use(express.json());
   router.use(express.urlencoded({ extended: true }));
 
   router.get('/domains', async (req, res) => {
@@ -122,45 +124,29 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
   router.post('/quick-add', async (req, res) => {
     const wantsJson = req.accepts(['html', 'json']) === 'json';
     const domain = String(req.body.domain ?? '').trim();
-    if (!domain) {
-      if (wantsJson) {
-        res.status(400).json({ error: 'domain is required' });
-        return;
-      }
-      res.redirect('/rules');
-      return;
-    }
+    const group = String(req.body.group ?? '_default');
+    const move = req.body.move === true || req.body.move === 'true';
+    const returnTo = req.body.returnTo === '/rules/domains' ? '/rules/domains' : '/rules';
 
     try {
-      const [lists, routes] = await Promise.all([api.getDnsDomainLists(), api.getDnsRoutes()]);
-      const defaultList = lists.find(l => l.description === DEFAULT_GROUP_NAME);
-
-      if (defaultList) {
-        if (!defaultList.addresses.includes(domain)) {
-          const route = routes.find(r => r.group === defaultList.id);
-          await api.updateRule(defaultList.id, {
-            name: DEFAULT_GROUP_NAME,
-            addresses: [...defaultList.addresses, domain],
-            interface: route?.interface ?? 'default',
-            enabled: route ? route.enabled : true,
-          });
-        }
-      } else {
-        await api.createRule({ name: DEFAULT_GROUP_NAME, addresses: [domain], interface: 'default', enabled: true });
-      }
-
+      const result = await quickAdd(domain, group, move);
       if (wantsJson) {
-        res.json({ success: true, domain });
+        res.json(result);
         return;
       }
-      res.redirect('/rules');
+      res.redirect(returnTo);
     } catch (error) {
       logger.error('Error quick-adding domain:', error);
+      const status = error instanceof QuickAddError ? error.status : 500;
+      const groups = error instanceof QuickAddError ? error.groups : [];
       if (wantsJson) {
-        res.status(500).json({ error: (error as Error).message });
+        res.status(status).json({ error: (error as Error).message, groups });
         return;
       }
-      res.redirect(`/rules?error=${encodeURIComponent((error as Error).message)}`);
+      res.status(status).render('rules/quick-add-error', {
+        title: 'Add domain', error: (error as Error).message,
+        domain, group, returnTo, canMove: status === 409,
+      });
     }
   });
 

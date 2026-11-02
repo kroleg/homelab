@@ -8,6 +8,8 @@ block content
   if error
     .alert.alert-danger= error
 
+  include _quick-add.pug
+
   .form-group
     label.form-label(for='rules-search') Search domains
     input#rules-search.form-input(type='search' placeholder='example.com' autocomplete='off')

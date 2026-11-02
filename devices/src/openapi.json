@@ -1,0 +1,1686 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Devices API",
+    "version": "1.0.0",
+    "description": "LAN user/device management, traffic, schedules and quotas. Covers JSON endpoints and form mutation actions; UI-only pages are excluded. Operations marked x-admin-required require an admin caller, resolved by request IP via Keenetic or a registered Tailscale IP and ADMIN_MACS/user admin flags. Express trusts one proxy hop. There is no bearer token/login flow; do not spoof identity headers. Admin denial returns HTTP 403 text/html even on JSON endpoints. The ip query on /api/whoami is a lookup target, not an authorization override. Mutations can update the database and live router policies/speed limits. Schedules and quotas use server-local hour boundaries; traffic aggregation dates use UTC."
+  },
+  "servers": [
+    {
+      "url": "http://devices.internal"
+    }
+  ],
+  "security": [],
+  "paths": {
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "summary": "Read this API specification",
+        "responses": {
+          "200": {
+            "description": "OpenAPI JSON document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Check service health",
+        "responses": {
+          "200": {
+            "description": "Service is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whoami": {
+      "get": {
+        "operationId": "lookupIdentity",
+        "summary": "Look up identity and admin status for an IP",
+        "description": "Read-only lookup, accessible without admin status. Unknown IPs return null identity fields and isAdmin=false. Tailscale addresses are matched against stored device Tailscale IPs; LAN addresses are looked up through Keenetic.",
+        "parameters": [
+          {
+            "name": "ip",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "192.168.1.100"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resolved identity, including null fields when unknown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Identity"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List users with enriched devices (admin only)",
+        "description": "The first registered handler is admin-protected and returns full users with devices and counters. A later handler described as public in source is shadowed and is not reachable. Traffic loading is disabled here, so traffic aggregates are zero and per-device traffic/speed limits are null.",
+        "x-admin-required": true,
+        "responses": {
+          "200": {
+            "description": "Users with devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserWithDevices"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/devices": {
+      "get": {
+        "operationId": "listDevices",
+        "summary": "List all registered devices (admin only)",
+        "description": "Combines assigned and unassigned devices with live Keenetic state. This endpoint does not load traffic or speed limits, so those fields are null.",
+        "x-admin-required": true,
+        "responses": {
+          "200": {
+            "description": "Registered devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnrichedDevice"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/discovered": {
+      "get": {
+        "operationId": "listDiscoveredDevices",
+        "summary": "List router clients not yet registered in the database (admin only)",
+        "x-admin-required": true,
+        "responses": {
+          "200": {
+            "description": "Discovered devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DiscoveredDevice"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/devices": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getUserDevices",
+        "summary": "List a user's enriched devices",
+        "description": "No admin requirement. Loads live speed limits but not traffic. Unknown user IDs normally return an empty array.",
+        "responses": {
+          "200": {
+            "description": "User devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EnrichedDevice"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/traffic": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getUserTraffic",
+        "summary": "Read a user's received traffic for today and the last seven days",
+        "description": "No admin requirement. All totals are received bytes (rx), not upload+download. Today is the UTC date. Unknown users normally return zero totals with an empty device list.",
+        "responses": {
+          "200": {
+            "description": "Received-byte totals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "today",
+                    "weekly",
+                    "devices"
+                  ],
+                  "properties": {
+                    "today": {
+                      "type": "number"
+                    },
+                    "weekly": {
+                      "type": "number"
+                    },
+                    "devices": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "mac",
+                          "name",
+                          "today",
+                          "weekly"
+                        ],
+                        "properties": {
+                          "mac": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "today": {
+                            "type": "number"
+                          },
+                          "weekly": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/schedule-status": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getUserScheduleStatus",
+        "summary": "Read a user's schedule and override status",
+        "description": "No admin requirement. No schedule or a disabled schedule returns only hasSchedule=false. active means the current time falls inside the configured restriction window; overridden indicates a temporary unlock.",
+        "responses": {
+          "200": {
+            "description": "Schedule status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "hasSchedule"
+                      ],
+                      "properties": {
+                        "hasSchedule": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "hasSchedule",
+                        "active",
+                        "overridden",
+                        "from",
+                        "to",
+                        "nextChange",
+                        "overrideUntil"
+                      ],
+                      "properties": {
+                        "hasSchedule": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "active": {
+                          "type": "boolean"
+                        },
+                        "overridden": {
+                          "type": "boolean"
+                        },
+                        "from": {
+                          "type": "string",
+                          "example": "21:00"
+                        },
+                        "to": {
+                          "type": "string",
+                          "example": "05:00"
+                        },
+                        "nextChange": {
+                          "type": "string",
+                          "description": "Next boundary as server-local HH:mm, not a timestamp."
+                        },
+                        "overrideUntil": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/users/{id}/quota-status": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getUserQuotaStatus",
+        "summary": "Read a user's current traffic quota window",
+        "description": "No admin requirement. Disabled quota returns only enabled=false. Byte limits use limitMb * 1024 * 1024. Used bytes are received traffic in the current window.",
+        "responses": {
+          "200": {
+            "description": "Quota status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": [
+                        "enabled"
+                      ],
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean",
+                          "enum": [
+                            false
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "enabled",
+                        "limitMb",
+                        "windowHours",
+                        "currentWindow",
+                        "usedBytes",
+                        "limitBytes",
+                        "remainingBytes",
+                        "exceeded"
+                      ],
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean",
+                          "enum": [
+                            true
+                          ]
+                        },
+                        "limitMb": {
+                          "type": "integer"
+                        },
+                        "windowHours": {
+                          "type": "integer"
+                        },
+                        "currentWindow": {
+                          "type": "object",
+                          "required": [
+                            "fromHour",
+                            "toHour"
+                          ],
+                          "properties": {
+                            "fromHour": {
+                              "type": "integer"
+                            },
+                            "toHour": {
+                              "type": "integer"
+                            }
+                          }
+                        },
+                        "usedBytes": {
+                          "type": "number"
+                        },
+                        "limitBytes": {
+                          "type": "number"
+                        },
+                        "remainingBytes": {
+                          "type": "number"
+                        },
+                        "exceeded": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/schedules": {
+      "get": {
+        "operationId": "listSchedules",
+        "summary": "List schedules (admin only)",
+        "x-admin-required": true,
+        "responses": {
+          "200": {
+            "description": "Schedules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Schedule"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/schedules/{userId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "operationId": "upsertSchedule",
+        "summary": "Create or replace a user's schedule (admin only)",
+        "x-admin-required": true,
+        "description": "Changes restriction times and refreshes the enforcer, which can change live router policies/speed limits. Times are server-local. Use hours 0-23 and minutes 0-59; current handler parses integers without range validation. A cross-midnight window is supported. Missing enabled defaults to true, unlike the HTML form action.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleInput"
+              },
+              "example": {
+                "fromHour": 21,
+                "fromMinute": 0,
+                "toHour": 5,
+                "toMinute": 0,
+                "enabled": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Schedule"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteSchedule",
+        "summary": "Delete a user's schedule and refresh enforcement (admin only)",
+        "x-admin-required": true,
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/schedules/{userId}/override": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "operationId": "overrideSchedule",
+        "summary": "Set or clear a temporary schedule unlock (admin only)",
+        "x-admin-required": true,
+        "description": "Stores overrideUntil and refreshes enforcement. An omitted, empty or null until clears the override. A future timestamp temporarily unlocks the user's devices.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "until": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true,
+                    "default": null
+                  }
+                }
+              },
+              "example": {
+                "until": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/devices/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "get": {
+        "operationId": "getDeviceEditorData",
+        "summary": "Read a device and editing choices as JSON (admin only)",
+        "x-admin-required": true,
+        "responses": {
+          "200": {
+            "description": "Device, users, deviceTypes and vpnPolicies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "device",
+                    "users",
+                    "deviceTypes",
+                    "vpnPolicies"
+                  ],
+                  "properties": {
+                    "device": {
+                      "$ref": "#/components/schemas/EditableDevice"
+                    },
+                    "users": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "name"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "deviceTypes": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/DeviceType"
+                      }
+                    },
+                    "vpnPolicies": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Policy"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "updateDevice",
+        "summary": "Update device metadata and optionally router policy (admin only)",
+        "x-admin-required": true,
+        "description": "Returns JSON. Omitted fields are unchanged. Blank customName, userId or tailscaleIp clears that field. Empty vpnPolicy clears the router policy; omit it to leave policy unchanged. Metadata is saved before policy assignment, so a policy failure can leave metadata updated.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceUpdate"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Success"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "500": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/users": {
+      "post": {
+        "operationId": "createUser",
+        "summary": "Create a user (admin only, form response)",
+        "x-admin-required": true,
+        "description": "Requires name and slug. Slug is lowercased. Unknown role defaults to parent. Only isAdmin=on enables admin status.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UserForm"
+                  },
+                  {
+                    "required": [
+                      "name",
+                      "slug"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "400": {
+            "$ref": "#/components/responses/HtmlError"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "post": {
+        "operationId": "updateUser",
+        "summary": "Update a user (admin only, form response)",
+        "x-admin-required": true,
+        "description": "Blank/omitted name and slug are unchanged. isAdmin is always replaced: send on to keep/enable admin, omit to revoke admin. Valid role values replace the role.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/UserForm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/users/{id}/delete": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "post": {
+        "operationId": "deleteUser",
+        "summary": "Delete user and associated schedule; unassign their devices (admin only)",
+        "x-admin-required": true,
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/users/{id}/toggle-admin": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "post": {
+        "operationId": "toggleUserAdmin",
+        "summary": "Toggle user admin status (admin only)",
+        "x-admin-required": true,
+        "description": "Not idempotent: repeating the request toggles the status again.",
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/devices/register": {
+      "post": {
+        "operationId": "registerDevice",
+        "summary": "Register a router device in the database (admin only)",
+        "x-admin-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "mac"
+                ],
+                "properties": {
+                  "mac": {
+                    "type": "string",
+                    "description": "Stored uppercase."
+                  },
+                  "userId": {
+                    "type": "string",
+                    "description": "User ID, or blank/omitted for unassigned."
+                  },
+                  "deviceType": {
+                    "$ref": "#/components/schemas/DeviceType"
+                  },
+                  "customName": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "400": {
+            "$ref": "#/components/responses/HtmlError"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/devices/{id}/owner": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "post": {
+        "operationId": "changeDeviceOwner",
+        "summary": "Assign or unassign a device (admin only)",
+        "x-admin-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "description": "User ID; blank/omitted unassigns the device."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/devices/{id}/type": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/Id"
+        }
+      ],
+      "post": {
+        "operationId": "changeDeviceType",
+        "summary": "Change a device's type (admin only)",
+        "x-admin-required": true,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "deviceType"
+                ],
+                "properties": {
+                  "deviceType": {
+                    "$ref": "#/components/schemas/DeviceType"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "400": {
+            "$ref": "#/components/responses/HtmlError"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/schedules/{userId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "operationId": "saveScheduleForm",
+        "summary": "Save restriction times using HTML form fields (admin only)",
+        "x-admin-required": true,
+        "description": "Prefer /api/schedules/{userId} for JSON clients. Refreshes live enforcement. Unlike the JSON action, omitting enabled disables the schedule.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fromTime": {
+                    "type": "string",
+                    "default": "21:00"
+                  },
+                  "toTime": {
+                    "type": "string",
+                    "default": "05:00"
+                  },
+                  "enabled": {
+                    "type": "string",
+                    "enum": [
+                      "on"
+                    ],
+                    "description": "Omit to disable."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/schedules/{userId}/unlock": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "operationId": "unlockSchedule",
+        "summary": "Unlock until the next configured schedule end time (admin only)",
+        "x-admin-required": true,
+        "description": "Sets overrideUntil to the next occurrence of the schedule's to time and refreshes live enforcement. Does nothing when no schedule exists.",
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/schedules/{userId}/delete": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "operationId": "deleteScheduleForm",
+        "summary": "Delete a schedule via form action (admin only)",
+        "x-admin-required": true,
+        "description": "Also refreshes live enforcement. Prefer DELETE /api/schedules/{userId} for JSON clients.",
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    },
+    "/quotas/{userId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "post": {
+        "operationId": "saveQuota",
+        "summary": "Save traffic quota and refresh enforcement (admin only)",
+        "x-admin-required": true,
+        "description": "Updates quota settings and refreshes live enforcement, which can change router speed limits. Window size must evenly divide 24. Invalid window size returns 400; an unparsable userId currently redirects without saving.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "quotaEnabled": {
+                    "type": "string",
+                    "enum": [
+                      "on"
+                    ],
+                    "description": "Omit to disable quota."
+                  },
+                  "quotaLimitMb": {
+                    "type": "string",
+                    "default": "1000",
+                    "description": "Integer count of MiB, parsed with parseInt."
+                  },
+                  "quotaWindowHours": {
+                    "type": "string",
+                    "enum": [
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "6",
+                      "8",
+                      "12",
+                      "24"
+                    ],
+                    "default": "3"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": {
+            "$ref": "#/components/responses/Redirect"
+          },
+          "400": {
+            "$ref": "#/components/responses/HtmlError"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/HtmlError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        },
+        "description": "Database user or device ID as indicated by the path."
+      },
+      "UserId": {
+        "name": "userId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        },
+        "description": "Database user ID."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "DeviceType": {
+        "type": "string",
+        "enum": [
+          "phone",
+          "tablet",
+          "laptop",
+          "desktop",
+          "watch",
+          "tv",
+          "other"
+        ],
+        "default": "other"
+      },
+      "UserRole": {
+        "type": "string",
+        "enum": [
+          "parent",
+          "child",
+          "group",
+          "guest"
+        ],
+        "default": "parent"
+      },
+      "Policy": {
+        "type": "object",
+        "required": [
+          "id",
+          "displayName"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "NullablePolicy": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "isAdmin",
+          "role",
+          "quotaEnabled",
+          "quotaLimitMb",
+          "quotaWindowHours",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "isAdmin": {
+            "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "quotaEnabled": {
+            "type": "boolean"
+          },
+          "quotaLimitMb": {
+            "type": "integer"
+          },
+          "quotaWindowHours": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UserWithDevices": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/User"
+          },
+          {
+            "type": "object",
+            "required": [
+              "devices",
+              "onlineCount",
+              "totalTraffic",
+              "weeklyTraffic"
+            ],
+            "properties": {
+              "devices": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EnrichedDevice"
+                }
+              },
+              "onlineCount": {
+                "type": "integer"
+              },
+              "totalTraffic": {
+                "type": "number"
+              },
+              "weeklyTraffic": {
+                "type": "number"
+              }
+            }
+          }
+        ]
+      },
+      "EditableDevice": {
+        "type": "object",
+        "required": [
+          "id",
+          "mac",
+          "customName",
+          "deviceType",
+          "userId",
+          "tailscaleIp",
+          "keeneticName",
+          "policy"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "mac": {
+            "type": "string"
+          },
+          "customName": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceType": {
+            "$ref": "#/components/schemas/DeviceType"
+          },
+          "userId": {
+            "type": "integer",
+            "nullable": true
+          },
+          "tailscaleIp": {
+            "type": "string",
+            "nullable": true
+          },
+          "keeneticName": {
+            "type": "string",
+            "nullable": true
+          },
+          "policy": {
+            "$ref": "#/components/schemas/NullablePolicy"
+          }
+        }
+      },
+      "EnrichedDevice": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/EditableDevice"
+          },
+          {
+            "type": "object",
+            "required": [
+              "createdAt",
+              "ip",
+              "online",
+              "speedLimit",
+              "traffic",
+              "isIot"
+            ],
+            "properties": {
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "ip": {
+                "type": "string",
+                "nullable": true
+              },
+              "online": {
+                "type": "boolean"
+              },
+              "speedLimit": {
+                "type": "number",
+                "nullable": true,
+                "description": "Kbps, when loaded."
+              },
+              "traffic": {
+                "type": "object",
+                "nullable": true,
+                "properties": {
+                  "rx": {
+                    "type": "number"
+                  },
+                  "tx": {
+                    "type": "number"
+                  },
+                  "total": {
+                    "type": "number"
+                  }
+                }
+              },
+              "isIot": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "DiscoveredDevice": {
+        "type": "object",
+        "required": [
+          "mac",
+          "name",
+          "ip",
+          "online",
+          "policy",
+          "isIot"
+        ],
+        "properties": {
+          "mac": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string",
+            "nullable": true
+          },
+          "online": {
+            "type": "boolean"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/NullablePolicy"
+          },
+          "isIot": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Identity": {
+        "type": "object",
+        "required": [
+          "mac",
+          "device",
+          "user",
+          "tailscale",
+          "isAdmin"
+        ],
+        "properties": {
+          "mac": {
+            "type": "string",
+            "nullable": true
+          },
+          "device": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "id",
+              "customName",
+              "deviceType"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "customName": {
+                "type": "string",
+                "nullable": true
+              },
+              "deviceType": {
+                "$ref": "#/components/schemas/DeviceType"
+              }
+            }
+          },
+          "user": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "id",
+              "name",
+              "slug",
+              "isAdmin",
+              "role"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "isAdmin": {
+                "type": "boolean"
+              },
+              "role": {
+                "$ref": "#/components/schemas/UserRole"
+              }
+            }
+          },
+          "tailscale": {
+            "type": "boolean"
+          },
+          "isAdmin": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Schedule": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "fromHour",
+          "fromMinute",
+          "toHour",
+          "toMinute",
+          "enabled",
+          "overrideUntil",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "userId": {
+            "type": "integer"
+          },
+          "fromHour": {
+            "type": "integer"
+          },
+          "fromMinute": {
+            "type": "integer"
+          },
+          "toHour": {
+            "type": "integer"
+          },
+          "toMinute": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "overrideUntil": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ScheduleInput": {
+        "type": "object",
+        "required": [
+          "fromHour",
+          "toHour"
+        ],
+        "properties": {
+          "fromHour": {
+            "type": "integer",
+            "description": "Server-local start hour (use 0-23)."
+          },
+          "fromMinute": {
+            "type": "integer",
+            "default": 0
+          },
+          "toHour": {
+            "type": "integer",
+            "description": "Server-local end hour (use 0-23)."
+          },
+          "toMinute": {
+            "type": "integer",
+            "default": 0
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "DeviceUpdate": {
+        "type": "object",
+        "properties": {
+          "customName": {
+            "type": "string",
+            "description": "Blank clears; omit to retain."
+          },
+          "deviceType": {
+            "$ref": "#/components/schemas/DeviceType"
+          },
+          "userId": {
+            "oneOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "User ID; empty string unassigns. Omit to retain."
+          },
+          "tailscaleIp": {
+            "type": "string",
+            "description": "Blank clears; omit to retain."
+          },
+          "vpnPolicy": {
+            "type": "string",
+            "description": "Router policy ID; blank clears the explicit policy. Omit to retain."
+          }
+        }
+      },
+      "UserForm": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "isAdmin": {
+            "type": "string",
+            "enum": [
+              "on"
+            ],
+            "description": "Only on enables admin; omission disables it."
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "JSON error; see error for details.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Caller is not an administrator. The existing middleware returns HTML, even for JSON API requests.",
+        "content": {
+          "text/html": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "HtmlError": {
+        "description": "HTML error page",
+        "content": {
+          "text/html": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Redirect": {
+        "description": "Action completed; redirects to /. Some actions redirect without a change when the target does not exist.",
+        "headers": {
+          "Location": {
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Success": {
+        "description": "Action completed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "success"
+              ],
+              "properties": {
+                "success": {
+                  "type": "boolean",
+                  "enum": [
+                    true
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
