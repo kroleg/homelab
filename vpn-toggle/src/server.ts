@@ -68,6 +68,29 @@ async function getDeviceByIp(ip: string): Promise<Record<string, unknown> | null
   return await response.json() as Record<string, unknown>;
 }
 
+type Policy = { id: string; displayName: string };
+
+function isAdminOnly(policy: Policy): boolean {
+  return ADMIN_ONLY_POLICIES.includes(policy.displayName.toLowerCase());
+}
+
+// Mark admin-only policies; hide them from non-admins
+function visiblePolicies(allPolicies: Policy[], admin: boolean) {
+  return allPolicies
+    .map(p => ({ ...p, adminOnly: isAdminOnly(p) }))
+    .filter(p => admin || !p.adminOnly);
+}
+
+// Whether the caller may switch to policyId (turning VPN off is always allowed)
+async function canUsePolicy(policyId: string | null, ip: string): Promise<boolean> {
+  if (!policyId) return true;
+  const response = await fetch(`${KEENETIC_API_URL}/vpn-policies`);
+  if (!response.ok) throw new Error(`Failed to fetch policies: ${response.status}`);
+  const policy = (await response.json() as Policy[]).find(p => p.id === policyId);
+  if (!policy || !isAdminOnly(policy)) return true;
+  return (await getWhoami(ip))?.isAdmin ?? false;
+}
+
 // Main page - shows current device status and policy options
 app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
   try {
@@ -99,18 +122,13 @@ app.get('/', async (req: Request, res: Response, _next: NextFunction) => {
       throw new Error(`Failed to fetch policies: ${policiesResponse.status}`);
     }
 
-    const allPolicies = await policiesResponse.json() as Array<{ id: string; displayName: string }>;
+    const allPolicies = await policiesResponse.json() as Policy[];
 
     // Get user/device info from devices service
     const whoami = await getWhoami(clientIp);
     const admin = whoami?.isAdmin ?? false;
 
-    // Filter admin-only policies for non-admins
-    const policies = admin
-      ? allPolicies
-      : allPolicies.filter(p =>
-          !ADMIN_ONLY_POLICIES.includes(p.displayName.toLowerCase())
-        );
+    const policies = visiblePolicies(allPolicies, admin);
 
     res.render('index', {
       title: 'VPN',
@@ -138,9 +156,10 @@ app.get('/api/me/policy', async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    const [device, policiesResponse] = await Promise.all([
+    const [device, policiesResponse, whoami] = await Promise.all([
       getDeviceByIp(clientIp),
       fetch(`${KEENETIC_API_URL}/vpn-policies`),
+      getWhoami(clientIp),
     ]);
 
     if (!device) {
@@ -148,8 +167,10 @@ app.get('/api/me/policy', async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    const policies = policiesResponse.ok ? await policiesResponse.json() : [];
-    res.json({ device, policies });
+    const allPolicies = policiesResponse.ok
+      ? await policiesResponse.json() as Policy[]
+      : [];
+    res.json({ device, policies: visiblePolicies(allPolicies, whoami?.isAdmin ?? false) });
   } catch (error) {
     next(error);
   }
@@ -176,6 +197,11 @@ app.post('/api/me/policy', express.json(), async (req: Request, res: Response, n
       return;
     }
 
+    if (!await canUsePolicy(policyId || null, clientIp)) {
+      res.status(403).json({ error: 'This policy is admin-only' });
+      return;
+    }
+
     const response = await fetch(`${KEENETIC_API_URL}/clients/${encodeURIComponent(String(device.mac))}/policy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -197,18 +223,29 @@ app.post('/api/me/policy', express.json(), async (req: Request, res: Response, n
 // Set policy for the current device
 app.post('/set-policy', async (req: Request, res: Response, _next: NextFunction) => {
   try {
-    const { mac, policyId } = req.body;
+    const { policyId } = req.body;
 
-    if (!mac) {
+    // Always act on the caller's own device, never a client-supplied MAC
+    const clientIp = normalizeIp(getClientIp(req));
+    const device = clientIp ? await getDeviceByIp(clientIp) : null;
+    if (!device) {
       res.render('error', {
         title: 'Error',
-        message: 'Device MAC address is required'
+        message: 'Could not identify your device'
+      });
+      return;
+    }
+
+    if (!await canUsePolicy(policyId || null, clientIp)) {
+      res.status(403).render('error', {
+        title: 'Forbidden',
+        message: 'This policy is admin-only'
       });
       return;
     }
 
     // Call keenetic-api to set policy
-    const response = await fetch(`${KEENETIC_API_URL}/clients/${encodeURIComponent(mac)}/policy`, {
+    const response = await fetch(`${KEENETIC_API_URL}/clients/${encodeURIComponent(String(device.mac))}/policy`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

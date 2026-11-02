@@ -65,6 +65,10 @@ block content
       color: var(--primary-fg);
       box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
     }
+    .admin-badge {
+      margin-left: 0.375rem;
+      font-size: 0.875rem;
+    }
 
   - const vpnOn = !!device.policy
   - const displayDeviceName = deviceName || device.name
@@ -94,11 +98,13 @@ block content
             class=(isActive ? 'active' : '')
             onclick=`selectPolicy('${policy.id}')`
             disabled=isActive
-          )= policy.displayName
+          )
+            = policy.displayName
+            if policy.adminOnly
+              span.admin-badge(title="Admin only") 🔒
 
       form#form(method="POST" action="/set-policy")
         input#policy(type="hidden" name="policyId")
-        input(type="hidden" name="mac" value=device.mac)
 
   script.
     function selectPolicy(id) {
