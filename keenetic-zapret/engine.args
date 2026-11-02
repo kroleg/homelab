@@ -1,0 +1,6 @@
+--debug=0
+--filter-tcp=443
+--filter-l7=tls
+--payload=tls_client_hello
+--lua-desync=fake:blob=fake_default_tls:tcp_md5:repeats=6
+--lua-desync=multidisorder:pos=1,midsld

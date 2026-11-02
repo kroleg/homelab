@@ -4,6 +4,64 @@ include:
     env_file: .env
 
 services:
+  keenetic-proxy:
+    container_name: keenetic-proxy
+    build: ./keenetic-proxy
+    mac_address: "02:42:c0:a8:01:fa"
+    networks:
+      keenetic-proxy-lan:
+        ipv4_address: 192.168.1.250
+    dns:
+      - 192.168.1.1
+    sysctls:
+      net.netfilter.nf_conntrack_acct: "1"
+    volumes:
+      - ./keenetic-proxy/danted.conf:/etc/danted.conf:ro
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  keenetic-zapret:
+    container_name: keenetic-zapret
+    profiles: [dpi]
+    build: ./keenetic-zapret
+    network_mode: service:keenetic-proxy
+    depends_on:
+      keenetic-proxy:
+        condition: service_started
+        restart: true
+    cap_drop: [ALL]
+    cap_add: [NET_ADMIN, NET_RAW, SETUID, SETGID, SETPCAP, KILL]
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./keenetic-zapret/engine.args:/config/engine.args:ro
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    healthcheck:
+      test: [CMD-SHELL, "test \"$$(cat /run/zapret-status)\" = active"]
+      interval: 10s
+      timeout: 2s
+      retries: 2
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+    stop_grace_period: 15s
+
   traefik:
     container_name: traefik
     image: traefik:v3.0.0
@@ -487,6 +545,16 @@ services:
     restart: unless-stopped
 
 networks:
+  keenetic-proxy-lan:
+    driver: macvlan
+    driver_opts:
+      parent: enp1s0
+      macvlan_mode: bridge
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.1
+          ip_range: 192.168.1.250/32
   default:
     ipam:
       config:

@@ -36,6 +36,8 @@ DNS-based VPN routing system for Keenetic routers. Automatically routes traffic 
 
 ### Infrastructure
 
+Selective routing: [SOCKS proxy](./keenetic-proxy/) and optional [DPI processing](./keenetic-zapret/). [Reusable execution plan](./docs/guides/keenetic-proxy-zapret-execution-plan.md).
+
 | Service | Description |
 |---------|-------------|
 | [traefik](./traefik/) | Reverse proxy for internal domains |

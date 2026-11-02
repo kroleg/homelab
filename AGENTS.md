@@ -4,7 +4,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 
 ## Subfolders
 
-- keenetic-proxy - Restricted SOCKS5 test proxy for Keenetic selective routing (macvlan, 192.168.1.250:1080)
+- keenetic-proxy - Restricted SOCKS5 proxy for Keenetic selective routing (macvlan, 192.168.1.250:1080)
 - keenetic-zapret - Optional nfqws2 sidecar processing only the proxy's outbound IPv4 TCP HTTPS traffic (Compose profile dpi)
 
 - calendar (calendar.internal) - Family calendar display service for iPad using iCal.js and rrule

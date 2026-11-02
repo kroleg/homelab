@@ -16,4 +16,6 @@ Distinguish direct observations, user reports, historical records, and hypothese
 
 ## Cases
 
+- [Keenetic selective routing test proxy](keenetic-selective-proxy.md)
+
 - [Mi TV power and input control through Home Assistant](mitv-home-assistant.md)
