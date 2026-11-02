@@ -1,0 +1,81 @@
+# Configuration example, NOT installed in live configuration.yaml.
+# Merge top-level sections with existing configuration; do not duplicate keys.
+# Requires the existing yandex_smart_home and androidtv_remote integrations.
+# HDMI 1/2 were verified through the paired remote library; HDMI 3 is mapped
+# from the TV's input registry but has not been exercised.
+yandex_smart_home:
+  entity_config:
+    media_player.mitv:
+      modes:
+        input_source:
+          one: [HW2]
+          two: [HW3]
+          three: [HW4]
+      custom_modes:
+        input_source:
+          set_mode:
+            action: remote.turn_on
+            target:
+              entity_id: remote.mitv
+            data:
+              activity: "content://android.media.tv/passthrough/com.mediatek.tvinput%2F.hdmi.HDMIInputService%2F{{ mode }}"
+
+# If scripts live in an included scripts.yaml, put only the contents below
+# (mitv_up, etc.) in that file, without the top-level script key.
+script:
+  mitv_up:
+    alias: ТВ вверх
+    sequence:
+      - action: remote.send_command
+        target:
+          entity_id: remote.mitv
+        data:
+          command: DPAD_UP
+  mitv_down:
+    alias: ТВ вниз
+    sequence:
+      - action: remote.send_command
+        target:
+          entity_id: remote.mitv
+        data:
+          command: DPAD_DOWN
+  mitv_left:
+    alias: ТВ влево
+    sequence:
+      - action: remote.send_command
+        target:
+          entity_id: remote.mitv
+        data:
+          command: DPAD_LEFT
+  mitv_right:
+    alias: ТВ вправо
+    sequence:
+      - action: remote.send_command
+        target:
+          entity_id: remote.mitv
+        data:
+          command: DPAD_RIGHT
+  mitv_ok:
+    alias: ТВ подтвердить
+    sequence:
+      - action: remote.send_command
+        target:
+          entity_id: remote.mitv
+        data:
+          command: DPAD_CENTER
+  mitv_back:
+    alias: ТВ назад
+    sequence:
+      - action: remote.send_command
+        target:
+          entity_id: remote.mitv
+        data:
+          command: BACK
+  mitv_home:
+    alias: ТВ главный экран
+    sequence:
+      - action: remote.send_command
+        target:
+          entity_id: remote.mitv
+        data:
+          command: HOME
