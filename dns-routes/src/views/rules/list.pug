@@ -18,10 +18,10 @@ block content
         form.group-switch(method='POST' action='/rules/group/switch')
           input(type='hidden' name='currentInterface' value=section.name)
           select(name='newInterface' onchange='this.form.submit()')
-            option(value='' disabled selected) Switch VPN…
+            option(value='' disabled selected) Switch connection…
             each iface in interfaces
               if iface.name !== section.name
-                option(value=iface.name)
+                option(value=iface.id)
                   if !iface.connected
                     = `⚠️ ${iface.name} (NOT CONNECTED)`
                   else

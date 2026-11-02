@@ -62,7 +62,7 @@ export function createKeeneticClient(apiUrl: string, logger: Logger) {
       return request<DnsRouteInfo[]>('GET', '/dns-routes');
     },
 
-    async getInterfaces(types?: string[]): Promise<InterfaceInfo[]> {
+    async getInterfaces(types: string[] = ['Wireguard', 'Proxy']): Promise<InterfaceInfo[]> {
       const query = types ? `?types=${types.join(',')}` : '';
       return request<InterfaceInfo[]>('GET', `/interfaces${query}`);
     },

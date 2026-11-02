@@ -17,7 +17,9 @@ block content
   else
     .domains-view
       each section in sections
-        .group-title= section.name
+        .group-title
+          = section.name
+          span.policy-name= ` · ${section.interfaceName || 'No interface'}`
         .card
           each address in section.addresses
             a.domain-row(href=`/rules/${section.id}/edit`)= address

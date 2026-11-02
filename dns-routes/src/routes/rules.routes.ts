@@ -65,6 +65,7 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
       .map(list => ({
         id: list.id,
         name: list.name,
+        interfaceName: list.interfaceName,
         addresses: [...list.addresses].sort((a, b) => a.localeCompare(b)),
       }));
 

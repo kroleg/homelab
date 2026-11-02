@@ -16,7 +16,7 @@ if error
         = 'default (not configured)'
     each iface in interfaces
       - const isSelected = !isDefaultSelected && (rule.interfaceId === iface.name || rule.interfaceId === iface.id)
-      option(value=iface.name selected=isSelected)
+      option(value=iface.id selected=isSelected)
         if !iface.connected
           = `⚠️ ${iface.name} (NOT CONNECTED)`
         else
