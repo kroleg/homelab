@@ -58,7 +58,7 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
   const router = express.Router();
   router.use(express.urlencoded({ extended: true }));
 
-  router.get('/', async (req, res) => {
+  router.get('/domains', async (req, res) => {
     const lists = await loadEnrichedLists(api);
     const sections = [...lists]
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -77,7 +77,7 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
     });
   });
 
-  router.get('/list', async (req, res) => {
+  router.get(['/', '/list'], async (req, res) => {
     const [lists, interfaces] = await Promise.all([loadEnrichedLists(api), api.getInterfaces()]);
     const rules = [...lists].sort((a, b) => a.name.localeCompare(b.name));
     const sections = groupByInterface(rules).map(g => ({ name: g.name, isNoInterface: g.isNoInterface, rules: g.items }));

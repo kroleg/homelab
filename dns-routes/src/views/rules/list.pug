@@ -8,12 +8,20 @@ block content
   if error
     .alert.alert-danger= error
 
+  .form-group
+    label.form-label(for='rules-search') Search domains
+    input#rules-search.form-input(type='search' placeholder='example.com' autocomplete='off')
+    #search-summary.form-text(role='status' aria-live='polite' hidden)
+
+  #search-empty.card(hidden)
+    .empty-message No matching domains found.
+
   if sections.length === 0
     .card
       .empty-message No rules found.
   else
     each section in sections
-      .group-header
+      .group-header(data-rule-section=section.name)
         .group-title(class=section.isNoInterface ? 'group-title-danger' : '')= section.name
         form.group-switch(method='POST' action='/rules/group/switch')
           input(type='hidden' name='currentInterface' value=section.name)
@@ -26,7 +34,7 @@ block content
                     = `⚠️ ${iface.name} (NOT CONNECTED)`
                   else
                     = iface.name
-      .card
+      .card(data-rule-section=section.name)
         each rule in section.rules
           a.rule-row(href=`/rules/${rule.id}/edit`)
             if rule.enabled === false
@@ -35,3 +43,38 @@ block content
               span.badge.badge-on On
             .rule-info
               .rule-name= rule.name
+              .rule-matches(hidden)
+                each address in rule.addresses.slice().sort((a, b) => a.localeCompare(b))
+                  .rule-match= address
+
+  script.
+    const search = document.getElementById('rules-search');
+    const rows = Array.from(document.querySelectorAll('.rule-row'));
+    const sections = Array.from(document.querySelectorAll('[data-rule-section]'));
+    const summary = document.getElementById('search-summary');
+    function filterRules() {
+      const query = search.value.trim().toLowerCase();
+      let groupCount = 0;
+      let domainCount = 0;
+      rows.forEach(row => {
+        const matches = row.querySelector('.rule-matches');
+        let count = 0;
+        matches.querySelectorAll('.rule-match').forEach(domain => {
+          domain.hidden = !query || !domain.textContent.toLowerCase().includes(query);
+          if (!domain.hidden) count++;
+        });
+        matches.hidden = !query;
+        row.hidden = !!query && count === 0;
+        if (!row.hidden) groupCount++;
+        domainCount += count;
+      });
+      sections.forEach(section => {
+        const card = section.classList.contains('card') ? section : section.nextElementSibling;
+        section.hidden = !Array.from(card.querySelectorAll('.rule-row')).some(row => !row.hidden);
+      });
+      summary.hidden = !query;
+      summary.textContent = `${groupCount} matching groups · ${domainCount} matching domains`;
+      document.getElementById('search-empty').hidden = !query || groupCount > 0;
+    }
+    search.addEventListener('input', filterRules);
+    filterRules();
