@@ -55,6 +55,29 @@ export interface DnsRouteInfo {
   enabled: boolean;
 }
 
+// Preserve router field names and additional firmware-specific diagnostics.
+export interface DnsLearnedAddress {
+  address: string;
+  ttl: number;
+  'last-updated': number;
+}
+
+export interface DnsLearnedEntry {
+  fqdn: string;
+  type: string;
+  parent?: string;
+  ipv4: DnsLearnedAddress[];
+  ipv6: DnsLearnedAddress[];
+  [key: string]: unknown;
+}
+
+export interface DnsLearnedGroup {
+  'group-name': string;
+  enabled: boolean;
+  entry?: DnsLearnedEntry[];
+  [key: string]: unknown;
+}
+
 export function createKeeneticService(config: {
   host: string;
   login: string;
@@ -726,6 +749,16 @@ export function createKeeneticService(config: {
         logger.error('Error fetching DNS domain lists:', error);
         return [];
       }
+    },
+
+    async getDnsLearnedIps(): Promise<DnsLearnedGroup[]> {
+      const response = await getWithAuth('/rci/show/object-group/fqdn');
+      const data = response.data as { group?: unknown } | null;
+      if (response.status !== 200 || !Array.isArray(data?.group)
+          || !data.group.every(group => group && typeof group['group-name'] === 'string')) {
+        throw new Error(`Invalid learned DNS IP response (HTTP ${response.status})`);
+      }
+      return data.group as DnsLearnedGroup[];
     },
 
     async getDnsRoutes(): Promise<DnsRouteInfo[]> {

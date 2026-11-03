@@ -198,6 +198,22 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
     res.json(lists);
   });
 
+  router.get('/dns-learned-ips', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const { group } = req.query;
+    if (group !== undefined && (typeof group !== 'string' || !group.trim())) {
+      res.status(400).json({ error: 'group must be a non-empty string' });
+      return;
+    }
+    try {
+      const groups = await keenetic.getDnsLearnedIps();
+      res.json(group === undefined ? groups : groups.filter(item => item['group-name'] === group));
+    } catch (error) {
+      logger.error('Failed to fetch learned DNS IPs:', error);
+      res.status(502).json({ error: 'Failed to fetch learned DNS IPs from router' });
+    }
+  });
+
   router.get('/dns-routes', async (_req, res) => {
     logger.debug('Listing all DNS routes');
     const routes = await keenetic.getDnsRoutes();
