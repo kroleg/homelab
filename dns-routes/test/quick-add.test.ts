@@ -10,6 +10,7 @@ function fixture(initial: DnsDomainListInfo[]) {
   const lists = structuredClone(initial);
   const writes: unknown[] = [];
   const api: KeeneticClient = {
+    getDnsLearnedIps: async () => [],
     getDnsDomainLists: async () => structuredClone(lists),
     getDnsRoutes: async () => lists.map(list => ({ index: list.id, group: list.id, interface: list.id === 'z' ? 'Proxy0' : 'Wireguard0', enabled: false, auto: true, comment: '' })),
     getInterfaces: async () => [],

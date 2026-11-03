@@ -1,5 +1,17 @@
 import type { Logger } from '../logger.ts';
 
+export interface DnsLearnedGroup {
+  'group-name': string;
+  enabled: boolean;
+  entry?: Array<{
+    fqdn: string;
+    parent?: string;
+    ipv4?: Array<{ address: string; [key: string]: unknown }>;
+    ipv6?: Array<{ address: string; [key: string]: unknown }>;
+    [key: string]: unknown;
+  }>;
+}
+
 export interface DnsDomainListInfo {
   id: string;
   description: string;
@@ -54,6 +66,9 @@ export function createKeeneticClient(apiUrl: string, logger: Logger) {
   }
 
   return {
+    async getDnsLearnedIps(): Promise<DnsLearnedGroup[]> {
+      return request<DnsLearnedGroup[]>('GET', '/dns-learned-ips');
+    },
     async getDnsDomainLists(): Promise<DnsDomainListInfo[]> {
       return request<DnsDomainListInfo[]>('GET', '/dns-domain-lists');
     },

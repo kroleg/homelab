@@ -2,6 +2,7 @@ import express from 'express';
 import type { Logger } from '../logger.ts';
 import type { KeeneticClient } from '../services/keenetic-client.ts';
 import { createQuickAdd, QuickAddError } from '../services/quick-add.ts';
+import { checkDomain, normalizeDomain } from '../services/domain-check.ts';
 
 const NO_INTERFACE = 'No interface';
 
@@ -59,6 +60,22 @@ export function createRulesRouter(api: KeeneticClient, logger: Logger, defaultVp
   const quickAdd = createQuickAdd(api);
   router.use(express.json());
   router.use(express.urlencoded({ extended: true }));
+
+  router.get('/domain-check', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const { domain, group } = req.query;
+    if (typeof domain !== 'string' || !normalizeDomain(domain) || /[\s/:]/.test(domain.trim())
+        || (group !== undefined && (typeof group !== 'string' || !group.trim()))) {
+      res.status(400).json({ error: 'Provide a domain without scheme, path or spaces, and optionally a non-empty group ID.' });
+      return;
+    }
+    try {
+      res.json(await checkDomain(api, normalizeDomain(domain), group as string | undefined));
+    } catch (error) {
+      logger.error('Error checking learned domain addresses:', error);
+      res.status(502).json({ error: 'Failed to check learned domain addresses' });
+    }
+  });
 
   router.get('/domains', async (req, res) => {
     const lists = await loadEnrichedLists(api);

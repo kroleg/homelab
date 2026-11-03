@@ -367,6 +367,169 @@
           }
         }
       }
+    },
+    "/rules/domain-check": {
+      "get": {
+        "summary": "Check learned addresses against configured domain groups",
+        "description": "Read-only JSON endpoint without application authentication. Reads fresh domain lists, learned IPs and bindings through keenetic-api; does not resolve DNS or change router configuration. Domain comparison ignores case and one trailing dot. Expected groups are all configured lists containing the domain or an ancestor domain; optional group overrides this with an exact list ID. Unknown IDs or unconfigured domains yield empty expectedGroups. Relevant runtime entries have an exact fqdn or parent equal to the queried domain (includes learned children via parent). ips includes both families, deduplicated by address; groups includes all runtime groups sharing each address, even for unrelated FQDNs. correctGroup is true only with expected groups and learned IPs and when every IP belongs to every expected group and no other group. It describes membership only: inspect learnedEnabled and routes separately for disabled or unbound groups. Does not prove TTL freshness, route installation or traffic traversal. Snapshot reads are not atomic. Cache-Control: no-store.",
+        "parameters": [
+          {
+            "name": "domain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "youtube.com",
+            "description": "Domain without scheme, path, port or spaces."
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "domain-list2",
+            "description": "Exact configured group ID, not its display name. Repeated query parameters are invalid."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Membership report, including empty and mismatched results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "domain",
+                    "expectedGroups",
+                    "hasLearnedIps",
+                    "correctGroup",
+                    "ips",
+                    "entries"
+                  ],
+                  "properties": {
+                    "domain": {
+                      "type": "string"
+                    },
+                    "expectedGroups": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "learnedEnabled": {
+                            "type": "boolean",
+                            "nullable": true
+                          },
+                          "routes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "description": "Binding with index, group, interface, auto, comment and enabled fields.",
+                              "additionalProperties": true
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "hasLearnedIps": {
+                      "type": "boolean"
+                    },
+                    "correctGroup": {
+                      "type": "boolean"
+                    },
+                    "ips": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "address": {
+                            "type": "string"
+                          },
+                          "family": {
+                            "type": "integer",
+                            "enum": [
+                              0,
+                              4,
+                              6
+                            ]
+                          },
+                          "groups": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "missingGroups": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "unexpectedGroups": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "description": "Matching native router entry diagnostics plus group ID. Includes fqdn, optional parent, ipv4/ipv6 address arrays with TTL and update diagnostics, and firmware-specific fields.",
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing, invalid or repeated query parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream read failed; not treated as an empty learned snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "checkDomainLearning"
+      }
     }
   },
   "components": {
