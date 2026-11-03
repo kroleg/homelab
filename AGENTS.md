@@ -64,6 +64,7 @@ Refer to ./typescript-architecture.md
 
 - Start all: `docker compose up -d`
 - Rebuild service: `docker compose up -d --build <service>`
+- After committing service changes, deploy the affected services automatically unless the user explicitly asks to defer deployment. Rebuild and recreate only the affected services, using `docker compose up -d --build --no-deps <service...>` and including changed dependencies in dependency order. Verify container health and the changed behavior through live HTTP checks before declaring the work complete. Documentation-only changes do not require deployment. If deployment or verification is blocked, report the blocker and clearly state what is still undeployed or unverified.
 - Logs: `docker compose logs -f <service>`
 - When adding new services, update the Subfolders list in this file
 - don't mention claude in commits
@@ -75,6 +76,6 @@ Refer to ./typescript-architecture.md
 
 # Investigation records
 
-For non-trivial troubleshooting and research, consult relevant records in `docs/cases/` before repeating prior work. Create or update a descriptive case file as findings accumulate, following `docs/cases/README.md`.
+For non-trivial troubleshooting and research, consult relevant records in `docs/cases/` before repeating prior work. Create or update a descriptive case file as findings accumulate, following `docs/cases/README.md`. Case filenames must use a creation-date prefix: `YYYY-MM-DD-descriptive-topic.md`. Keep the original date when updating a case. This naming rule does not apply to `README.md` or supporting artifacts under `docs/cases/support/`.
 
 Record verified observations, user-reported behavior, failed attempts and regressions, proposed but untested options, remaining questions, and evidence sources. Clearly distinguish requests from confirmed executed changes. Never include credentials or tokens.
