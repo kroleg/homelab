@@ -4,9 +4,12 @@ import type { KeeneticClient } from './keenetic-client.ts';
 export const normalizeDomain = (value: string) => value.trim().toLowerCase().replace(/\.$/, '');
 
 export async function checkDomain(api: KeeneticClient, domain: string, group?: string) {
-  const [lists, learned, routes] = await Promise.all([
-    api.getDnsDomainLists(), api.getDnsLearnedIps(), api.getDnsRoutes(),
+  const [lists, learned, routes, interfaces] = await Promise.all([
+    api.getDnsDomainLists(), api.getDnsLearnedIps(), api.getDnsRoutes(), api.getInterfaces(),
   ]);
+  const groupName = (id: string) => lists.find(list => list.id === id)?.description || id;
+  const namedRoutes = routes.map(route => ({ ...route, groupName: groupName(route.group),
+    interfaceName: interfaces.find(item => item.id === route.interface)?.name || route.interface }));
   const matches = (value: string) => {
     const normalized = normalizeDomain(value);
     return domain === normalized || domain.endsWith(`.${normalized}`);
@@ -23,19 +26,24 @@ export async function checkDomain(api: KeeneticClient, domain: string, group?: s
     const groups = learned.filter(item => (item.entry ?? []).some(entry =>
       [...(entry.ipv4 ?? []), ...(entry.ipv6 ?? [])].some(ip => ip.address === address)))
       .map(item => item['group-name']);
-    return { address, family: isIP(address), groups,
-      missingGroups: [...expectedIds].filter(id => !groups.includes(id)),
-      unexpectedGroups: groups.filter(id => !expectedIds.has(id)) };
+    const missingGroups = [...expectedIds].filter(id => !groups.includes(id));
+    const unexpectedGroups = groups.filter(id => !expectedIds.has(id));
+    return { address, family: isIP(address), groups, groupNames: groups.map(groupName),
+      missingGroups, missingGroupNames: missingGroups.map(groupName),
+      unexpectedGroups, unexpectedGroupNames: unexpectedGroups.map(groupName) };
   });
   return {
     domain,
-    expectedGroups: expected.map(list => ({ id: list.id, name: list.description,
+    groups: [...new Set([...expectedIds, ...learned.map(item => item['group-name'])])]
+      .map(id => ({ id, name: groupName(id), routes: namedRoutes.filter(route => route.group === id) })),
+    expectedGroups: expected.map(list => ({ id: list.id, name: groupName(list.id),
       learnedEnabled: learned.find(item => item['group-name'] === list.id)?.enabled ?? null,
-      routes: routes.filter(route => route.group === list.id) })),
+      routes: namedRoutes.filter(route => route.group === list.id) })),
     hasLearnedIps: ips.length > 0,
     correctGroup: expected.length > 0 && ips.length > 0
       && ips.every(ip => ip.missingGroups.length === 0 && ip.unexpectedGroups.length === 0),
     ips,
-    entries: relevant.map(({ group: item, entry }) => ({ group: item['group-name'], ...entry })),
+    entries: relevant.map(({ group: item, entry }) => ({ ...entry,
+      group: item['group-name'], groupName: groupName(item['group-name']) })),
   };
 }

@@ -12,17 +12,25 @@ test('checks parent entries, ancestor configuration, shared addresses, wrong and
   const api = {
     getDnsDomainLists: async () => [{ id: 'a', description: 'proxy', addresses: ['Example.COM.'] }],
     getDnsLearnedIps: async () => learned,
-    getDnsRoutes: async () => [],
+    getDnsRoutes: async () => [{ index: '1', group: 'a', interface: 'Proxy0', enabled: true, auto: true, comment: '' },
+      { index: '2', group: 'b', interface: 'Unknown0', enabled: true, auto: true, comment: '' }],
+    getInterfaces: async () => [{ id: 'Proxy0', name: 'Home proxy', type: 'Proxy', connected: true }],
   } as unknown as KeeneticClient;
   const result = await checkDomain(api, 'example.com');
   assert.equal(result.correctGroup, true);
   assert.equal(result.ips.length, 2);
   assert.equal(result.expectedGroups[0].learnedEnabled, false);
+  assert.equal(result.expectedGroups[0].routes[0].interfaceName, 'Home proxy');
+  assert.equal(result.expectedGroups[0].routes[0].groupName, 'proxy');
+  assert.deepEqual(result.ips[0].groupNames, ['proxy']);
+  assert.equal(result.entries[0].groupName, 'proxy');
   assert.equal((await checkDomain(api, 'video.example.com')).correctGroup, true);
   learned.push({ 'group-name': 'b', enabled: true, entry: [entry('other.org', '192.0.2.1')] });
   const conflict = await checkDomain(api, 'example.com');
   assert.equal(conflict.correctGroup, false);
   assert.deepEqual(conflict.ips[0].unexpectedGroups, ['b']);
+  assert.deepEqual(conflict.ips[0].unexpectedGroupNames, ['b']);
+  assert.equal(conflict.groups.find(item => item.id === 'b')?.routes[0].interfaceName, 'Unknown0');
   learned = [{ 'group-name': 'b', enabled: true, entry: [entry('example.com', '192.0.2.1')] }];
   assert.deepEqual((await checkDomain(api, 'example.com')).ips[0].missingGroups, ['a']);
   assert.equal((await checkDomain(api, 'example.com', 'unknown')).correctGroup, false);
@@ -39,6 +47,7 @@ test('HTTP query validation, normalization, no-store and upstream errors', async
   let fail = false;
   const api = {
     getDnsDomainLists: async () => [], getDnsRoutes: async () => [],
+    getInterfaces: async () => [],
     getDnsLearnedIps: async () => { if (fail) throw new Error('offline'); return []; },
   } as unknown as KeeneticClient;
   const logger = createLogger('error');

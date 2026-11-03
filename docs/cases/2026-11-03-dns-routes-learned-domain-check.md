@@ -9,3 +9,11 @@ Evidence: keenetic-api/README.md, keenetic-api/src/services/keenetic.service.ts,
 Validation in progress: production image lacks tsc; temporary development dependency installation used for checks. Initial OpenAPI checks caught a missing operationId and OpenAPI 3.0 nullable syntax; both corrected.
 
 Final validation: clean temporary Node 24 container passed `npm run typecheck` and all 10 tests (including HTTP validation/error behavior). `./scripts/check-openapi.sh` passed route coverage and lint for all three service specs. `git diff --check` passed. The first temporary install copied existing pnpm node_modules and produced dependency warnings; it was stopped and replaced with a clean install containing only source, tests and package/tsconfig files.
+
+## Readable group and connection names (2026-11-03)
+
+The initial endpoint was deployed and verified live: youtube.com returned 438 addresses, correctGroup=true and no shared-group conflicts; the container became healthy. Initial reverse-proxy 404 responses during health startup cleared once healthy.
+
+Requested addition: readable names alongside IDs. The endpoint now reads connection names through keenetic-api, adds groupName/interfaceName to bindings and groupName to native entries, includes parallel groupNames/missingGroupNames/unexpectedGroupNames on IP reports, and provides a top-level groups lookup covering expected and runtime groups. Unknown/blank names fall back to IDs. Wireguard/Proxy connections are distinct from client policies; no policy assignment is inferred. Existing fields and membership behavior are preserved. Tests cover named connections/groups and unknown-ID fallbacks.
+
+Readable-name validation: typecheck, all 10 tests, OpenAPI route coverage/lint and diff whitespace checks passed before commit.

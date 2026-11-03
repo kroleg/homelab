@@ -434,8 +434,34 @@
                             "type": "array",
                             "items": {
                               "type": "object",
-                              "description": "Binding with index, group, interface, auto, comment and enabled fields.",
-                              "additionalProperties": true
+                              "description": "Route binding including groupName and interfaceName (Wireguard/Proxy connection display name); unknown or blank names fall back to IDs. These are connections, not client policies.",
+                              "additionalProperties": true,
+                              "properties": {
+                                "index": {
+                                  "type": "string"
+                                },
+                                "group": {
+                                  "type": "string"
+                                },
+                                "interface": {
+                                  "type": "string"
+                                },
+                                "auto": {
+                                  "type": "boolean"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "groupName": {
+                                  "type": "string"
+                                },
+                                "interfaceName": {
+                                  "type": "string"
+                                }
+                              }
                             }
                           }
                         }
@@ -480,6 +506,27 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "groupNames": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Display names parallel to groups; unknown or blank names fall back to IDs."
+                          },
+                          "missingGroupNames": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Display names parallel to missingGroups."
+                          },
+                          "unexpectedGroupNames": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Display names parallel to unexpectedGroups."
                           }
                         }
                       }
@@ -488,8 +535,57 @@
                       "type": "array",
                       "items": {
                         "type": "object",
-                        "description": "Matching native router entry diagnostics plus group ID. Includes fqdn, optional parent, ipv4/ipv6 address arrays with TTL and update diagnostics, and firmware-specific fields.",
+                        "description": "Matching native router entry diagnostics plus group ID. Includes fqdn, optional parent, ipv4/ipv6 address arrays with TTL and update diagnostics, and firmware-specific fields. Also includes groupName (display name, falling back to group ID).",
                         "additionalProperties": true
+                      }
+                    },
+                    "groups": {
+                      "type": "array",
+                      "description": "Name and route lookup for all expected and runtime group IDs, including conflicting groups. Unknown or blank group names fall back to IDs.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "routes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "description": "Route binding including groupName and interfaceName (Wireguard/Proxy connection display name); unknown or blank names fall back to IDs. These are connections, not client policies.",
+                              "additionalProperties": true,
+                              "properties": {
+                                "index": {
+                                  "type": "string"
+                                },
+                                "group": {
+                                  "type": "string"
+                                },
+                                "interface": {
+                                  "type": "string"
+                                },
+                                "auto": {
+                                  "type": "boolean"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                },
+                                "enabled": {
+                                  "type": "boolean"
+                                },
+                                "groupName": {
+                                  "type": "string"
+                                },
+                                "interfaceName": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
