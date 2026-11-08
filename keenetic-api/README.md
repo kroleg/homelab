@@ -2,6 +2,12 @@
 
 Docker-internal REST wrapper for the router, listening on port 3000. Other services use `http://keenetic-api:3000/api`. It has no public discovery endpoint; consult the route handlers in this repository. Do not publish it on the LAN: existing mutation endpoints are trusted internal operations.
 
+## Client registration
+
+`GET /api/client-registration?ip=192.168.1.45` looks up one IP in the complete live router host table, including unregistered clients. Returns `{ "ip": "192.168.1.45", "mac": "aa:bb:cc:dd:ee:ff", "name": "Phone", "registered": false }`. Registration is the router's boolean field, independent of the MAC address bits, access policy or online state. No mutation, authorization bypass or automatic registration occurs. Responses are not cached.
+
+One valid IPv4/IPv6 `ip` query is required (400 for missing, repeated or invalid values). An absent host returns 404; unavailable or malformed router data returns 502. This endpoint remains Docker-internal with the same trusted-caller access model as the rest of this service. The existing `/api/clients` still lists only registered clients.
+
 ## Learned DNS addresses
 
 `GET /api/dns-learned-ips` reads a fresh `/rci/show/object-group/fqdn` snapshot from Keenetic. It returns the router's `group` array, preserving native field names and any firmware-specific diagnostic fields. It does not modify router configuration or force DNS resolution. Responses use `Cache-Control: no-store`.

@@ -1,0 +1,62 @@
+doctype html
+html(lang="ru")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport" content="width=device-width, initial-scale=1")
+    title Подключение к домашнему Wi-Fi
+    style.
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #111116; color: #f4f4f5; font: 17px/1.55 system-ui, sans-serif; }
+      main { max-width: 680px; margin: 0 auto; padding: 32px 22px 60px; }
+      h1 { font-size: 29px; line-height: 1.2; } h2 { font-size: 21px; }
+      .badge { color: #fda4af; font-weight: 600; } .muted { color: #a1a1aa; }
+      .card, details { background: #202027; border: 1px solid #363640; border-radius: 12px; padding: 18px; margin: 14px 0; }
+      summary { cursor: pointer; font-weight: 600; } li { margin: 10px 0; }
+      a.button { display: inline-block; background: #fb7185; color: #191116; padding: 12px 20px; border-radius: 9px; text-decoration: none; font-weight: 650; }
+      code { overflow-wrap: anywhere; } .ok { color: #86efac; }
+  body
+    main
+      if unavailable
+        p.badge Проверка временно недоступна
+        h1 Не удалось проверить устройство
+        p Попробуйте ещё раз через несколько секунд. Если проблема сохраняется, обратитесь к администратору домашней сети.
+      else if registered
+        p.badge.ok Устройство зарегистрировано
+        h1 Всё готово
+        p Это устройство зарегистрировано в домашней сети. Можно закрыть это окно.
+        p.muted Если уведомление ещё отображается, отключите Wi-Fi и подключитесь снова.
+      else
+        p.badge Домашний Wi-Fi
+        h1 Отключите приватный MAC-адрес для этой сети
+        p Устройство пока не зарегистрировано. Чтобы домашняя сеть могла его узнать, используйте MAC-адрес устройства вместо приватного или случайного адреса.
+        p Настройка меняется только для этой домашней сети.
+        details(open)
+          summary iPhone и iPad
+          ol
+            li Откройте «Настройки» → Wi-Fi.
+            li Нажмите ⓘ рядом с подключённой домашней сетью.
+            li «Частный адрес Wi-Fi» / «Приватный адрес Wi-Fi» → «Выкл.». В старых версиях выключите переключатель.
+            li Подтвердите изменение и подключитесь к Wi-Fi снова.
+        details
+          summary Android
+          ol
+            li Откройте «Настройки» → Wi-Fi / «Интернет» → подключённая сеть.
+            li Откройте настройки сети → «Конфиденциальность» / «Тип MAC-адреса».
+            li Выберите «MAC-адрес устройства» / «Использовать MAC устройства».
+            li Подключитесь к Wi-Fi снова. Названия пунктов зависят от производителя.
+        details
+          summary Mac
+          p «Системные настройки» → Wi-Fi → «Подробнее» у домашней сети → «Частный адрес Wi-Fi» → «Выкл.». Подключитесь снова.
+        details
+          summary Windows
+          p «Параметры» → «Сеть и Интернет» → Wi-Fi → «Управление известными сетями» → домашняя сеть → «Случайные аппаратные адреса» → «Откл.». Подключитесь снова.
+        p После смены адреса роутер должен зарегистрировать устройство автоматически. Если настройка уже выключена или её нет, обратитесь к администратору сети.
+      if client
+        .card
+          if client.name
+            div= client.name
+          div MAC: #[code= client.mac]
+          div.muted IP: #{ip}
+      else
+        p.muted IP: #{ip}
+      a.button(href="/") Проверить ещё раз

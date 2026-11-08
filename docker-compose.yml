@@ -4,6 +4,30 @@ include:
     env_file: .env
 
 services:
+  captive-portal:
+    container_name: captive-portal
+    build: ./captive-portal
+    depends_on:
+      - keenetic-api
+    environment:
+      - KEENETIC_API_URL=http://keenetic-api:3000/api/
+      - PORTAL_URL=http://portal.internal/
+      - TRUSTED_PROXIES=172.18.0.1,192.168.80.1
+      - TZ=${TZ}
+    networks:
+      - default
+      - shared
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.captive-portal.rule=Host(`portal.internal`) || Host(`captive.apple.com`) || Host(`connectivitycheck.gstatic.com`) || Host(`connectivitycheck.android.com`) || Host(`www.msftconnecttest.com`) || Host(`ipv6.msftconnecttest.com`)"
+      - "traefik.http.routers.captive-portal.entrypoints=web"
+      - "traefik.http.services.captive-portal.loadbalancer.server.port=3000"
+      - "traefik.docker.network=shared"
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+
   keenetic-proxy:
     container_name: keenetic-proxy
     build: ./keenetic-proxy

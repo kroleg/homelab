@@ -8,6 +8,7 @@ Monorepo for homelab services and infrastructure. Each subfolder is an independe
 - keenetic-zapret - Optional nfqws2 sidecar processing only the proxy's outbound IPv4 TCP HTTPS traffic (Compose profile dpi)
 
 - calendar (calendar.internal) - Family calendar display service for iPad using iCal.js and rrule
+- captive-portal (portal.internal) - Registration-based Wi-Fi instructions and OS connectivity-check responses; registration comes from keenetic-api
 - devices (devices.internal) - Admin UI for managing users and devices with PostgreSQL storage
 - docx-to-pdf (pdf.internal) - DOCX to PDF converter using LibreOffice headless
 - dns-proxy - DNS proxy with JSON logging and Prometheus metrics

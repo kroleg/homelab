@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { isIP } from 'node:net';
 import type { Logger } from '../logger.ts';
 import type { KeeneticService } from '../services/keenetic.service.ts';
 
@@ -82,6 +83,26 @@ export function createApiRoutes(logger: Logger, keenetic: KeeneticService, defau
     logger.debug(`Resolving interface: ${name}`);
     const id = await keenetic.resolveInterfaceId(name, defaultInterface);
     res.json({ id });
+  });
+
+  router.get('/client-registration', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const ip = req.query.ip;
+    if (typeof ip !== 'string' || !isIP(ip)) {
+      res.status(400).json({ error: 'A single valid ip parameter is required' });
+      return;
+    }
+    try {
+      const client = await keenetic.getClientRegistration(ip);
+      if (!client) {
+        res.status(404).json({ error: 'Client not found' });
+        return;
+      }
+      res.json(client);
+    } catch (error) {
+      logger.error('Failed to read client registration:', error);
+      res.status(502).json({ error: 'Router registration lookup unavailable' });
+    }
   });
 
   router.get('/client', async (req, res) => {

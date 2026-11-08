@@ -21,6 +21,7 @@ DNS-based VPN routing system for Keenetic routers. Automatically routes traffic 
 | Service | Domain | Description |
 |---------|--------|-------------|
 | [calendar](./calendar/) | calendar.internal | Family calendar display |
+| [captive-portal](./captive-portal/) | portal.internal | Wi-Fi registration instructions and connectivity probes |
 | [devices](./devices/) | devices.internal | User and device management |
 | [dns-proxy](./dns-proxy/) | - | DNS server with logging and ad blocking |
 | [family-dashboard](./family-dashboard/) | dom.internal | Family dashboard with quick links |

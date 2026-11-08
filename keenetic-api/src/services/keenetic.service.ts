@@ -264,6 +264,20 @@ export function createKeeneticService(config: {
   }
 
   return {
+    // Includes unregistered hosts; unlike getClients(), this is suitable for onboarding.
+    async getClientRegistration(ip: string): Promise<{ ip: string; mac: string; name: string; registered: boolean } | null> {
+      const response = await getWithAuth('/rci/show/ip/hotspot/host');
+      if (response.status !== 200 || !Array.isArray(response.data)) {
+        throw new Error(`Invalid host registration response (HTTP ${response.status})`);
+      }
+      const client = response.data.find((c: { ip?: string }) => c.ip === ip);
+      if (!client) return null;
+      if (typeof client.mac !== 'string' || typeof client.registered !== 'boolean') {
+        throw new Error('Invalid host registration fields');
+      }
+      return { ip, mac: client.mac, name: client.name || client.hostname || '', registered: client.registered };
+    },
+
     async getClientByIp(ip: string): Promise<ClientInfo | null> {
       try {
         const [response, { policyMap, policyDisplayNames }] = await Promise.all([
