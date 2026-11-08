@@ -33,6 +33,8 @@ Follow-up deployed as commit `be3951f` at approximately 17:16 UTC. Docker build 
 
 Screenshots were requested and then explicitly deferred by the user. No screenshots or external image dependencies were added to the portal.
 
+After deployment of `be3951f`, the user reported that the iPhone test appears to work ("looks like it works"). Treat the instructions/popup behavior as user-reported success after the direct-HTML change. This does not verify private-address disable/reconnect auto-registration or internet denial/restoration. Internet blocking remains off; those are the remaining checks before enforcement rollout.
+
 Read local session `dd7e1158-bd6f-4404-a923-b76e6b142d7d` and its plan `/home/kroleg/.claude/plans/delightful-noodling-toucan.md` on 2026-11-08. They describe a proposed DNS-proxy interception design; they do not establish a completed deployment.
 
 Historical unresolved checks: real LAN client IP preservation through Docker DNS publishing; preserving router DNS-learned routes when clients change DNS; missing TCP DNS listener. The historical default was a probe-only reminder. Its proposed full DNS hijack also cannot enforce internet denial against direct IP connections or alternate DNS.
