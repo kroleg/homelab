@@ -3,17 +3,19 @@ html(lang="ru")
   head
     meta(charset="UTF-8")
     meta(name="viewport" content="width=device-width, initial-scale=1")
+    meta(name="color-scheme" content="light")
     title Подключение к домашнему Wi-Fi
     style.
       * { box-sizing: border-box; }
-      body { margin: 0; background: #111116; color: #f4f4f5; font: 17px/1.55 system-ui, sans-serif; }
+      :root { color-scheme: only light; background: #fff; color: #18181b; }
+      html, body { margin: 0; background: #fff; color: #18181b; font: 17px/1.55 system-ui, sans-serif; }
       main { max-width: 680px; margin: 0 auto; padding: 32px 22px 60px; }
       h1 { font-size: 29px; line-height: 1.2; } h2 { font-size: 21px; }
-      .badge { color: #fda4af; font-weight: 600; } .muted { color: #a1a1aa; }
-      .card, details { background: #202027; border: 1px solid #363640; border-radius: 12px; padding: 18px; margin: 14px 0; }
+      .badge { color: #be123c; font-weight: 600; } .muted { color: #52525b; }
+      .card, details { background: #fafafa; border: 1px solid #d4d4d8; border-radius: 12px; padding: 18px; margin: 14px 0; }
       summary { cursor: pointer; font-weight: 600; } li { margin: 10px 0; }
-      a.button { display: inline-block; background: #fb7185; color: #191116; padding: 12px 20px; border-radius: 9px; text-decoration: none; font-weight: 650; }
-      code { overflow-wrap: anywhere; } .ok { color: #86efac; }
+      a.button { display: inline-block; background: #be123c; color: #fff; padding: 12px 20px; border-radius: 9px; text-decoration: none; font-weight: 650; }
+      code { overflow-wrap: anywhere; } .ok { color: #166534; }
   body
     main
       if unavailable

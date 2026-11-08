@@ -21,6 +21,12 @@ Rollback: remove exactly the added record with `no ip host captive.apple.com 192
 
 ## Historical investigation
 
+### Empty dark captive window after enabling blocking
+
+User enabled No Internet for unregistered Home clients, forgot/rejoined Wi-Fi and reported an empty black captive window. Live read-only inspection confirmed Bridge0 default access is now deny; the iPhone's unregistered entry has access deny. Requests to the Apple probe from the unregistered phone still reach the portal. The cause of the empty captive window is not yet established.
+
+The page has no external resources: CSS is inline, fonts are system fonts, and it has no scripts or images. Black was the explicitly configured background, not automatic appearance. Change requested: force a white/light page with dark text and readable controls. Add completion logging (host/path/status/response size) for all requests, including rejected paths, to diagnose the actual browser flow on retest. Do not claim the dark CSS explains missing text or that the empty-window issue is fixed without phone evidence.
+
 ### First iPhone test: popup displayed only Success
 
 User reported that the captive popup appeared but displayed only “Success”. At 17:10:34 UTC the portal logged an Apple `/hotspot-detect.html` request from 192.168.1.108 as `registered: false`; the live router host entry independently confirmed an active unregistered locally administered MAC. No follow-up to portal.internal appeared in the request log. Thus registration misclassification is not supported by this evidence. The source of the displayed Success page and iOS's exact subsequent URL remain unconfirmed; logs did not capture requests rejected before identity lookup.

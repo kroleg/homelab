@@ -27,6 +27,15 @@ export function createApp(options: {
     res.set({ 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
     next();
   });
+  app.use((req, res, next) => {
+    if (req.path !== '/health') {
+      res.on('finish', () => options.log('portal_response', {
+        ip: (req.ip || '').replace(/^::ffff:/, ''), host: req.hostname,
+        path: req.path, status: res.statusCode, bytes: res.getHeader('content-length') || null,
+      }));
+    }
+    next();
+  });
   app.get('/health', (_req, res) => { res.json({ status: 'ok' }); });
 
   app.use(async (req, res) => {
