@@ -43,13 +43,18 @@ test('registered clients get exact success responses for every probe, regardless
   } finally { await f.close(); }
 });
 
-test('unregistered and unknown clients are redirected; instructions cannot register them', async () => {
+test('unregistered and unknown clients see instructions directly on probe URLs and root', async () => {
   for (const registered of [false, null]) {
     const f = await fixture(async ip => registered === null ? null : ({ ip, mac: 'aa:bb:cc:dd:ee:ff', name: '<script>', registered }));
     try {
-      const response = await f.request('/generate_204', 'connectivitycheck.gstatic.com');
-      assert.equal(response.status, 302);
-      assert.equal(response.headers.get('location'), 'http://portal.internal/');
+      for (const probe of probes) {
+        for (const path of [probe.path, '/']) {
+          const response = await f.request(path, probe.host);
+          assert.equal(response.status, 200);
+          assert.equal(response.headers.get('location'), null);
+          assert.match(await response.text(), /Отключите приватный MAC-адрес/);
+        }
+      }
       const page = await f.request('/', 'portal.internal');
       assert.equal(page.status, 200);
       const html = await page.text();
@@ -67,7 +72,9 @@ test('router outage does not produce a successful probe or pretend the client is
     const response = await f.request('/generate_204', 'connectivitycheck.gstatic.com');
     assert.equal(response.status, 503);
     assert.match(await response.text(), /Не удалось проверить/);
-    assert.equal((await f.request('/api/status', 'portal.internal')).status, 503);
+    const status = await f.request('/api/status', 'portal.internal');
+    assert.equal(status.status, 503);
+    assert.equal((await status.json()).error, 'Проверка регистрации временно недоступна');
   } finally { await f.close(); }
 });
 
@@ -93,7 +100,9 @@ test('unknown paths do not trigger router lookups or become an open redirect', a
   const f = await fixture(async () => { throw new Error('Must not be called'); });
   try {
     assert.equal((await f.request('/anything', 'connectivitycheck.gstatic.com')).status, 404);
-    assert.equal((await f.request('/anything', 'portal.internal')).status, 404);
+    const missing = await f.request('/anything', 'portal.internal');
+    assert.equal(missing.status, 404);
+    assert.equal(await missing.text(), 'Страница не найдена');
   } finally { await f.close(); }
 });
 

@@ -55,8 +55,8 @@ html(lang="ru")
         .card
           if client.name
             div= client.name
-          div MAC: #[code= client.mac]
-          div.muted IP: #{ip}
+          div MAC-адрес: #[code= client.mac]
+          div.muted IP-адрес: #{ip}
       else
-        p.muted IP: #{ip}
+        p.muted IP-адрес: #{ip}
       a.button(href="/") Проверить ещё раз

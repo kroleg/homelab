@@ -1,6 +1,6 @@
 # Wi-Fi registration portal
 
-Dedicated HTTP connectivity-check service at `http://portal.internal/`. Registration comes from Keenetic, via the internal `GET /api/client-registration?ip=…` endpoint. Registered clients receive the exact successful probe response; unregistered/unknown clients receive HTTP 302 to the instructions page. Registered private MACs are accepted. The service performs no router mutations and does not enforce internet denial.
+Dedicated HTTP connectivity-check service at `http://portal.internal/`. Registration comes from Keenetic, via the internal `GET /api/client-registration?ip=…` endpoint. Registered clients receive the exact successful probe response; unregistered/unknown clients receive HTTP 200 with the instructions directly on the probe URL. Probe-host roots also render the page for captive browser follow-ups. Registered private MACs are accepted. The service performs no router mutations and does not enforce internet denial.
 
 The page has Russian instructions for disabling private MAC addresses on iOS, Android, macOS and Windows. `/api/status` returns only the requesting client's `{ip, mac, name, registered}`. Lookups have a 5-second timeout and a 2-second cache; a failed lookup returns 503 rather than pretending registration succeeded. `/health` checks the process only, not router availability. All responses are `Cache-Control: no-store`.
 

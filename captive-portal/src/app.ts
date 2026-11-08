@@ -33,9 +33,11 @@ export function createApp(options: {
     const ip = (req.ip || '').replace(/^::ffff:/, '');
     const probeHost = probes.some(p => p.host === req.hostname.toLowerCase());
     const probe = probes.find(p => p.host === req.hostname.toLowerCase() && p.path === req.path);
-    if (probeHost && !probe && req.path !== '/redirect') { res.sendStatus(404); return; }
-    if (!probeHost && !['/', '/api/status'].includes(req.path)) { res.sendStatus(404); return; }
-    if (!['GET', 'HEAD'].includes(req.method)) { res.sendStatus(405); return; }
+    // The captive browser may revisit the probe host at its root after detection.
+    // Render instructions directly there too, without a second DNS/redirect hop.
+    if (probeHost && !probe && !['/', '/redirect'].includes(req.path)) { res.status(404).type('text').send('Страница не найдена'); return; }
+    if (!probeHost && !['/', '/api/status'].includes(req.path)) { res.status(404).type('text').send('Страница не найдена'); return; }
+    if (!['GET', 'HEAD'].includes(req.method)) { res.status(405).type('text').send('Метод запроса не поддерживается'); return; }
     try {
       if (!isIP(ip)) throw new Error('Client address unavailable');
       const client = await options.lookup(ip);
@@ -45,7 +47,10 @@ export function createApp(options: {
         res.status(probe.status).type(probe.type).send(probe.body);
         return;
       }
-      if (probeHost) { res.redirect(302, options.portalUrl); return; }
+      if (probeHost) {
+        res.render('index', { ip, client, registered, unavailable: false });
+        return;
+      }
       if (req.path === '/api/status') {
         res.json({ ip, mac: client?.mac || null, name: client?.name || null, registered });
         return;
@@ -55,7 +60,7 @@ export function createApp(options: {
       options.log('registration_unavailable', { ip, error: (error as Error).message });
       // Never turn a router failure into a claim that a device is registered.
       if (req.path === '/api/status') {
-        res.status(503).json({ error: 'Registration lookup unavailable' });
+        res.status(503).json({ error: 'Проверка регистрации временно недоступна' });
       } else {
         res.status(503).render('index', { ip, client: null, registered: false, unavailable: true });
       }
