@@ -21,6 +21,16 @@ Rollback: remove exactly the added record with `no ip host captive.apple.com 192
 
 ## Historical investigation
 
+### Post-rollback review: probe paths, Success and cache
+
+User requested a documentation/code audit without resuming DNS interception. Current code retains the literal Apple Success HTML for registered clients at exactly `/hotspot-detect.html`; it was never removed. The earlier change removed the redirect for unregistered clients, not the registered success branch. `/`, `/redirect` and the listed probe path render instructions for unregistered callers; other paths currently return 404 before registration lookup. Thus the implementation does not yet serve instructions on all page paths of intercepted probe hosts. This restriction is a robustness defect to address before resuming, but is not established as the cause of the observed black window.
+
+After rollback, direct public HTTP GETs to both `http://captive.apple.com/` and `http://captive.apple.com/hotspot-detect.html` returned HTTP 200, the literal Success HTML (69 bytes), and `Cache-Control: max-age=31536000`. This confirms Apple's response permits a year of caching; it does not prove the iPhone actually used its cache. Our synthetic success is 68 bytes and our responses have `no-store`. A previously cached origin response can bypass the local service despite subsequent DNS changes.
+
+Official Apple enterprise-network documentation identifies captive.apple.com on TCP 80 **and 443** for connectivity validation. It does not establish a guaranteed exhaustive path list or say all paths are equivalent. Apple's modern captive-network guidance recommends DHCP option 114 / RA advertisement plus a TLS-protected captive JSON API. Microsoft explicitly distinguishes successful internet probes from captive responses. A future policy should serve instructions on arbitrary HTML page paths for unregistered clients on the intentionally intercepted hosts, retain machine health/status endpoints, and allow registered clients' connectivity probes to pass normally. Arbitrary third-party HTTPS hosts cannot be impersonated by the local HTTP service. No DNS or running-service configuration changed during this audit.
+
+Sources: [Apple enterprise endpoints](https://support.apple.com/en-us/101555), [Apple captive-network guidance](https://developer.apple.com/news/?id=q78sq5rv), [Microsoft NCSI FAQ](https://learn.microsoft.com/en-us/windows-server/networking/ncsi/ncsi-frequently-asked-questions), and direct curl responses captured under `/tmp/apple-public-{root,probe}.{headers,html}`.
+
 ### Empty dark captive window after enabling blocking
 
 User enabled No Internet for unregistered Home clients, forgot/rejoined Wi-Fi and reported an empty black captive window. Live read-only inspection confirmed Bridge0 default access is now deny; the iPhone's unregistered entry has access deny. Requests to the Apple probe from the unregistered phone still reach the portal. The cause of the empty captive window is not yet established.
