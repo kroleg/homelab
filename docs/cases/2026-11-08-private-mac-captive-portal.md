@@ -4,7 +4,7 @@
 
 User wants devices joining existing home Wi-Fi to see instructions to disable private MAC addresses. The accepted rule is **router registration**, independent of private MAC bits. The eventual requirement is to block internet for unregistered clients. The user agreed to phone testing first and selected an iPhone.
 
-**Current state (2026-11-08 17:08 UTC): deployed and ready for the iPhone test.** Commit `24b99ab` adds the dedicated portal and a narrow internal registration lookup endpoint. `keenetic-api` and `captive-portal` were rebuilt/recreated in dependency order and both report healthy. Only `captive.apple.com → 192.168.1.100` was added to Keenetic static DNS through authenticated RCI and configuration save was requested successfully. All other probe DNS overrides remain absent. Internet blocking remains off until the phone popup/local reachability test passes.
+**Current state (2026-11-08 17:31 UTC): light portal deployed; empty-window regression under internet blocking awaits phone retest.** Commit `24b99ab` added the dedicated portal and internal registration endpoint; `be3951f` switched to direct instructions HTML. Only `captive.apple.com → 192.168.1.100` was added to Keenetic static DNS; other probe DNS overrides remain absent. The user subsequently enabled Home internet denial for unregistered clients, confirmed in a live router snapshot. Commit `b45d689` forces white appearance and adds response diagnostics. Both services are running; the portal is healthy.
 
 The user proposed overriding OS captive-check DNS names to homelab and having a dedicated service query keenetic-api. The proposed registered-client 404 response was corrected to the OS-specific successful probe response. User authorized implementation/deployment and the single Apple DNS override; broader blocking is deferred for the agreed initial phone test.
 
@@ -26,6 +26,8 @@ Rollback: remove exactly the added record with `no ip host captive.apple.com 192
 User enabled No Internet for unregistered Home clients, forgot/rejoined Wi-Fi and reported an empty black captive window. Live read-only inspection confirmed Bridge0 default access is now deny; the iPhone's unregistered entry has access deny. Requests to the Apple probe from the unregistered phone still reach the portal. The cause of the empty captive window is not yet established.
 
 The page has no external resources: CSS is inline, fonts are system fonts, and it has no scripts or images. Black was the explicitly configured background, not automatic appearance. Change requested: force a white/light page with dark text and readable controls. Add completion logging (host/path/status/response size) for all requests, including rejected paths, to diagnose the actual browser flow on retest. Do not claim the dark CSS explains missing text or that the empty-window issue is fixed without phone evidence.
+
+`b45d689` deployed at 17:30 UTC after Docker typecheck, Pug compilation and seven passing tests. Live request from the actual loopback caller through Traefik returned HTTP 200, 3634 bytes, with `color-scheme: only light`, white background and Russian instructions. Response diagnostics verified in logs. The initial request during Traefik refresh briefly returned 404; the later check passed and container health is healthy. Awaiting iPhone retest; server response completion alone does not prove the captive browser displayed the page.
 
 ### First iPhone test: popup displayed only Success
 
