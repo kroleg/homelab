@@ -21,6 +21,18 @@ Rollback: remove exactly the added record with `no ip host captive.apple.com 192
 
 ## Historical investigation
 
+### First iPhone test: popup displayed only Success
+
+User reported that the captive popup appeared but displayed only “Success”. At 17:10:34 UTC the portal logged an Apple `/hotspot-detect.html` request from 192.168.1.108 as `registered: false`; the live router host entry independently confirmed an active unregistered locally administered MAC. No follow-up to portal.internal appeared in the request log. Thus registration misclassification is not supported by this evidence. The source of the displayed Success page and iOS's exact subsequent URL remain unconfirmed; logs did not capture requests rejected before identity lookup.
+
+Targeted follow-up change: return the instructions HTML directly on intercepted probe URLs, eliminating the 302/second hostname hop, and handle probe-host roots for captive-browser revisits. Keep successful probe responses for registered clients. This is a proposed fix pending phone retest; do not report the popup content issue as solved based on server tests.
+
+User additionally required all portal instructions and visible text to be in Russian. The Pug page already uses Russian; follow-up localizes 404/405 text, status lookup errors, and address labels too. OS connectivity success payloads remain byte-compatible (including Apple's `Success`); they are protocol responses, not translated portal copy. Router-reported device names are displayed verbatim.
+
+Follow-up deployed as commit `be3951f` at approximately 17:16 UTC. Docker build passed typecheck, Pug compilation and all seven portal tests; only captive-portal was recreated and is healthy. Live requests through Traefik, without forged source headers, verified an unknown loopback caller receives HTTP 200 with Russian instructions directly on the Apple probe URL, while the registered home-server caller still receives the exact Apple Success body. Unknown page text is Russian. The immediate check during Traefik's provider refresh returned a transient 404; the subsequent check passed. A real iPhone retest remains required; no claim that the observed popup issue is resolved yet. DNS and blocking settings were not changed in this follow-up.
+
+Screenshots were requested and then explicitly deferred by the user. No screenshots or external image dependencies were added to the portal.
+
 Read local session `dd7e1158-bd6f-4404-a923-b76e6b142d7d` and its plan `/home/kroleg/.claude/plans/delightful-noodling-toucan.md` on 2026-11-08. They describe a proposed DNS-proxy interception design; they do not establish a completed deployment.
 
 Historical unresolved checks: real LAN client IP preservation through Docker DNS publishing; preserving router DNS-learned routes when clients change DNS; missing TCP DNS listener. The historical default was a probe-only reminder. Its proposed full DNS hijack also cannot enforce internet denial against direct IP connections or alternate DNS.
