@@ -2,6 +2,8 @@
 
 Last updated: 2026-11-01. Status: HDMI switching verified through the existing remote library; reliable wake method still open.
 
+Cleanup on 2026-11-02: at the user's request, removed the stopped `mitv-bluetooth-test` container after verifying its test identity, exited state and no restart policy. Docker images and bind-mounted state were preserved. No running Home Assistant/Bluetooth or proxy services were stopped. Existing reproduction instructions below are historical; the container must be recreated before further tests.
+
 ## Goal
 
 Reliably turn the TV on and off, operate its remote functions, and select HDMI inputs from Home Assistant (HA). Investigate Bluetooth wake because the physical remote uses Bluetooth.
