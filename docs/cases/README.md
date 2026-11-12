@@ -22,6 +22,7 @@ Distinguish direct observations, user reports, historical records, and hypothese
 - [DNS Routes proxy selection and domain group labels](2026-11-02-dns-routes-proxy-selection.md)
 - [DNS Routes quick-add and domain moves](2026-11-02-dns-routes-quick-add.md)
 - [Keenetic selective routing test proxy](2026-11-02-keenetic-selective-proxy.md)
+- [Keenetic overlapping DNS route precedence](2026-11-06-keenetic-overlapping-dns-route-precedence.md)
 - [Zapret proxy load, standard UDP setup and YouTube QUIC playback](2026-11-12-zapret-proxy-load-status.md)
 
 - [Mi TV power and input control through Home Assistant](2026-11-02-mitv-home-assistant.md)
