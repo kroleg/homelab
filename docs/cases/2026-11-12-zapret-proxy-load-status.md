@@ -40,7 +40,7 @@ Source: `docker logs --since 24h keenetic-proxy`, 52,755 lines spanning Nov 11 1
 
 ## Assessment and open questions
 
-No observed CPU, memory, socket-listener or NFQUEUE pressure. Existing traffic includes a substantial historical burst. Maximum sustainable throughput and peak CPU/concurrency remain unmeasured. Command-5 rejections were subsequently traced to UDP-in-TCP requests (below); resets/timeouts alone do not identify DPI failure or resource exhaustion. Client playback and fresh end-to-end HTTP success were not tested during this inspection. Earlier functional tests are documented in [the original case](keenetic-selective-proxy.md).
+No observed CPU, memory, socket-listener or NFQUEUE pressure. Existing traffic includes a substantial historical burst. Maximum sustainable throughput and peak CPU/concurrency remain unmeasured. Command-5 rejections were subsequently traced to UDP-in-TCP requests (below); resets/timeouts alone do not identify DPI failure or resource exhaustion. Client playback and fresh end-to-end HTTP success were not tested during this inspection. Earlier functional tests are documented in [the original case](2026-11-02-keenetic-selective-proxy.md).
 
 ## Command-5 investigation — same day, 18:02–18:08 UTC
 

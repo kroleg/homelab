@@ -1,6 +1,6 @@
 # Experimental Mi TV Bluetooth test
 
-Locally written investigation code; **not a working or production integration**. No downloaded GitHub code was executed. See [the case](../../mitv-home-assistant.md) for evidence, failed tests, and current status.
+Locally written investigation code; **not a working or production integration**. No downloaded GitHub code was executed. See [the case](../../2026-11-02-mitv-home-assistant.md) for evidence, failed tests, and current status.
 
 The server adapter registered the HID advertisement but neither the TV nor a nearby phone discovered it. Receive-only scans also found zero devices. User reports antennas may be missing/disconnected; this is a hypothesis awaiting physical verification. Pairing, key delivery, and standby wake remain untested.
 

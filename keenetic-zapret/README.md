@@ -1,6 +1,6 @@
 # Proxy DPI processing
 
-The optional `dpi` Compose profile runs a pinned nfqws2 sidecar in the [proxy](../keenetic-proxy/)'s network namespace. See the [source review](SECURITY-REVIEW.md), [investigation evidence](../docs/cases/keenetic-selective-proxy.md), and [reusable execution plan](../docs/guides/keenetic-proxy-zapret-execution-plan.md).
+The optional `dpi` Compose profile runs a pinned nfqws2 sidecar in the [proxy](../keenetic-proxy/)'s network namespace. See the [source review](SECURITY-REVIEW.md), [investigation evidence](../docs/cases/2026-11-02-keenetic-selective-proxy.md), and [reusable execution plan](../docs/guides/keenetic-proxy-zapret-execution-plan.md).
 
 `engine.args` is the single strategy configuration: fake default TLS ClientHello with TCP MD5 and six repeats, followed by multidisorder at positions `1,midsld`. **There is no hostname filter or duplicate host list.** Keenetic selects traffic routed to the proxy; all eligible proxy TLS connections receive the strategy. This strategy was tested against this ISP and is not promised to work elsewhere.
 

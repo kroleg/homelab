@@ -2,6 +2,8 @@
 
 Keep durable records of non-trivial troubleshooting and research here. Use one descriptive Markdown file per case; update it as evidence arrives.
 
+Name each case `YYYY-MM-DD-descriptive-topic.md`, using the date the case was created (for example, `2026-11-02-api-discovery.md`). Retain that original date when adding findings later. `README.md` and supporting artifacts under `support/` are exempt. When renaming a case, update all links and references to it.
+
 Each case should capture:
 
 - Goal and current status.
@@ -16,7 +18,10 @@ Distinguish direct observations, user reports, historical records, and hypothese
 
 ## Cases
 
-- [Keenetic selective routing test proxy](keenetic-selective-proxy.md)
+- [OpenAPI discovery for LAN API clients](2026-11-02-api-discovery.md)
+- [DNS Routes proxy selection and domain group labels](2026-11-02-dns-routes-proxy-selection.md)
+- [DNS Routes quick-add and domain moves](2026-11-02-dns-routes-quick-add.md)
+- [Keenetic selective routing test proxy](2026-11-02-keenetic-selective-proxy.md)
 - [Zapret proxy load, standard UDP setup and YouTube QUIC playback](2026-11-12-zapret-proxy-load-status.md)
 
-- [Mi TV power and input control through Home Assistant](mitv-home-assistant.md)
+- [Mi TV power and input control through Home Assistant](2026-11-02-mitv-home-assistant.md)

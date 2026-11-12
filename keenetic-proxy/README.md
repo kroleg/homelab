@@ -4,7 +4,7 @@ Dante provides SOCKS5 TCP CONNECT and standard UDP ASSOCIATE at **192.168.1.250:
 
 The root Compose service uses macvlan on `enp1s0`, gateway `.1`, fixed MAC `02:42:c0:a8:01:fa`, and allocation range `.250/32`. This address is outside the observed DHCP pool `.33–.152`. Dante's outbound sockets use dedicated UID1080. Config/root filesystem are read-only; `/run` and `/tmp` use tmpfs. DNS goes through the router because Linux macvlan isolates the container from the host's `.100` interface. No host shim or published host port is needed.
 
-The optional [Zapret2 sidecar](../keenetic-zapret/) shares this namespace. The [execution plan](../docs/guides/keenetic-proxy-zapret-execution-plan.md) explains how to reproduce the setup elsewhere. [Investigation record](../docs/cases/keenetic-selective-proxy.md) contains historical experiments and verified results.
+The optional [Zapret2 sidecar](../keenetic-zapret/) shares this namespace. The [execution plan](../docs/guides/keenetic-proxy-zapret-execution-plan.md) explains how to reproduce the setup elsewhere. [Investigation record](../docs/cases/2026-11-02-keenetic-selective-proxy.md) contains historical experiments and verified results.
 
 ## Operation
 
