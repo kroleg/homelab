@@ -5,6 +5,7 @@
 .HA_VERSION
 .storage/
 .cache/
+image/
 blueprints/
 backups/
 tts/
