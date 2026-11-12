@@ -17,5 +17,6 @@ Distinguish direct observations, user reports, historical records, and hypothese
 ## Cases
 
 - [Keenetic selective routing test proxy](keenetic-selective-proxy.md)
+- [Zapret proxy load, standard UDP setup and YouTube QUIC playback](2026-11-12-zapret-proxy-load-status.md)
 
 - [Mi TV power and input control through Home Assistant](mitv-home-assistant.md)
